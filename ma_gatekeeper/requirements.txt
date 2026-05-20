@@ -1,0 +1,44 @@
+# Core agent + ADK
+google-adk>=1.0.0
+google-genai>=0.4.0
+google-cloud-aiplatform>=1.50.0
+google-auth>=2.20.0  # for OIDC verification on /reflect
+
+# Arize Phoenix observability + evals
+arize-phoenix>=4.0.0
+arize-phoenix-client>=1.17.0  # client.spans.add_span_annotation (not deprecated annotations.*)
+arize-phoenix-evals>=0.5.0
+arize-phoenix-otel>=0.5.0
+openinference-instrumentation-google-adk>=0.1.11
+openinference-instrumentation-google-genai>=0.1.0
+openinference-instrumentation-vertexai>=0.1.0
+openinference-instrumentation-mcp>=0.1.0
+
+# OpenTelemetry
+opentelemetry-sdk>=1.20.0
+opentelemetry-exporter-otlp>=1.20.0
+opentelemetry-proto>=1.20.0
+
+# MCP (for the Reflector's @arizeai/phoenix-mcp tool wiring)
+mcp>=0.9.0
+
+# SEC EDGAR
+edgartools[ai]>=4.0.0
+
+# Data + math
+pandas>=2.0.0
+numpy>=1.25.0
+pydantic>=2.5.0
+datasets>=2.14.0
+huggingface-hub>=0.20.0
+
+# PDF parsing (fallback path; Gemini Files API is primary)
+pdfplumber>=0.10.0
+
+# Web server
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+
+# Plotting reliability diagrams
+matplotlib>=3.8.0
