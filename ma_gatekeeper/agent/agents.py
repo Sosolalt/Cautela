@@ -27,18 +27,11 @@ from .prompts import (
     PARSER_PROMPT,
     RISK_JUDGE_PROMPT,
 )
+# Single source of truth: derive from the schemas.Tag Literal rather
+# than re-listing the 7 strings here. See README "Tag sync points".
+from .schemas import CLASSIFIER_TAGS  # noqa: F401  re-export for callers
 
 _LOG = logging.getLogger(__name__)
-
-CLASSIFIER_TAGS = (
-    "change_of_control",
-    "anti_assignment",
-    "mac",
-    "accelerated_vesting",
-    "exclusivity",
-    "ip_assignment",
-    "non_compete",
-)
 
 
 def _load_prompt(name: str, fallback: str, tag: str = "production") -> str:

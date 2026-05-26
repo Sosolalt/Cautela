@@ -5,7 +5,7 @@ the pipeline is JSON-schema-validated end to end.
 """
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import BaseModel, Field
 
@@ -19,6 +19,17 @@ Tag = Literal[
     "non_compete",
     "none",
 ]
+
+# Derived tag tuples — DO NOT hand-replicate these elsewhere. Adding a
+# new tag means adding it to the `Tag` Literal above and to the
+# `frontend/lib/types.ts:Tag` union (sync-guarded by
+# `tests/test_tag_sync.py`); both Python tuples below derive
+# automatically. See the "Tag sync points" section in README.md.
+ALL_TAGS: tuple[Tag, ...] = get_args(Tag)
+# CLASSIFIER_TAGS excludes "none" because the parallel ParallelAgent
+# fan-out in agents.py spawns one LlmAgent per real clause family;
+# "none" is the absence label, not a classifier target.
+CLASSIFIER_TAGS: tuple[Tag, ...] = tuple(t for t in ALL_TAGS if t != "none")
 
 Severity = Literal["info", "watch", "block"]
 Lane = Literal["auto_clear", "escalate", "block"]
@@ -53,7 +64,13 @@ class RiskFinding(BaseModel):
     cited_spans: list[str]
     cited_spans_text: str
     explanation: str
-    arize_trace_id: str
+    # OTel trace ID (32-char lowercase hex), populated by the server from
+    # the active span context — NEVER by the LLM. None when emitted
+    # outside an active OTel context (e.g. unit tests, NoOp tracer). The
+    # frontend uses this to deep-link into the Phoenix trace view; the
+    # name is `trace_id` (not `arize_trace_id`) because it's a W3C OTel
+    # concept and Phoenix is just the viewer.
+    trace_id: str | None = Field(default=None)
 
 
 class GatekeeperDecision(BaseModel):

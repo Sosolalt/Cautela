@@ -28,7 +28,7 @@ def _finding(severity: str) -> RiskFinding:
         cited_spans=["sec_1.1_def"],
         cited_spans_text="'Change of Control' means...",
         explanation="The CoC trigger covers indirect equity changes.",
-        arize_trace_id="trace_demo",
+        # trace_id is server-populated; routing logic doesn't read it.
     )
 
 

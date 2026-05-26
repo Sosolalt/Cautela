@@ -28,11 +28,16 @@ edgartools[ai]>=4.0.0
 # Data + math
 pandas>=2.0.0
 numpy>=1.25.0
+# Used by scripts/perturb_contracts.py (offline leakage discriminator) +
+# scripts/calibrate.py (one-sided Wilson + cluster bootstrap helpers).
+scikit-learn>=1.3.0
 pydantic>=2.5.0
 datasets>=2.14.0
 huggingface-hub>=0.20.0
 
-# PDF parsing (fallback path; Gemini Files API is primary)
+# PDF parsing (fallback path). The agent feeds artifacts to Gemini via
+# Part.from_bytes (inline) under 8 MB and via the Files API + Part.from_uri
+# above that threshold — see agent/server.py:_build_gemini_part.
 pdfplumber>=0.10.0
 
 # Web server

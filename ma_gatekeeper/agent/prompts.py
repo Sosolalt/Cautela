@@ -15,8 +15,9 @@ narrowing, accelerated vesting) — v1 was missing MAC and vesting entirely.
 
 PARSER_PROMPT = """You are an M&A contract parser.
 
-Read the provided PDF (attached via the Files API as a single document)
-and emit a JSON list of clauses with this exact schema:
+Read the provided exhibit (attached as a single document — usually an
+HTML .htm file from EDGAR, occasionally a PDF) and emit a JSON list of
+clauses with this exact schema:
 
   {
     "id": "sec_4.2_para_b",
@@ -33,7 +34,8 @@ Rules:
   numbering. If a clause is unnumbered (a recital, a defined term),
   use "Recitals" or "Definitions" as the leaf.
 - pdf_bbox SHOULD be populated for every clause when layout coordinates
-  are available. If not, set it to null.
+  are available (PDF exhibits only). For HTML exhibits set it to null —
+  the frontend renders HTML in an iframe and doesn't need coordinates.
 - Do NOT classify clauses here — just extract their text and location.
 - ALSO emit defined terms from the Definitions section as their own
   clauses (id prefix "def_"), because change-of-control triggers
@@ -78,6 +80,13 @@ A confident match should:
    abstaining over over-tagging.
 """
 
+# STRUCTURAL CONTRACT for scripts/seed_reflector.py:make_weak_template:
+# The four numbered "N. **clause_family**" blocks below must remain the
+# only top-level numbered list, and must be immediately followed by the
+# "For each finding, emit:" section. The D18 pre-seed regex strips
+# exactly those four blocks; inserting an un-numbered paragraph between
+# block 4 and "For each finding," will be silently eaten on the next
+# weak-template build.
 CROSS_REFERENCE_PROMPT = """You are an M&A cross-reference resolver.
 
 Given the classified clauses, walk the document and produce one
@@ -156,4 +165,8 @@ DO NOT add information not supported by the cited spans. If the spans
 don't fully support a conclusion, write less and lower the implied
 confidence — the hallucination evaluator will penalize ungrounded
 prose, which will route the finding to "escalate to lawyer."
+
+DO NOT emit a `trace_id` field on RiskFinding output. The server
+populates `trace_id` from the active OTel context after your output is
+parsed; any value you produce is discarded.
 """
