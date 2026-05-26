@@ -1,0 +1,37 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ma_gatekeeper
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # The full requirements.txt pulls Phoenix + ADK + Vertex SDKs; for unit
+      # tests (pure-Python math + schemas + Argilla JSONL serialization) we
+      # only need a tight subset. Keeps CI under a minute.
+      - name: Install test deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pydantic numpy pandas fastapi 'httpx<0.29' python-multipart opentelemetry-api
+
+      - name: Run pytest
+        run: python -m pytest tests/ -v

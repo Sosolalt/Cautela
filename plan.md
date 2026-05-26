@@ -98,7 +98,7 @@ In the 3-minute video, the climactic 10-second shot is: **a Block-lane finding �
 | Reasoning model | **Gemini 3 Pro** (1M context) for Parser, Cross-Reference, Judge; **Gemini 3 Flash** for the classifier fan-out | Long-context + cheap parallel classification |
 | Agent framework | **Google ADK Python** (`google-adk`) | Native to hackathon; `SequentialAgent` + `ParallelAgent` + `sub_agents`; one-line Cloud Run deploy |
 | MCP servers mounted in-agent | **Arize Phoenix MCP** (`@arizeai/phoenix-mcp`), **EdgarTools MCP** (`edgartools-mcp`) | Phoenix MCP for self-reflection; EdgarTools MCP for live SEC fetch in the demo |
-| Document ingestion | **Gemini Files API** primary; **Document AI Layout Parser** fallback for scanned PDFs | Gemini reads PDFs natively; layout parser preserves structure when OCR is needed |
+| Document ingestion | **Threshold-based**: inline `Part.from_bytes` under 8 MB; **Gemini Files API** + `Part.from_uri` above (for PDFs >5 MB or any blob >8 MB); Document AI Layout Parser fallback for scanned PDFs | Inline path is faster (no upload round-trip) and covers the 5-deal HTML demo (~2 MB each); Files API path prevents inline truncation of page-rich PDFs past ~20 pages. See `_build_gemini_part` + `_FILES_API_THRESHOLD_BYTES` (env-overridable). |
 | Structured output | **Pydantic + JSON Schema** on every sub-agent | Reliability; clean evaluator I/O |
 | Observability | **Arize Phoenix self-hosted on Cloud Run** + `openinference-instrumentation-google-adk`; `phoenix.otel.register(set_global_tracer_provider=False, auto_instrument=True)` | The `set_global_tracer_provider=False` kwarg avoids collisions with Cloud Run/Vertex's default TracerProvider |
 | Backend | **Cloud Run** (`adk deploy cloud_run`) | Scales to zero; public URL; secrets via Secret Manager |
@@ -191,7 +191,7 @@ class GatekeeperDecision(BaseModel):
 ### 5.1 Recommended dataset stack
 1. **MAUD** — 152 real public-target merger agreements, 47k expert labels, 92 ABA deal-point questions. **MCQ format, not span.** Used as **its own eval track** ("MAUD-MCQ"), compared to published baselines. CC-BY-4.0. ([Atticus MAUD](https://www.atticusprojectai.org/maud/), [arXiv 2301.00876](https://arxiv.org/abs/2301.00876))
 2. **CUAD** — 510 commercial contracts, ~13k spans, native SQuAD JSON. Used for **span-level CoC + Anti-Assignment** evaluation on a 30-contract sample we re-annotate. CC-BY-4.0. ([Atticus CUAD](https://www.atticusprojectai.org/cuad), [arXiv 2103.06268](https://arxiv.org/abs/2103.06268)). We acknowledge CUAD CoC labels are noisy; we publish both our re-annotated gold and the original labels.
-3. **EDGAR via EdgarTools + MCP** — live demo source, **constrained to a pre-vetted allow-list of 5 known-spicy recent 8-K Exhibit 2.1 filings** (the demo presents this as "recent deals our agent has indexed," not a free-form ticker box). MIT, no API key. ([EdgarTools](https://github.com/dgunning/edgartools), [EdgarTools MCP](https://www.edgartools.io/edgartools-mcp-for-sec-filings/))
+3. **EDGAR via EdgarTools + MCP** — live demo source, **constrained to a pre-vetted allow-list of 5 known-spicy recent 8-K Exhibit 2.1 filings** (the demo presents this as "five pre-indexed deals," not a free-form ticker box — the locked voiceover wording is in §5.5 and the "recently indexed" framing was explicitly rejected as soft-deceptive). MIT, no API key. ([EdgarTools](https://github.com/dgunning/edgartools), [EdgarTools MCP](https://www.edgartools.io/edgartools-mcp-for-sec-filings/))
 
 **Skipped**: sec-api.io (cost), LEDGAR (wrong granularity), ContractNLI (NDA-only), pure-synthetic Gemini contracts as headline eval (distribution shift).
 
@@ -216,13 +216,21 @@ We do **not** pretend MCQ and span eval are the same number.
 **`[v3]` Expected CI width — pre-disclosed**:
 With ~6–10 Block findings per fold (4 headline folds × ~24–40 total), a 95% Wilson CI for a proportion at or near 1.0 will span **roughly ±0.10–0.15**. The README headline will therefore typically look like *"point-estimate Block recall = R [Wilson 95% LB = R−0.10 to R+0]"*. **We pre-commit to publishing the Wilson LB as the load-bearing number, even when it falls well below the §0 0.95 target.** At this sample size, the LB clearing 0.95 is arithmetically tight — closer to a stretch than a guarantee — and the headline phrasing reflects that honestly.
 
-### 5.3 Synthetic perturbation, with leakage audit `[v2: new]`
-For 5 of the Internal-30 contracts, take a MAUD base and prompt Gemini to inject one of:
+### 5.3 Synthetic perturbation, with leakage audit `[v2: new; v4.1: honest impl note]`
+For 5 of the Internal-30 contracts, take a MAUD base and inject one of:
 - Narrow a MAE carve-out (remove pandemic / regulatory change)
 - Swap "reasonable best efforts" for "commercially reasonable efforts"
 - Add a holdco-only CoC trigger that doesn't apply to the actual deal structure
+- Remove the prior-written-consent requirement from an anti-assignment clause
+- Weaken a no-shop fiduciary-out by lowering the Superior Proposal threshold
 
-**Leakage audit** (D13): hold out a discriminator model (Gemini 3 Flash with a "real vs synthetic" prompt), score 200-token windows from real vs perturbed contracts, report AUC. **`[v3]` Tightened thresholds**: ship if AUC < 0.6 (near-random); caveat in the README if 0.6 ≤ AUC < 0.7; **redo** if AUC ≥ 0.7. v2's 0.7 ship-bar allowed meaningful leakage.
+**Leakage audit** (D13): hold out a discriminator and score windows from real vs perturbed contracts; report AUC. **`[v3]` Tightened thresholds**: ship if AUC < 0.6 (near-random); caveat in the README if 0.6 ≤ AUC < 0.7; **redo** if AUC ≥ 0.7.
+
+**`[v4.1]` Honest impl note — what `scripts/perturb_contracts.py` actually does:**
+- **Perturbations are deterministic regex transforms**, not Gemini paraphrases (zero-API-key ship-gate, reproducible across CI runs, no non-determinism in the leakage number). The 5 perturbations above are each implemented as a regex / literal substitution.
+- **Discriminator is sklearn TfidfVectorizer (word 1-2 grams) + L2 LogisticRegression + 5-fold StratifiedKFold AUC**, NOT the planned same-family-LLM (Gemini-vs-Gemini) judge. Word 1-2 grams + 1200-char windows dilute the per-swap signal so AUC measures CONTEXTUAL leakage (style / length / punctuation artifacts), not the intended lexical change. The discriminator is arguably stricter than the planned LLM judge for the failure mode that matters (did we leave a stylistic tell?).
+- **No-op guard**: each (real, perturbed) pair is sha256-compared; if any pair is identical, the script raises BEFORE computing AUC. (The Phase 5 audit caught the pre-v3 stub returning unchanged text + hardcoded AUC=0.5 + logging "CLEAN: ship without caveat" — exactly the silent-success pattern this guard now prevents.)
+- The planned `[v3]` LLM-perturbator + LLM-discriminator design remains aspirational in §5.3; the regex+TF-IDF implementation is the honest baseline that ships.
 
 ### 5.4 Calibration and the operating threshold `[v3: 4 headline folds + 1 frozen fold, per-evaluator thresholds, bootstrapped CIs, expected-CI-width disclosed]`
 v1 used a hard-coded 0.90; v2 had a single τ on the full Internal-30 (calibrate-on-test contamination). v3 protocol:
@@ -431,7 +439,7 @@ This is reproducibility engineering, not staging — the loop runs exactly as it
 |---|---|---|
 | 0:00–0:20 | **Problem** | Quote from Potomac Law CoC piece on the missed-clause failure mode; overlay deal-volume + diligence-cost figure (citation visible). |
 | 0:20–0:35 | **Architecture** (compressed from 30s → 15s per Reviewer 4) | One diagram, 3 callouts: Gemini 3 + ADK, Phoenix tracing, MCP self-improvement loop. |
-| 0:35–1:50 | **Live demo** | (a) Pick a deal from the allow-list (presented as "recently indexed deals"); (b) lanes populate as Gemini streams findings via SSE; (c) hover a Block finding → tooltip shows judge score and abstention threshold. |
+| 0:35–1:50 | **Live demo** | (a) Pick a deal from the allow-list (presented as "five pre-indexed deals" per the §5.5 pre-commitment — explicitly NOT "recently indexed"); (b) lanes populate as Gemini streams findings via SSE; (c) hover a Block finding → tooltip shows judge score and abstention threshold. |
 | 1:50–2:05 | **THE MOMENT** | Cmd+click the Block finding → Phoenix dashboard opens in a new tab, showing the full trace, the cited span, the hallucination evaluator's output, the LLM judge reasoning, and the score that crossed the threshold. Hold this shot for 8–10 seconds. |
 | 2:05–2:45 | **Self-improvement loop** | Switch to Phoenix Experiments tab. Show last 48h: the Reflector created `candidate` from a real low-score trace, ran an experiment, candidate beat production by +0.07 on regressions-v1, auto-promotion event visible in the prompt history. (Pre-seeded per §6.4 to guarantee a real delta.) |
 | 2:45–3:00 | **Close** | Open the README results table on screen — show MAUD-MCQ accuracy, CUAD-Spans F1, and "recall=1.0 on Block at abstention=Y%" on Internal-30. Final card: GitHub link, hosted URL, Phoenix URL. |

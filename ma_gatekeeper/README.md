@@ -68,12 +68,18 @@ ma_gatekeeper/
     server.py            # FastAPI: /review, /review-by-deal, /reflect, /allow-list
   scripts/
     download_datasets.py # CUAD + MAUD + EDGAR pull
-    perturb_contracts.py # adversarial slice + leakage AUC audit (<0.6 to ship)
+    perturb_contracts.py # adversarial slice (regex transforms) + TF-IDF/LogReg leakage AUC audit (<0.6 to ship; see plan §5.3 v4.1 honest impl note)
     calibrate.py         # 5-fold CV grid search + reliability diagrams
+    annotate.py          # Gemini pre-label -> Argilla JSONL + Cohen's kappa
+    seed_reflector.py    # D18 pre-seed: weaken production prompt, stage strong as candidate
   tests/
     test_fold_split.py     # D9-morning unit test (7 tests)
     test_promotion_rule.py # bootstrap CI + epsilon floor + allowlist (9 tests)
     test_router.py         # independent-gating semantics (7 tests)
+    test_stats.py          # one-sided Wilson + cluster bootstrap (8 tests)
+    test_annotate.py       # JSONL serialization + kappa math (21 tests)
+    test_seed_reflector.py # D18 pre-seed: weak-template + tag pairing (9 tests)
+    test_allow_list.py     # 5-deal schema + HTTP 503/404 invariants (9 tests)
   Dockerfile
   requirements.txt
   .env.example
@@ -99,7 +105,7 @@ uvicorn agent.server:app --reload --port 8080
 
 ## Tests
 
-23 pure-Python unit tests; no live API calls. Run:
+70 pure-Python unit tests; no live API calls. Run:
 
 ```bash
 .venv/bin/python -m pytest tests/ -v
@@ -110,6 +116,36 @@ catching off-by-one + leak-via-shared-state bugs. The promotion-rule
 tests verify bootstrap CI math, epsilon floor (0.03), and the
 code-enforced allowlist that prevents the Reflector from writing to the
 frozen held-out fold.
+
+## Tag sync points
+
+The 8-value clause-tag enum has ONE source of truth and three derived
+or hand-mirrored consumers:
+
+- **Truth**: `agent/schemas.py:Tag` (Literal of 8 values incl. `"none"`).
+  `ALL_TAGS` and `CLASSIFIER_TAGS = ALL_TAGS - {"none"}` are derived
+  here via `typing.get_args`.
+- **Re-export**: `agent/agents.py` imports `CLASSIFIER_TAGS` for the
+  ParallelAgent fan-out. No duplicate list.
+- **Re-export**: `scripts/annotate.py` imports `CLASSIFIER_TAGS` as
+  `PRELABEL_TAGS`; `PRELABEL_INSTRUCTION` f-strings the list so Gemini
+  always sees the current set.
+- **Hand-mirror**: `frontend/lib/types.ts:Tag` union. Drift is caught
+  by `tests/test_tag_sync.py:test_frontend_ts_tag_union_matches_python`
+  (regex cross-check; no codegen).
+
+**To add a new clause tag**, touch exactly two files:
+1. Append the literal to `agent/schemas.py:Tag`.
+2. Append the same string to `frontend/lib/types.ts:Tag`.
+
+Then run `pytest tests/test_tag_sync.py` to confirm.
+
+Also consider whether the new tag deserves its own bespoke
+clause-family block in `agent/prompts.py:CROSS_REFERENCE_PROMPT` (the
+first four tags get one; the others don't — that's a deliberate legal-
+specificity choice, not an oversight). The D18 seed regex in
+`scripts/seed_reflector.py` is pinned to exactly four blocks and is
+guarded by `test_tag_sync.py:test_cross_reference_prompt_has_four_clause_family_headings`.
 
 ## Demo scope (plan §5.5)
 
@@ -122,7 +158,7 @@ change between runs.
 
 **Demo Scope paragraph** (required in the Devpost description):
 
-> The hosted demo runs against a curated list of five recent
+> The hosted demo runs against a curated, pre-indexed set of five recent
 > 8-K/Ex 2.1 merger filings, pre-validated to surface at least one
 > change-of-control, anti-assignment, or MAC-related finding so the
 > agent has something interesting to do on camera. The filings are
