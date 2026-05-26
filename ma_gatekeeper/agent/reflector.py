@@ -31,6 +31,7 @@ datasets in `_WRITABLE_DATASETS`. PermissionError otherwise.
 """
 from __future__ import annotations
 
+import asyncio
 import functools
 import logging
 import os
@@ -111,34 +112,41 @@ def build_introspection_agent():
     )
 
 
-def _run_introspection_agent() -> str:
-    """Hook 4 — actually invoke the MCP-mounted introspection agent.
+async def _run_introspection_agent_async() -> str:
+    """Async body of Hook 4 — invoke the MCP-mounted introspection agent.
 
-    Wires `build_introspection_agent()` into the cycle so Hook 4 is
-    NOT dead code. Returns the agent's textual summary of what failed
-    last night; used for logging + as additional context for the
-    candidate-prompt drafter in step 3.
+    Lives as an `async def` so we can `await` ADK's sync-or-async
+    create_session shim cleanly and drive `runner.run_async`'s async
+    generator with `async for`. The sync wrapper below calls this via
+    `asyncio.run` from inside a worker thread.
 
-    Best-effort: if ADK or the MCP server is unavailable, returns "".
+    Cleans up the MCP `Toolset` subprocess(es) on every exit path —
+    `npx -y @arizeai/phoenix-mcp@latest` is a child process spawned
+    per toolset construction; if we don't close it, the nightly
+    Reflector cron leaks one `node` process per cycle and Cloud Run
+    eventually exhausts file descriptors. Found by Designer B in
+    Issue-5 review — silent failure mode that the bare `except` in
+    the old sync code masked completely.
     """
     agent = build_introspection_agent()
     if agent is None:
         _LOG.info("Hook 4: introspection agent unavailable (MCP env unset?).")
         return ""
+
+    import inspect as _inspect
+    from google.adk.runners import InMemoryRunner
+    from google.genai import types as gtypes
+
+    runner = InMemoryRunner(agent=agent, app_name="ma-gatekeeper-reflector")
+    session_id = "introspection-" + os.urandom(4).hex()
     try:
-        from google.adk.runners import InMemoryRunner
-        from google.genai import types as gtypes
-        runner = InMemoryRunner(agent=agent, app_name="ma-gatekeeper-reflector")
-        session_id = "introspection-" + os.urandom(4).hex()
-        # ADK session create can be sync or async across 1.x — guard.
-        import inspect as _inspect
         result = runner.session_service.create_session(
             app_name="ma-gatekeeper-reflector",
             user_id="reflector", session_id=session_id,
         )
         if _inspect.isawaitable(result):
-            import asyncio
-            asyncio.get_event_loop().run_until_complete(result)
+            await result
+
         msg = gtypes.Content(
             role="user",
             parts=[gtypes.Part(text=(
@@ -147,27 +155,58 @@ def _run_introspection_agent() -> str:
                 "escalation-tagged spans."
             ))],
         )
-        # Run synchronously by draining the async iterator.
-        import asyncio
-        async def _drain():
-            chunks: list[str] = []
-            async for event in runner.run_async(
-                user_id="reflector", session_id=session_id, new_message=msg,
-            ):
-                content = getattr(event, "content", None)
-                parts = getattr(content, "parts", None) or []
-                for p in parts:
-                    t = getattr(p, "text", None)
-                    if t:
-                        chunks.append(t)
-            return "\n".join(chunks)
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(_drain())
-        finally:
-            loop.close()
-    except Exception as exc:
-        _LOG.warning("Hook 4 introspection agent failed: %s", exc)
+        chunks: list[str] = []
+        async for event in runner.run_async(
+            user_id="reflector", session_id=session_id, new_message=msg,
+        ):
+            content = getattr(event, "content", None)
+            parts = getattr(content, "parts", None) or []
+            for p in parts:
+                t = getattr(p, "text", None)
+                if t:
+                    chunks.append(t)
+        return "\n".join(chunks)
+    finally:
+        # Reap MCP stdio child processes. `aclose()` is the ADK 1.x
+        # contract on MCPToolset; older versions exposed `close()`.
+        for tool in getattr(agent, "tools", None) or []:
+            close = getattr(tool, "aclose", None) or getattr(tool, "close", None)
+            if close is None:
+                continue
+            try:
+                result = close()
+                if _inspect.isawaitable(result):
+                    await result
+            except Exception as exc:
+                _LOG.warning(
+                    "Hook 4: failed to close MCP toolset %r: %s",
+                    type(tool).__name__, exc,
+                )
+
+
+def _run_introspection_agent() -> str:
+    """Hook 4 sync wrapper — invoked from `run_reflection_cycle`, which
+    itself runs in a `run_in_executor` worker thread off the FastAPI
+    request loop.
+
+    `asyncio.run` is the right primitive here: it creates a fresh loop,
+    sets it as the current loop for the duration, awaits the coroutine,
+    and runs `shutdown_asyncgens` + closes the loop on exit. The
+    previous `asyncio.get_event_loop().run_until_complete(...)` pattern
+    raises `DeprecationWarning` on Python 3.12 (no loop in this thread)
+    and `RuntimeError` on Python 3.14 — silently swallowed by the old
+    bare `except`, which made Hook 4 a quietly-dead beat.
+
+    Re-raises `CancelledError` (server shutdown should propagate); all
+    other exceptions log with traceback + return "" so a Phoenix/MCP
+    outage doesn't abort the nightly cycle.
+    """
+    try:
+        return asyncio.run(_run_introspection_agent_async())
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        _LOG.warning("Hook 4 introspection agent failed", exc_info=True)
         return ""
 
 
