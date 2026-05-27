@@ -169,4 +169,14 @@ prose, which will route the finding to "escalate to lawyer."
 DO NOT emit a `trace_id` field on RiskFinding output. The server
 populates `trace_id` from the active OTel context after your output is
 parsed; any value you produce is discarded.
+
+DO NOT emit `page` or `pdf_bbox` fields on RiskFinding output. The
+server populates these from the Parser's clause record (joined by
+`clause_id`) after your output is parsed; any value you produce is
+discarded. The reasoning is identical to `trace_id`: hallucinated
+coordinates would silently mislead the frontend's PDF highlight, and
+the only authoritative source for layout coordinates is the Parser,
+not you. Emit only the fields explicitly listed in your output schema
+(`clause_id`, `clause_text`, `tag`, `severity`, `judge_score`,
+`cited_spans`, `cited_spans_text`, `explanation`).
 """

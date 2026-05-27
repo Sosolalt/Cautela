@@ -32,10 +32,11 @@ import hmac
 import json
 import logging
 import os
+import time
 import uuid
 from typing import AsyncIterator
 
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 import hashlib
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Path, Request, UploadFile
@@ -107,15 +108,42 @@ _FILES_API_THRESHOLD_BYTES = int(
     os.environ.get("FILES_API_THRESHOLD_BYTES", str(8 * 1024 * 1024))
 )
 # Per-key cache of Files-API URIs so a re-click on the same deal reuses
-# the existing handle instead of re-uploading. Files auto-expire at 48h
-# on Google's side; we don't proactively delete because the 5-deal demo
-# benefits from the cache. Keyed by content sha256 so byte-identical
-# re-fetches dedupe even when the cache_key (CIK) wasn't passed.
-_files_api_uri_cache: dict[str, str] = {}
-_files_api_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+# the existing handle instead of re-uploading. Google auto-expires the
+# uploaded file at 48 h server-side; we evict at 36 h via TTL to stay
+# well clear of the boundary plus clock skew. Keyed by content sha256
+# so byte-identical re-fetches dedupe even when cache_key (CIK) wasn't
+# passed. Value: (uri, monotonic_seconds_at_insert) — monotonic, not
+# wall-clock, so a host clock jump (NTP correction on Cloud Run cold
+# start) can't falsely expire or extend a live entry.
+_files_api_uri_cache: "OrderedDict[str, tuple[str, float]]" = OrderedDict()
+_files_api_locks: "OrderedDict[str, asyncio.Lock]" = OrderedDict()
 # Polling budget for Files API state transitions (PROCESSING → ACTIVE).
 # Typical 2 MB upload settles in <2 s; allow 30 s for a 50 MB PDF.
 _FILES_API_POLL_TOTAL_SECONDS = 30.0
+# TTL for cached Files-API URIs. Google expires server-side at 48 h;
+# 36 h gives 12 h margin and still benefits the Reflector's nightly
+# "hits warm cache" pattern. Env-overridable for tests and for ops
+# that want a tighter window. A non-positive value silently disables
+# the cache — logged at module import so misconfigured ops see it.
+_FILES_API_URI_TTL_SECONDS = float(
+    os.environ.get("FILES_API_URI_TTL_SECONDS", str(36 * 60 * 60))
+)
+if _FILES_API_URI_TTL_SECONDS <= 0:
+    _LOG.warning(
+        "FILES_API_URI_TTL_SECONDS=%s is non-positive; cache effectively "
+        "disabled and every demo click pays full upload latency.",
+        _FILES_API_URI_TTL_SECONDS,
+    )
+# Hard cap on the URI cache and on the per-sha lock dict. Without this,
+# every distinct content-sha allocates a Lock that's never freed even
+# after the URI is TTL-evicted (R4-1 bug-hunter finding). On a long-
+# lived Cloud Run instance serving freeform /review uploads, the lock
+# dict would grow linearly with upload count. 64 entries covers the
+# 5-deal demo + nightly Reflector + a comfortable buffer for ad-hoc
+# uploads without unbounded growth. Bounded LRU eviction below.
+_FILES_API_CACHE_MAX_ENTRIES = int(
+    os.environ.get("FILES_API_CACHE_MAX_ENTRIES", "64")
+)
 
 
 def _should_use_files_api(data: bytes, mime_type: str) -> bool:
@@ -149,23 +177,110 @@ async def _build_gemini_part(data: bytes, mime_type: str):
     return gtypes.Part.from_uri(file_uri=uri, mime_type=mime_type)
 
 
+def _cache_get_live(sha: str) -> str | None:
+    """Return a cached URI iff it is still within the TTL window.
+
+    Stale entries are popped in place — both the URI entry AND the
+    per-sha lock — so the lock dict cannot leak past the URI cache
+    (R4-1 bug-hunter finding). A future read sees a clean miss.
+
+    TTL is measured with `time.monotonic()` so a wall-clock jump
+    (NTP correction during a Cloud Run cold start) cannot falsely
+    flip a live entry to expired or vice versa.
+
+    LRU bookkeeping: touching the URI cache MUST also touch the lock
+    dict, otherwise the two dicts drift in LRU position and the lock
+    eviction (in `_get_or_create_files_api_lock`) can evict a sha
+    whose URI is hot. The previous version had this drift bug —
+    found during Phase-6 honesty-pass mutation testing.
+    """
+    entry = _files_api_uri_cache.get(sha)
+    if entry is None:
+        return None
+    uri, inserted_at = entry
+    if time.monotonic() - inserted_at > _FILES_API_URI_TTL_SECONDS:
+        _files_api_uri_cache.pop(sha, None)
+        # Drop the corresponding lock too. The next caller will lazily
+        # re-create it via `_get_or_create_files_api_lock` if they need
+        # to upload fresh. Without this, the lock dict grows linearly
+        # with all-time unique uploads.
+        _files_api_locks.pop(sha, None)
+        return None
+    # LRU touch on BOTH dicts so eviction stays consistent.
+    _files_api_uri_cache.move_to_end(sha)
+    if sha in _files_api_locks:
+        _files_api_locks.move_to_end(sha)
+    return uri
+
+
+def _get_or_create_files_api_lock(sha: str) -> asyncio.Lock:
+    """Return the asyncio.Lock for `sha`, creating one if absent and
+    evicting the LRU entry if we're at cap. Replaces the previous
+    `defaultdict(asyncio.Lock)` which had no bound (R4-1).
+
+    Defense-in-depth note: this function and `_cache_put` BOTH carry
+    cap-eviction logic. They cover different scenarios:
+      - `_cache_put` evicts on upload SUCCESS (the common case).
+      - This function evicts on upload-failure retry — when an upload
+        raises, `_cache_put` is never called, so the lock entry would
+        accumulate without this eviction site. Don't remove either.
+    """
+    lock = _files_api_locks.get(sha)
+    if lock is not None:
+        _files_api_locks.move_to_end(sha)
+        return lock
+    if len(_files_api_locks) >= _FILES_API_CACHE_MAX_ENTRIES:
+        # Evict LRU lock + matching URI entry to keep the two dicts
+        # in lockstep. A lock held by a concurrent upload would not
+        # be at the front (it's actively used → moved-to-end), so
+        # popping the LRU is safe.
+        evicted_sha, _ = _files_api_locks.popitem(last=False)
+        _files_api_uri_cache.pop(evicted_sha, None)
+    lock = asyncio.Lock()
+    _files_api_locks[sha] = lock
+    return lock
+
+
+def _cache_put(sha: str, uri: str) -> None:
+    """Store `(uri, now)` in the URI cache with LRU cap enforcement.
+    Called only inside the per-sha lock so dict mutation is safe.
+    """
+    if (
+        sha not in _files_api_uri_cache
+        and len(_files_api_uri_cache) >= _FILES_API_CACHE_MAX_ENTRIES
+    ):
+        evicted_sha, _ = _files_api_uri_cache.popitem(last=False)
+        _files_api_locks.pop(evicted_sha, None)
+    _files_api_uri_cache[sha] = (uri, time.monotonic())
+
+
 async def _ensure_files_api_upload(data: bytes, mime_type: str) -> str:
     """Upload `data` to Gemini's Files API and return the file URI.
 
     Caches by content sha256 so a re-fetch of the same artifact reuses
-    the existing handle. Per-hash asyncio.Lock prevents the same race
-    the byte cache guards against — two concurrent large uploads of
-    the same artifact would otherwise double-charge quota.
+    the existing handle within the TTL window. Per-hash asyncio.Lock
+    prevents the same race the byte cache guards against — two
+    concurrent large uploads of the same artifact would otherwise
+    double-charge quota.
+
+    Recovery contract for Google's 48 h server-side URI expiry:
+      The cache evicts at `_FILES_API_URI_TTL_SECONDS` (default 36 h),
+      well before Google's 48 h boundary. A read past the TTL is
+      treated as a miss and triggers a fresh upload. This is pure
+      time-based eviction — we deliberately do NOT probe-on-hit
+      (cost: 50-200 ms per cache hit on the demo critical path) and
+      we do NOT depend on knowing the SDK's expired-URI error shape
+      (undocumented and varies across `google-genai` versions).
 
     Raises HTTPException(502) on upload failure, (504) on PROCESSING
     timeout, (502) on FAILED state. Callers (route handlers) propagate.
     """
     sha = hashlib.sha256(data).hexdigest()
-    cached = _files_api_uri_cache.get(sha)
+    cached = _cache_get_live(sha)
     if cached is not None:
         return cached
-    async with _files_api_locks[sha]:
-        cached = _files_api_uri_cache.get(sha)
+    async with _get_or_create_files_api_lock(sha):
+        cached = _cache_get_live(sha)
         if cached is not None:
             return cached
         try:
@@ -183,11 +298,15 @@ async def _ensure_files_api_upload(data: bytes, mime_type: str) -> str:
         except HTTPException:
             raise
         except Exception as exc:
+            _LOG.exception(  # R4 minor #4: log traceback for ops visibility.
+                "Gemini Files API upload failed for %d-byte %s artifact",
+                len(data), mime_type,
+            )
             raise HTTPException(
                 status_code=502,
                 detail=f"Gemini Files API upload failed: {exc}",
             ) from exc
-        _files_api_uri_cache[sha] = uri
+        _cache_put(sha, uri)
         return uri
 
 
@@ -388,6 +507,18 @@ async def lifespan(_app: FastAPI):
 
     yield
 
+    # FastAPI shutdown phase. Drain any MCPToolset that an in-flight
+    # `/reflect` worker constructed but didn't finalize before the
+    # SIGTERM cascade (uncaught exception in the executor, cancellation
+    # mid-cycle, etc.). Composes with `_run_introspection_agent_async`'s
+    # per-call try/finally — `_aclose_one_with_timeout` is idempotent
+    # via the `_MCP_CLOSED_ATTR` sentinel, so double-close is a no-op.
+    try:
+        from .reflector import shutdown_all_toolsets
+        await shutdown_all_toolsets()
+    except Exception as exc:
+        _LOG.warning("MCP shutdown drain failed at lifespan exit: %s", exc)
+
 
 app = FastAPI(title="M&A Gatekeeper", lifespan=lifespan)
 
@@ -553,6 +684,20 @@ async def _stream_findings(
 
     yield _sse({"event": "start"})
 
+    # Parser output cache for D15 PDF-highlight provenance. The Parser
+    # emits a JSON list of Clause records via `output_key="clauses"`;
+    # we intercept the event-stream (cheaper + ADK-version-agnostic
+    # than reaching into `runner.session_service`) and build a
+    # `dict[clause_id -> Clause]` lookup that the Risk-Judge branch
+    # below consults to authoritatively populate `page` + `pdf_bbox`
+    # on each RiskFinding. Lookup is keyed by `Clause.id` because the
+    # Router invariant pins `RiskFinding.clause_id == Clause.id`.
+    # Empty dict means "Parser never emitted parseable clauses" — we
+    # then leave whatever the Risk Judge produced (which is also
+    # likely null) and the frontend degrades gracefully.
+    from .schemas import Clause as _Clause
+    clauses_by_id: dict[str, _Clause] = {}
+
     n_emitted = 0
     try:
         async for event in runner.run_async(
@@ -565,6 +710,36 @@ async def _stream_findings(
             text_chunks = [getattr(p, "text", None) for p in parts]
             text = "\n".join(t for t in text_chunks if t)
             yield _sse({"event": "agent_output", "author": author, "text": text})
+
+            # Intercept the Parser's clauses for the server-side join
+            # below. Parse-failure here is NOT fatal: the demo path
+            # tolerates a missing lookup (page/pdf_bbox stay null,
+            # frontend skips the highlight pin) — failing loud here
+            # would mask the actual product surface (the findings)
+            # behind an infrastructure error. We log via SSE for
+            # operator visibility but keep streaming.
+            if author == "parser" and text and not clauses_by_id:
+                try:
+                    raw_clauses = json.loads(text)
+                except Exception as parse_exc:
+                    yield _sse({
+                        "event": "error",
+                        "stage": "parse_parser_output",
+                        "message": (
+                            f"failed to json.loads parser output for "
+                            f"pdf_bbox join: {parse_exc}. PDF-highlight "
+                            f"pins will be skipped for this run."
+                        ),
+                    })
+                    raw_clauses = []
+                for raw_clause in raw_clauses:
+                    try:
+                        c = _Clause.model_validate(raw_clause)
+                    except Exception:
+                        # Per-clause validation failure — skip this
+                        # one but keep the rest of the lookup usable.
+                        continue
+                    clauses_by_id[c.id] = c
 
             # When the risk_judge emits findings, route each and stream
             # the lane decision. In production we wire ADK's
@@ -612,6 +787,73 @@ async def _stream_findings(
                         finding = finding.model_copy(
                             update={"trace_id": request_trace_id}
                         )
+
+                    # PDF-highlight provenance (plan §7 D15). Server-
+                    # side join: REPLACES `page` + `pdf_bbox` with the
+                    # authoritative Parser value, regardless of what
+                    # (if anything) the Risk Judge emitted. Mirrors the
+                    # trace_id override pattern — one source of truth
+                    # per field, and it is NOT the model. The LLM's
+                    # output for these fields is structurally discarded
+                    # below via `model_copy(update=...)` whether the
+                    # clause lookup succeeds or fails.
+                    clause_record = clauses_by_id.get(finding.clause_id)
+                    if clause_record is None:
+                        # FAIL LOUD: a missing clause_id means the Risk
+                        # Judge cited a clause the Parser didn't emit —
+                        # either the cross_reference agent hallucinated
+                        # an id, the Parser's output was empty, or the
+                        # ids don't share a namespace. The demo should
+                        # NOT look clean when this is broken. Yield an
+                        # error SSE alongside the finding (same pattern
+                        # as parse_risk_judge_output and
+                        # validate_risk_judge_finding above) but DO NOT
+                        # drop the finding — the legal reviewer would
+                        # rather see a finding without a pin than no
+                        # finding at all. Also wipe any bbox/page the
+                        # LLM may have emitted so the frontend can't be
+                        # misled by a hallucinated value.
+                        yield _sse({
+                            "event": "error",
+                            "stage": "join_clause_to_finding",
+                            "clause_id": finding.clause_id,
+                            "message": (
+                                f"RiskFinding.clause_id={finding.clause_id!r}"
+                                f" not in Parser's clause output "
+                                f"({len(clauses_by_id)} clauses indexed). "
+                                f"page+pdf_bbox will be null for this "
+                                f"finding; PDF highlight pin will not "
+                                f"render."
+                            ),
+                        })
+                        finding = finding.model_copy(update={
+                            "page": None, "pdf_bbox": None,
+                        })
+                    else:
+                        page_override = clause_record.page
+                        bbox_override = clause_record.pdf_bbox
+                        # Offline pdfplumber fallback: if the Parser
+                        # didn't populate pdf_bbox AND the source is
+                        # PDF, recompute from char offsets. Pure-Python,
+                        # in-process, zero quota — see
+                        # `agent/pdf_bbox.py` for the limitation note
+                        # on Gemini-vs-pdfplumber offset drift and the
+                        # 5s per-page timeout.
+                        if (
+                            bbox_override is None
+                            and mime_type == "application/pdf"
+                        ):
+                            from .pdf_bbox import extract_bbox_from_pdf
+                            bbox_override = extract_bbox_from_pdf(
+                                filing_bytes,
+                                page_override,
+                                clause_record.char_start,
+                                clause_record.char_end,
+                            )
+                        finding = finding.model_copy(update={
+                            "page": page_override,
+                            "pdf_bbox": bbox_override,
+                        })
                     # Inline judge call. In a future iteration this moves
                     # inside the Risk Judge sub-agent so it runs INSIDE
                     # the ADK span (span_id linking is then automatic).
