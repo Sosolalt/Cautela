@@ -32,9 +32,12 @@ datasets in `_WRITABLE_DATASETS`. PermissionError otherwise.
 from __future__ import annotations
 
 import asyncio
+import atexit
 import functools
+import inspect as _inspect
 import logging
 import os
+import threading
 from typing import Sequence
 
 import numpy as np
@@ -45,6 +48,236 @@ _LOG = logging.getLogger(__name__)
 # any dataset not in this set. The frozen held-out fold-5 is absent.
 _WRITABLE_DATASETS: frozenset[str] = frozenset({"regressions-v1"})
 _FROZEN_HELD_OUT: str = "internal-30-holdout-fold-5"
+
+
+# ---------------------------------------------------------------------------
+# MCP toolset process-shutdown registry
+# ---------------------------------------------------------------------------
+# Per-call cleanup in `_run_introspection_agent_async`'s try/finally is the
+# fast path and handles the common case. The registry below is the safety
+# net for "process dies between MCPToolset construction and the finally
+# block" — SIGTERM during a /reflect cycle, uncaught exception in the
+# executor thread, FastAPI lifespan teardown mid-call. Without it, the
+# `npx @arizeai/phoenix-mcp` node subprocess leaks one PID per orphan and
+# Cloud Run eventually exhausts file descriptors.
+#
+# Strong-set + threading.Lock instead of WeakSet because (a) MCPToolset is
+# not guaranteed weak-referenceable across ADK versions, (b) make_*_toolset
+# can be called from multiple worker threads concurrently — the Reflector's
+# /reflect handler runs the cycle on `run_in_executor`, while a CLI cron run
+# (`python -m agent.reflector`) builds on the main thread. threading.Lock
+# is needed; asyncio.Lock won't serialize across threads.
+#
+# Each entry is `(toolset, loop)` so the lifespan drain can detect a
+# cross-loop hazard: a toolset constructed inside `asyncio.run(...)` in
+# a worker thread is bound to THAT loop; awaiting its `close()` from the
+# main FastAPI loop raises `RuntimeError: ... bound to a different event
+# loop` (R4-2 bug-hunter finding). The drain skips mismatched-loop
+# entries with a loud warning rather than silently leaking the
+# subprocess via a swallowed exception.
+_mcp_toolset_registry: set[tuple[object, object]] = set()
+_mcp_toolset_registry_lock = threading.Lock()
+# Sentinel attribute stamped on a toolset after a successful or failed
+# aclose() so per-call finally + lifespan drain can both fire safely.
+_MCP_CLOSED_ATTR = "_ma_gatekeeper_aclose_done"
+# Per-toolset hard timeout for aclose(). Cloud Run's SIGTERM-to-SIGKILL
+# grace window is 10 s; we want headroom for the rest of FastAPI's
+# lifespan-shutdown work after our drain finishes. The value is parsed
+# defensively (R5-1) and hard-clamped to ≤ 8.0 s (R5-4) so an operator
+# footgun (`MCP_ACLOSE_TIMEOUT_SECONDS=999`) can't block container
+# shutdown past Cloud Run's grace window.
+def _parse_env_float(name: str, default: float, *, ceiling: float | None = None) -> float:
+    raw = os.environ.get(name, str(default))
+    try:
+        value = float(raw)
+    except ValueError:
+        _LOG.warning(
+            "%s=%r is not a valid float; falling back to default %s",
+            name, raw, default,
+        )
+        return default
+    if ceiling is not None and value > ceiling:
+        _LOG.warning(
+            "%s=%s exceeds ceiling %s; clamping to %s "
+            "(prevents shutdown-drain from blocking past Cloud Run's "
+            "10 s SIGTERM grace window).",
+            name, value, ceiling, ceiling,
+        )
+        return ceiling
+    return value
+
+
+_MCP_ACLOSE_TIMEOUT_SECONDS = _parse_env_float(
+    "MCP_ACLOSE_TIMEOUT_SECONDS", 5.0, ceiling=8.0,
+)
+
+
+def _current_loop_or_none():
+    """Return the currently-running asyncio loop, or None if called
+    from sync context. We capture this at registration so the drain
+    knows which loop the toolset's stdio transport is bound to."""
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+
+def _register_toolset(tool) -> None:
+    if tool is None:
+        return
+    loop = _current_loop_or_none()
+    with _mcp_toolset_registry_lock:
+        _mcp_toolset_registry.add((tool, loop))
+
+
+def _unregister_toolset(tool) -> None:
+    if tool is None:
+        return
+    with _mcp_toolset_registry_lock:
+        # Remove every entry referencing this toolset regardless of loop —
+        # the per-call finally that calls this knows the toolset is
+        # closed; we want all registry entries gone.
+        to_remove = {
+            entry for entry in _mcp_toolset_registry if entry[0] is tool
+        }
+        _mcp_toolset_registry.difference_update(to_remove)
+
+
+async def _aclose_one_with_timeout(tool) -> None:
+    """Close a single MCP toolset with a hard per-instance timeout.
+
+    Idempotent via `_MCP_CLOSED_ATTR`: per-call finally and the
+    lifespan drain both call this; only the first run does real work.
+    Sentinel is stamped BEFORE awaiting so a concurrent second caller
+    short-circuits — there's a tiny window where two awaiters arrive
+    before either stamps, accepted because ADK's `MCPToolset.close()`
+    docstring documents it as "safe to call multiple times and handles
+    cleanup errors gracefully" (R6 WebFetch-verified against the live
+    mcp_toolset.py source — see PROJECT_LOG Phase-6 honesty pass).
+
+    ADK contract is `close()`, NOT `aclose()` (R6 WebFetch). We keep
+    the `aclose` fallback for older / forked ADK builds that might
+    expose either name, but `close` is the documented method and
+    must be tried FIRST so we never miss the canonical entry point.
+    """
+    if tool is None or getattr(tool, _MCP_CLOSED_ATTR, False):
+        return
+    try:
+        setattr(tool, _MCP_CLOSED_ATTR, True)
+    except Exception:
+        # Slots-only stubs may refuse attribute writes; close anyway.
+        pass
+    # Prefer `close` (ADK 1.x canonical). Fall back to `aclose` only
+    # for forked/older builds where the method name differs.
+    close = getattr(tool, "close", None) or getattr(tool, "aclose", None)
+    if close is None:
+        return
+    try:
+        result = close()
+        if _inspect.isawaitable(result):
+            await asyncio.wait_for(
+                result, timeout=_MCP_ACLOSE_TIMEOUT_SECONDS,
+            )
+    except asyncio.TimeoutError:
+        _LOG.warning(
+            "MCPToolset.aclose() exceeded %ss timeout for %s; subprocess "
+            "may leak until container exit",
+            _MCP_ACLOSE_TIMEOUT_SECONDS, type(tool).__name__,
+        )
+    except Exception as exc:
+        _LOG.warning(
+            "MCPToolset.aclose() failed for %s: %s",
+            type(tool).__name__, exc,
+        )
+
+
+async def shutdown_all_toolsets() -> None:
+    """Drain every registered MCPToolset whose loop matches the current
+    one, bounded by per-instance timeout.
+
+    Called from the FastAPI lifespan post-yield phase AND from the
+    `atexit` handler below. Snapshots the registry under the lock so a
+    concurrent unregister during shutdown doesn't trigger
+    `RuntimeError: set changed size during iteration`.
+
+    Cross-loop hazard (R4-2): a toolset whose stdio transport was
+    bound to a now-dead worker-thread loop CANNOT be cleanly closed
+    from the FastAPI main loop — `asyncio` internals raise
+    `RuntimeError: ... bound to a different event loop` and the broad
+    `except Exception` in `_aclose_one_with_timeout` would swallow it
+    into a WARNING, leaving the npx subprocess leaked. We detect the
+    mismatch up front and skip with a loud warning instead. The OS
+    reaps the orphaned npx when the container exits — acceptable for
+    Cloud Run's scale-to-zero lifecycle.
+
+    Closes the surviving (same-loop) entries in parallel via
+    `asyncio.gather(..., return_exceptions=True)` so a single
+    per-instance hang doesn't serialize the whole drain.
+    """
+    with _mcp_toolset_registry_lock:
+        snapshot = list(_mcp_toolset_registry)
+    if not snapshot:
+        return
+
+    current_loop = _current_loop_or_none()
+    same_loop: list[object] = []
+    cross_loop: list[tuple[object, object]] = []
+    for tool, registered_loop in snapshot:
+        # `registered_loop is None` means registration happened from
+        # sync context — safe to close from any loop.
+        if registered_loop is None or registered_loop is current_loop:
+            same_loop.append(tool)
+        else:
+            cross_loop.append((tool, registered_loop))
+
+    if cross_loop:
+        _LOG.warning(
+            "Skipping %d MCP toolset(s) bound to a different event loop "
+            "than the shutdown drain — cleanup deferred to OS process "
+            "reap. npx subprocess(es) may persist briefly after container "
+            "exit. This is the R4-2 cross-loop case; per-call finally "
+            "is the primary cleanup path and should have caught these.",
+            len(cross_loop),
+        )
+
+    if same_loop:
+        _LOG.info(
+            "Draining %d MCP toolset(s) at process shutdown", len(same_loop),
+        )
+        await asyncio.gather(
+            *(_aclose_one_with_timeout(t) for t in same_loop),
+            return_exceptions=True,
+        )
+
+    with _mcp_toolset_registry_lock:
+        for entry in snapshot:
+            _mcp_toolset_registry.discard(entry)
+
+
+def _atexit_drain() -> None:
+    """Best-effort drain at interpreter shutdown for the non-FastAPI path
+    (CLI Reflector run, ad-hoc `python -m agent.reflector`). FastAPI's
+    lifespan covers the served `/reflect` route; this covers the rest.
+
+    atexit fires AFTER FastAPI lifespan but before module-globals
+    teardown, so a redundant drain is harmless (registry is empty by
+    then). Will not fire on SIGKILL or `os._exit` — those leak by
+    definition; the OS reaps the container.
+    """
+    with _mcp_toolset_registry_lock:
+        empty = len(_mcp_toolset_registry) == 0
+    if empty:
+        return
+    try:
+        asyncio.run(shutdown_all_toolsets())
+    except RuntimeError:
+        # No event loop available (or one is closed). Don't crash exit.
+        _LOG.warning("atexit MCP drain skipped: no available event loop")
+    except Exception as exc:
+        _LOG.warning("atexit MCP drain failed: %s", exc)
+
+
+atexit.register(_atexit_drain)
 
 
 def make_phoenix_mcp_toolset():
@@ -60,7 +293,16 @@ def make_phoenix_mcp_toolset():
     not installed in this environment.
     """
     try:
-        from google.adk.tools.mcp_tool import MCPToolset, StdioServerParameters
+        # `StdioServerParameters` is exported from the upstream `mcp` package,
+        # NOT from `google.adk.tools.mcp_tool` (R6 WebFetch-verified against
+        # https://raw.githubusercontent.com/google/adk-python/main/src/google/adk/tools/mcp_tool/__init__.py).
+        # Importing it from ADK previously worked only via test-suite
+        # stubbing; on a clean install with the real packages it raised
+        # ImportError at runtime — silently swallowed by the broad except
+        # below, which is exactly the "Hook 4 quietly dead" failure mode
+        # Phase 5 was trying to close.
+        from google.adk.tools.mcp_tool import MCPToolset
+        from mcp import StdioServerParameters
     except Exception as exc:
         _LOG.warning("MCPToolset unavailable: %s", exc)
         return None
@@ -80,7 +322,9 @@ def make_phoenix_mcp_toolset():
             "--apiKey", api_key,
         ],
     )
-    return MCPToolset(connection_params=params)
+    toolset = MCPToolset(connection_params=params)
+    _register_toolset(toolset)
+    return toolset
 
 
 def build_introspection_agent():
@@ -167,21 +411,15 @@ async def _run_introspection_agent_async() -> str:
                     chunks.append(t)
         return "\n".join(chunks)
     finally:
-        # Reap MCP stdio child processes. `aclose()` is the ADK 1.x
-        # contract on MCPToolset; older versions exposed `close()`.
+        # Reap MCP stdio child processes via the registry-aware helper
+        # so per-call cleanup and the lifespan-shutdown drain converge
+        # on a single idempotent path. Both paths can fire (the per-
+        # call cleanup is the fast path; the lifespan drain catches
+        # the "process dies before this finally runs" case); the
+        # `_MCP_CLOSED_ATTR` sentinel ensures aclose only runs once.
         for tool in getattr(agent, "tools", None) or []:
-            close = getattr(tool, "aclose", None) or getattr(tool, "close", None)
-            if close is None:
-                continue
-            try:
-                result = close()
-                if _inspect.isawaitable(result):
-                    await result
-            except Exception as exc:
-                _LOG.warning(
-                    "Hook 4: failed to close MCP toolset %r: %s",
-                    type(tool).__name__, exc,
-                )
+            await _aclose_one_with_timeout(tool)
+            _unregister_toolset(tool)
 
 
 def _run_introspection_agent() -> str:
