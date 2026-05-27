@@ -83,6 +83,10 @@ def calibrate_fold(
 
     Returns (tau_h*, tau_f*) minimizing abstention subject to
     Block-recall >= require_recall. Tie-break: prefer higher tau_h.
+
+    The default require_recall=1.0 is the headline gate; do not silently
+    relax it. If a caller needs a softer gate, pass it explicitly AND
+    surface the relaxation in the summary.
     """
     block_mask = train_df["is_block"].to_numpy(dtype=bool)
     h = train_df["h_score"].to_numpy()
@@ -172,7 +176,7 @@ def cluster_bootstrap_recall_ci(
         means[k] = float(np.mean(pooled)) if pooled else 0.0
 
     point = float(np.mean([h for hits in contract_hits.values() for h in hits]))
-    # One-sided 95% LB.
+    # One-sided (1 - alpha)*100% LB. Default alpha=0.05 yields the 95% LB.
     lb = float(np.quantile(means, alpha))
     return point, lb
 
@@ -233,6 +237,36 @@ def plot_reliability(
     _LOG.info("Wrote %s", path)
 
 
+def calibrate_all_headline_folds(
+    df: pd.DataFrame,
+) -> tuple[list[dict], list[int]]:
+    """Run per-fold calibrate+evaluate over HEADLINE_FOLDS.
+
+    Returns (per_fold_results, dropped_headline_folds). A fold lands in
+    `dropped` iff `calibrate_fold` returns None on its training partition.
+
+    The dropped list MUST be surfaced in the summary by callers — silently
+    averaging the headline number over fewer folds without disclosing
+    which dropped is the E10 quiet-downgrade vector. Extracted from main()
+    so headline-fold accounting can be unit-tested without argparse/IO.
+    """
+    per_fold_results: list[dict] = []
+    dropped: list[int] = []
+    for i in HEADLINE_FOLDS:
+        train = df[df["fold"].isin([k for k in HEADLINE_FOLDS if k != i])]
+        test = df[df["fold"] == i]
+        thresholds = calibrate_fold(train)
+        if thresholds is None:
+            _LOG.warning(
+                "Fold %s: no (tau_h, tau_f) achieves Block-recall=1.0", i,
+            )
+            dropped.append(i)
+            continue
+        tau_h, tau_f = thresholds
+        per_fold_results.append({"fold": i, **evaluate_fold(test, tau_h, tau_f)})
+    return per_fold_results, dropped
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True, help="CSV of judged findings")
@@ -245,16 +279,7 @@ def main() -> None:
     df["fold"] = assign_folds(df)
     unit_test_fold_split(df)
 
-    per_fold_results: list[dict] = []
-    for i in HEADLINE_FOLDS:
-        train = df[df["fold"].isin([k for k in HEADLINE_FOLDS if k != i])]
-        test = df[df["fold"] == i]
-        thresholds = calibrate_fold(train)
-        if thresholds is None:
-            _LOG.warning("Fold %s: no (tau_h, tau_f) achieves Block-recall=1.0", i)
-            continue
-        tau_h, tau_f = thresholds
-        per_fold_results.append({"fold": i, **evaluate_fold(test, tau_h, tau_f)})
+    per_fold_results, dropped_headline_folds = calibrate_all_headline_folds(df)
 
     if not per_fold_results:
         raise SystemExit("No headline fold produced a calibration. "
@@ -292,6 +317,8 @@ def main() -> None:
 
     summary = {
         "headline_folds": HEADLINE_FOLDS,
+        "headline_folds_present": [r["fold"] for r in per_fold_results],
+        "dropped_headline_folds": dropped_headline_folds,
         "frozen_fold": FROZEN_FOLD,
         "effective_n_contracts": int(
             df[df["fold"].isin(HEADLINE_FOLDS)]["contract_id"].nunique()
