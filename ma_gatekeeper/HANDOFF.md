@@ -63,12 +63,26 @@ parser code itself.
       Document AI Layout Parser as the fallback noted in plan §3.1
       — don't wait for D15.
 
-## D5–D9 (annotation)
+## D5–D9 (annotation + three-track eval)
 
-✅ **Pipeline shipped** (`scripts/annotate.py`): Gemini pre-labels →
+✅ **Annotation pipeline shipped** (`scripts/annotate.py`): Gemini pre-labels →
 Argilla SpanQuestion JSONL + Cohen's κ. Includes a no-op + char-offset
 invariant guard so a misconfigured run fails loud instead of silently
 producing identical files.
+
+✅ **Three-track eval shipped (Phase 6.6, 2026-05-27)** — plan §5.2 + §12's
+"three-track eval results table" is now tooled in full:
+  - `scripts/eval_maud_mcq.py` (38 tests) — exact-match accuracy per
+    category + degenerate AUPR; HF schema adapter for `theatticusproject/maud`;
+    `--baselines path/to/baselines.json` for paper-comparison rows.
+  - `scripts/eval_cuad_spans.py` (54 tests) — token-F1 (project strict `>0.5`
+    + paper-comparable `>=0.5` + punctuation-strip both surfaced),
+    AUPR (sklearn average_precision_score), P@R=0.8 + P@R=0.9; SQuAD adapter
+    for `theatticusproject/cuad-qa`.
+  - `scripts/calibrate.py` v5 (existing) — Internal-30 5-fold-CV Block-recall.
+  Default `--use-mock` deterministic mock; `--live` raises
+  `NotImplementedError` deliberately — wiring the live ADK Runner is the D9
+  operator task below.
 
 - [ ] Sign up for Argilla on a Hugging Face Space (free).
 - [ ] Run the pre-label pass:
@@ -183,12 +197,48 @@ as `production`.
 
 ## D19 (demo recording)
 
-- [ ] Record the 3-minute demo following the §8 beat structure.
+✅ **Recording-time spec shipped** (`docs/demo_script.md`): supersedes
+`plan.md` §8 for the recording — 30-second climactic voiceover (74
+words / 29.6s @ 150 wpm), on-screen pre-seed caption spec (Inter
+Medium 500 @ 14px, 20.96s readability floor / 22s hold), restructured
+8-row beat table that inverts §8 so auto-promotion is the sole
+climax (cmd+click recast as setup beat establishing auditability).
+Pre-recorded EDGAR fallback row + Phoenix cold-start fallback row +
+auto-promotion-fails-to-fire cascade-fallback row all explicit with
+cut-in/re-merge windows. Climax visual is split-screen Reflector log
+output (LEFT) + Phoenix Experiments table + prompts-list view
+(RIGHT), with optional matplotlib reliability-diagram PNG inset —
+NO fabricated Phoenix UI affordances (the audit-and-fix follow-up
+on 2026-05-27 closed an unverified-affordance defect; see
+PROJECT_LOG.md Phase 6.5).
+
+- [ ] **Stopwatch-rehearse the beat timings on D17–D18.** Beat
+      timings in `docs/demo_script.md` are designed, not measured.
+      First rehearsal will surface whether the 25s cmd+click hold
+      (1:30–1:55) and 30s climax hold (2:30–3:00) need trimming.
+- [ ] **Caption rendering test (Inter 500 vs 600 on 1440p).** Test
+      once before D19; if Inter Medium 500 reads light on a
+      Phoenix-dashboard-bright backdrop, escalate to 600 (same
+      `fontSize.small` key, no token change).
+- [ ] **Pre-select a "canonical good" D17 rehearsal capture** where
+      the Reflector log shows `Promotion gates passed: <diag>` AND
+      `PROMOTED candidate ... → tag=production` AND the Phoenix
+      prompts-list view shows the `production` tag pointing to the
+      new (just-promoted) version. Required by fallback row 3.
+- [ ] **Verify the `_LOG.info(...)` format strings at**
+      [`agent/reflector.py:760`](agent/reflector.py#L760) **and**
+      [`:851`](agent/reflector.py#L851) **haven't drifted since**
+      [`docs/demo_script.md:157`](docs/demo_script.md#L157) **was
+      written.** Anchored citations will silently rot under a
+      reflector.py refactor.
+- [ ] Record the 3-minute demo following `docs/demo_script.md`
+      (NOT `plan.md` §8 — superseded).
 - [ ] Pre-load Phoenix in a second visible window (split-screen) so
       the cmd+click reveal is instant, not an anticlimax.
 - [ ] Close the video on the auto-promotion event in Phoenix
       Experiments, not the static results table.
-- [ ] Pre-record one full successful EDGAR run as live-demo fallback.
+- [ ] Pre-record one full successful EDGAR run as live-demo fallback
+      (per fallback row 1 in `docs/demo_script.md`).
 - [ ] Upload to YouTube as **Public** or "Unlisted with link
       accessible" — never "Unlisted restricted" (Devpost has DQ'd
       projects for this).
@@ -240,16 +290,22 @@ as `production`.
 - ✅ Single source of truth for the Tag enum (Phase 5 Issue 6) — adding a tag now touches 2 files, not 5.
 - ✅ `perturb_contracts.py` rewritten as real ML (Phase 5 Issue 9) — was a vapor stub returning 0.5 AUC on identical files.
 - ✅ `REFLECT_OIDC_AUDIENCE` fail-closed on Cloud Run (Phase 5 Issue 10) — silent OIDC bypass is now a 503.
+- ✅ **5 quiet-downgrade vectors on the headline number** (Phase 5 E10 audit) — `tests/test_calibration_invariants.py` (28 tests) pins: Wilson LB by-(k,n) values with calibrated z=1.6449 vs z=1.96 gap; paired-bootstrap alpha recovered-quantile (defaults to 0.05); `calibrate_fold` `require_recall=1.0` default + None-on-unachievable behavior; `plot_reliability` per-bin rates over the full pool (catches the block-only-subset regression); dropped-fold disclosure via the new `dropped_headline_folds` + `headline_folds_present` summary fields (extracted from `main()` into `calibrate_all_headline_folds`).
+- ✅ **Files API URI expiry recovery** — `agent/server.py:_cache_get_live` evicts cached URIs at `FILES_API_URI_TTL_SECONDS` (36 h default) before Google's 48 h server-side expiry. Monotonic clock so an NTP correction can't extend or shorten a live entry. 5 new tests in `tests/test_files_api.py` pin the eviction, the pop-in-place behavior, and the monotonic-not-wallclock requirement.
+- ✅ **MCP subprocess process-shutdown cleanup** — `agent/reflector.py` now has a module-level `_mcp_toolset_registry` (strong-set + `threading.Lock`), `_aclose_one_with_timeout` (idempotent via `_MCP_CLOSED_ATTR` sentinel + per-instance `asyncio.wait_for` timeout of 5 s), `shutdown_all_toolsets` (snapshot under lock + `asyncio.gather(return_exceptions=True)`), and `atexit` hook. FastAPI lifespan post-yield calls `shutdown_all_toolsets`. 9 new tests in `tests/test_introspection_agent.py` cover registration, drain, timeout, exception isolation, idempotency, empty-drain, thread safety, and unregister.
 
 ## Items still NOT done (lower priority for the hackathon spine)
 
 - **Cloud Scheduler config** (a 1-line `gcloud scheduler` invocation; lives with the deploy work, not the codebase).
 - **UX redesign** — user is doing this separately (see `design/PLAN.md` referenced by `frontend/tailwind.config.ts`); the current skeleton stays as a contract reference.
-- **Files API expiry recovery** — uploaded file URIs auto-expire after 48 h on Google's side; a long-lived Cloud Run instance after 48 h would 404 on a cached URI. Acceptable for the hackathon (Cloud Run scales to zero off-demo, re-warm on demo day).
-- **MCP subprocess process-shutdown cleanup** — per-call cleanup is in place; process-shutdown hook not.
-- **5 quiet-downgrade vectors on the headline number** (Phase 5 E10 audit, deferred): Wilson LB by-(k,n) pinned-value test; paired-bootstrap alpha recovered-quantile test; `require_recall=1.0` parameter test; `plot_reliability` golden-image test; dropped-fold fallback "all headline folds present" test.
-- **Demo storytelling pass** (Phase 5 E9 audit, deferred): verbatim 30-second voiceover script, on-screen pre-seed caption spec, beat-table restructure to make auto-promotion the sole climax.
+- ✅ **Demo storytelling pass** (Phase 5 E9 audit) — **shipped 2026-05-27 as `docs/demo_script.md` via a 5-round feature-build-loop with an embedded audit-and-fix follow-up after self-confessed shortcuts. See PROJECT_LOG.md Phase 6.5 entry.**
+- ✅ **MAUD-MCQ + CUAD-Spans eval scripts** (plan §5.2 + §12 gap closure) — **shipped 2026-05-27 as `scripts/eval_maud_mcq.py` + `scripts/eval_cuad_spans.py` via Phase 6.6. Both ship project metrics + paper-comparable metrics side-by-side. See PROJECT_LOG.md Phase 6.6 entry.**
+- ✅ **PDF bbox extraction + SSE threading** (plan §3.1 D4 + §9 gap closure) — **shipped 2026-05-27 as `agent/pdf_bbox.py` + `agent/schemas.py` + `agent/server.py` updates via Phase 6.6. RiskFinding now carries `page` + `pdf_bbox`, server-side populated via Parser event-stream interception mirroring the `trace_id` precedent. pdfplumber offline fallback for null bbox on PDFs with 5s timeout. Frontend D15 work unblocked.**
 - **Frontend↔backend OpenAPI codegen** — TS Tag union is hand-mirrored; drift is regex-guarded by `tests/test_tag_sync.py` instead of generated.
+- **LRU-2b benign-redundancy mutation gap** — documented in `agent/server.py:_get_or_create_files_api_lock` docstring; refactor to single eviction site would close it.
+- **Live ADK Runner wrapper for `--live` eval paths** — `eval_maud_mcq.py:make_live_agent` and `eval_cuad_spans.py:make_live_agent` both raise `NotImplementedError` by design (per Phase 6.6 Goal-alignment review). Operator wires the live path on D9/D13 when Vertex + Phoenix are deployed; the mock-default ensures CI never accidentally burns quota.
+- **CUAD apostrophe-parsing latent edge case** — `eval_cuad_spans.py:_extract_clause_phrase_from_question` may silently drop a CUAD row if its question contains a stray `'` (apostrophe-vs-single-quote ambiguity). Not triggered by the canonical CUAD-QA template; flagged for hardening if a future mirror adds prose containing apostrophes.
+- **README results-table generator** — none yet. The new JSON output schemas (`aupr_overall`, `aupr_degenerate`, `f1_strict`/`f1_paper`, `p_at_r_0_8`/`p_at_r_0_9`) are stable; D18 README polish needs a thin generator that picks the right fields per track.
 
 ## Sanity checks that should pass before D7 architecture freeze
 

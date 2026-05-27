@@ -105,7 +105,7 @@ uvicorn agent.server:app --reload --port 8080
 
 ## Tests
 
-70 pure-Python unit tests; no live API calls. Run:
+208 pure-Python unit tests; no live API calls. Run:
 
 ```bash
 .venv/bin/python -m pytest tests/ -v
@@ -115,7 +115,88 @@ The fold-split tests are the explicit D9-morning unit test (plan §7 v3)
 catching off-by-one + leak-via-shared-state bugs. The promotion-rule
 tests verify bootstrap CI math, epsilon floor (0.03), and the
 code-enforced allowlist that prevents the Reflector from writing to the
-frozen held-out fold.
+frozen held-out fold. The calibration-invariants tests (see next
+section) pin the headline-number math against silent regression.
+
+## Calibration invariants (`tests/test_calibration_invariants.py`)
+
+`scripts/calibrate.py` produces the headline Block-recall number plus
+its one-sided 95% Wilson and cluster-bootstrap lower bounds. The
+following five **quiet-downgrade vectors** would silently soften that
+number if a future commit reverted them; each has at least one pinned
+test:
+
+1. **Wilson LB by-(k, n) pinned values** — the `WILSON_PINS` table
+   pins one-sided 95% LB for six `(k, n)` pairs to 5 decimals. A revert
+   to two-sided z=1.96 fails every row with a calibrated >0.030 margin.
+2. **Cluster-bootstrap alpha recovered-quantile** — pins
+   `cluster_bootstrap_recall_ci` to return the empirical 5th percentile
+   of the resample distribution (NOT the 2.5th or 95th). A revert to
+   `np.quantile(means, alpha/2)` fails by >0.020 on a 40-contract fixture.
+3. **`require_recall=1.0` parameter** — pins the default of
+   `calibrate_fold(require_recall=...)` to 1.0; verifies the function
+   returns `None` (not a softened fallback) when no grid point achieves
+   recall=1.0.
+4. **`plot_reliability` content** — intercepts matplotlib `ax.bar` /
+   `ax.plot` calls (no brittle golden-image diff) and pins per-bin
+   empirical positive rates over the FULL pool. A revert to the
+   block-only-subset bug pattern collapses every populated bin to 1.0
+   and trips this assertion.
+5. **Dropped-fold disclosure** — when a headline fold can't be
+   calibrated, the calibrator now surfaces it via two summary fields:
+   - `headline_folds_present` — folds that contributed to the headline.
+   - `dropped_headline_folds` — folds that were skipped.
+
+   `calibrate_all_headline_folds` (extracted from `main()`) is unit-testable
+   without IO. A silent `continue` without populating `dropped_headline_folds`
+   would fail the coverage invariant `len(per_fold) + len(dropped) == 4`
+   asserted in two tests.
+
+**To add a new headline-defending invariant**: add a test to this file
+following the existing section banners. The test must mutate the
+function under test (manually, locally) and confirm the test FAILS;
+revert; commit only the test. See `PROJECT_LOG.md` Phase-5 for the
+two-builder-plus-three-reviewer convergence pattern that produced this
+file.
+
+## Infrastructure recovery
+
+Two long-running failure modes the spine guards against:
+
+### Files API URI expiry (`agent/server.py:_cache_get_live`)
+
+Gemini's Files API auto-expires uploaded file URIs after 48 hours on
+Google's side. A long-lived Cloud Run instance that uploads on hour 0
+would otherwise serve a dead URI on hour 49 — Gemini's
+`generate_content` call would 404 on `Part.from_uri`. The cache value
+shape is `tuple[uri, inserted_at_monotonic]`; entries are evicted at
+`FILES_API_URI_TTL_SECONDS` (default 36 h, env-overridable). Eviction
+is monotonic-clock-based so an NTP correction during a Cloud Run cold
+start can't falsely extend or shorten a live entry. Pinned by 5 tests
+in `tests/test_files_api.py`.
+
+### MCP subprocess shutdown drain (`agent/reflector.py`)
+
+The Reflector's introspection agent spawns an `npx
+@arizeai/phoenix-mcp` child process per cycle. Per-call `try/finally`
+in `_run_introspection_agent_async` aclose()s the toolset on every
+exit — that's the fast path. The shutdown drain is the safety net for
+"process dies between MCPToolset construction and the finally":
+SIGTERM during a `/reflect` cycle, uncaught exception in the executor
+thread, FastAPI lifespan teardown mid-call.
+
+- Strong-set + `threading.Lock` registry — the same toolset may be
+  built from multiple worker threads (Cloud Run worker pool + manual
+  `/reflect` + CLI cron); `asyncio.Lock` is the wrong primitive.
+- `_aclose_one_with_timeout` wraps each close in `asyncio.wait_for`
+  with `MCP_ACLOSE_TIMEOUT_SECONDS` (default 5 s) — Cloud Run's
+  SIGTERM-to-SIGKILL grace is 10 s, we leave headroom.
+- `_MCP_CLOSED_ATTR` sentinel guarantees per-call finally + lifespan
+  drain are idempotent (both can fire; only the first does real work).
+- `atexit` hook handles the non-FastAPI invocation path (`python -m
+  agent.reflector` cron).
+
+Pinned by 9 tests in `tests/test_introspection_agent.py`.
 
 ## Tag sync points
 

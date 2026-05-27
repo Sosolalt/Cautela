@@ -117,10 +117,12 @@ design-team Supervisor → dispatch plan → component-builder spec
                               ↓
                        merge + PROJECT_LOG entry
                               ↓
-                   design-team Supervisor reconciles
+                   design-team Supervisor reconciles  ← HARD GATE
 ```
 
 The Reviewer cohort here is **additive** to (not a replacement for) the Art Director's section-completion review. Art Director still signs off at section-completion for visual coherence; the cohort gates the *code* for goal-alignment, quality, and bugs on every PR.
+
+**The design-team Supervisor reconciliation is a hard gate, not optional housekeeping.** When this skill is invoked as a sub-step of `design-team`, returning unanimous reviewer `GO` does NOT close the round. The orchestrator must spawn the `design-team` Supervisor for a Step-3 reconciliation pass (see `design-team` SKILL.md Step 3 + "Common shortcuts to refuse"). The Supervisor checks specialist cross-references, internal consistency, kill-switch defusal, and PROJECT_LOG fidelity — none of which the reviewer cohort here is briefed to do. Skipping the Supervisor pass after this skill converges is exactly the "embodying the Supervisor" shortcut documented in `design-team`'s anti-pattern list.
 
 ## Logging
 
