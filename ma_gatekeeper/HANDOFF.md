@@ -149,25 +149,69 @@ Python 3.12 and won't leak `npx` processes.
 
 ## D15 (frontend)
 
-The Phase 4 Next.js skeleton (`frontend/`) is now a **typed contract
-reference** rather than the production frontend. You are owning the
-full UX redesign separately (per `design/PLAN.md`, referenced by
-`frontend/tailwind.config.ts:8-14`).
+✅ **PDF↔trace bidirectional sync shipped (Phase 6.7, 2026-06-04)** —
+plan §9 "single differentiating interaction" is now wire-side complete.
+`frontend/components/pdf-pane.tsx` v2 renders a lane-tinted bbox
+overlay on selection (forward direction, via `viewport.convertToViewportPoint`
+with PDF y-flip min/max normalization) AND hit-tests PDF clicks back to
+the matching finding (reverse direction, via `viewport.convertToPdfPoint`
++ smallest-area + lexicographic clause_id tie-break). `frontend/app/page.tsx`
+threads `onSelect={setSelectedFindingId}` so PdfPane shares the same
+selection setter as FindingsPane + TracePane. pdfjs worker pinned to
+`pdf.worker.min.mjs` per pdfjs-dist 4.x ESM-only contract (the original
+`.min.js` path was a fabricated SDK signature caught by R1 bug-hunter).
+
+The Phase 4 Next.js skeleton (`frontend/`) is otherwise still a **typed
+contract reference** for the UX redesign you're owning separately (per
+`design/PLAN.md`, referenced by `frontend/tailwind.config.ts:8-14`).
 
 - [ ] Either: integrate your UX rewrite with the existing SSE/Filing
-      contracts (the skeleton documents them in `frontend/lib/{api,types}.ts`).
+      contracts (the skeleton documents them in `frontend/lib/{api,types}.ts`)
+      — the Phase 6.7 bidirectional-sync interaction is reusable as-is
+      once you replace the surrounding chrome.
 - [ ] Or: keep the skeleton as the demo frontend and incrementally
       replace components.
-- [ ] PDF↔trace bidirectional sync — feasible because `Clause.pdf_bbox`
-      is populated at D4 and span attributes carry it at D7. The
-      current skeleton stubs this (forward sync uses `page` if the
-      server threads it through, reverse sync deferred).
 - [ ] Replace the dropdown `<select>` with a real Combobox component;
       add empty/loading/error states; confirm the Phoenix iframe
       doesn't remount on every selection (`key={traceId}` was the
       Phase 5 UX flag — keep it stable across selections).
+- [ ] Confidence sparklines on findings cards (plan §9 also calls
+      these out; deferred from Phase 6.7 scope — 2–4h frontend task).
 
-## D18 (Reflector pre-seed)
+## D18 (Reflector pre-seed + README results-table publication)
+
+✅ **Results-table generator shipped (Phase 6.7, 2026-06-04)** —
+`scripts/build_readme_table.py` consumes the three-track eval JSONs
+(`calibrate.py` thresholds + `eval_maud_mcq.py` + `eval_cuad_spans.py`),
+renders the plan §5.2 + §12 results table to Markdown, and can splice
+between literal `<!-- BEGIN_RESULTS_TABLE -->` / `<!-- END_RESULTS_TABLE -->`
+markers via `--update-readme` (CRLF-preserving bytes round-trip). The
+CUAD `flag` enum is regex-matched against the real
+`eval_cuad_spans.py:107-114, :620` source (not a fabricated set);
+DEGENERATE_CAVEAT is scoped to the AUPR row only (not baseline rows).
+40/40 tests pass under `tests/test_build_readme_table.py`.
+
+- [ ] **Add markers to README.md** (one-time D18 prerequisite — Phase 6.7
+      deliberately did NOT modify README.md). Two literal HTML comments
+      around where the results table should land in the "Eval headline"
+      section:
+      ```
+      <!-- BEGIN_RESULTS_TABLE -->
+      <!-- END_RESULTS_TABLE -->
+      ```
+- [ ] **After Internal-30 calibration completes (D9) AND the eval scripts
+      have produced final JSON outputs** (D9/D13/D14), run:
+      ```
+      cd ma_gatekeeper && python -m scripts.build_readme_table \
+          --calibrate thresholds.json \
+          --maud maud_mcq_eval.json \
+          --cuad cuad_spans_eval.json \
+          --update-readme README.md
+      ```
+      The generator is partial-input-tolerant — any missing track
+      renders a "_Not yet available_" placeholder row, so you can run
+      it iteratively as numbers land. Final D18 run should have all
+      three flags set.
 
 ✅ **Pre-seed automated** (`scripts/seed_reflector.py`): the 4-step
 manual procedure below is a single `--commit` invocation. The script
@@ -305,7 +349,9 @@ PROJECT_LOG.md Phase 6.5).
 - **LRU-2b benign-redundancy mutation gap** — documented in `agent/server.py:_get_or_create_files_api_lock` docstring; refactor to single eviction site would close it.
 - **Live ADK Runner wrapper for `--live` eval paths** — `eval_maud_mcq.py:make_live_agent` and `eval_cuad_spans.py:make_live_agent` both raise `NotImplementedError` by design (per Phase 6.6 Goal-alignment review). Operator wires the live path on D9/D13 when Vertex + Phoenix are deployed; the mock-default ensures CI never accidentally burns quota.
 - **CUAD apostrophe-parsing latent edge case** — `eval_cuad_spans.py:_extract_clause_phrase_from_question` may silently drop a CUAD row if its question contains a stray `'` (apostrophe-vs-single-quote ambiguity). Not triggered by the canonical CUAD-QA template; flagged for hardening if a future mirror adds prose containing apostrophes.
-- **README results-table generator** — none yet. The new JSON output schemas (`aupr_overall`, `aupr_degenerate`, `f1_strict`/`f1_paper`, `p_at_r_0_8`/`p_at_r_0_9`) are stable; D18 README polish needs a thin generator that picks the right fields per track.
+- ✅ **README results-table generator** (plan §5.2 + §12 publication artifact) — **shipped 2026-06-04 as `scripts/build_readme_table.py` + 40 tests via Phase 6.7. Three-track Markdown table with regex against the real `eval_cuad_spans.py` flag enum, DEGENERATE_CAVEAT scoped to AUPR row only, partial-input-tolerant (missing tracks render placeholders), CRLF-preserving bytes splice between `<!-- BEGIN_RESULTS_TABLE -->` / `<!-- END_RESULTS_TABLE -->` markers. Operator must add the markers + run `--update-readme` after eval JSONs land on D9/D13/D14. See PROJECT_LOG.md Phase 6.7 entry.**
+- ✅ **PDF↔trace bidirectional sync** (plan §9 "single differentiating interaction") — **shipped 2026-06-04 as `frontend/components/pdf-pane.tsx` v2 + `frontend/app/page.tsx` v2 via Phase 6.7. Forward = lane-tinted bbox overlay via `viewport.convertToViewportPoint`; reverse = click → `convertToPdfPoint` → hit-test on current page with smallest-area + lexicographic tie-break. pdfjs worker pinned to `.min.mjs` per pdfjs-dist 4.x ESM-only contract (R1 bug-hunter caught the fabricated `.min.js` path). See PROJECT_LOG.md Phase 6.7 entry.**
+- **Confidence sparklines on findings cards** — plan §9 calls these out; deferred from Phase 6.7 scope. 2–4h frontend task on `findings-pane.tsx`.
 
 ## Sanity checks that should pass before D7 architecture freeze
 

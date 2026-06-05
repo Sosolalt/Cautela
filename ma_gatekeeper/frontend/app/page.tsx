@@ -116,7 +116,12 @@ export default function ReviewPage() {
 
       <div className="grid flex-1 grid-cols-12 overflow-hidden">
         <section className="col-span-5 overflow-y-auto border-r border-neutral-200 bg-white">
-          <PdfPane dealId={dealId} rows={rows} selectedFindingId={selectedFindingId} />
+          <PdfPane
+            dealId={dealId}
+            rows={rows}
+            selectedFindingId={selectedFindingId}
+            onSelect={setSelectedFindingId}
+          />
         </section>
         <section className="col-span-4 overflow-y-auto border-r border-neutral-200 bg-white">
           <FindingsPane
