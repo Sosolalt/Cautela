@@ -876,18 +876,96 @@ def make_mock_agent(seed: int = 42) -> _AgentFn:
     return _agent
 
 
-def make_live_agent() -> _AgentFn:
-    """Wrap the real ADK root agent for live CUAD span extraction.
+def _parse_live_spans(
+    raw: str, contract_text: str
+) -> list[tuple[str, int, int, float]]:
+    """Parse a model's JSON span list and ground each span in the contract.
 
-    Same rationale as `make_live_agent` in eval_maud_mcq.py: raise loudly
-    at the top so CI can never silently no-op on `--live`. The Runner
-    integration is out of scope for offline eval scripts.
+    Expected model output is a JSON array of objects:
+        [{"text": "<verbatim span>", "confidence": 0.0..1.0}, ...]
+
+    No-fabrication policy:
+      - Markdown code fences (```json ... ```) are stripped before parsing.
+      - A span whose `text` cannot be located verbatim in `contract_text`
+        is DROPPED, not assigned a guessed offset — the eval scores against
+        gold char spans, so a fabricated offset would be worse than a miss.
+      - Malformed JSON or a non-list payload yields `[]` (the eval then
+        reports zero predictions for that example, which is honest).
+    Offsets use the FIRST verbatim occurrence (`str.find`); CUAD scoring is
+    Jaccard-over-char-ranges, for which first-occurrence is the standard
+    grounding choice.
     """
-    raise NotImplementedError(
-        "Live CUAD-Spans scoring requires a Runner wrapper. Build one "
-        "in scripts/eval_cuad_spans.py:make_live_agent before re-enabling "
-        "--live, OR call the eval module with a custom agent callable."
-    )
+    import json
+    import re
+
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z0-9]*\n?", "", text)
+        text = re.sub(r"\n?```$", "", text).strip()
+
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(data, list):
+        return []
+
+    out: list[tuple[str, int, int, float]] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        span_text = item.get("text")
+        if not isinstance(span_text, str) or not span_text:
+            continue
+        try:
+            confidence = float(item.get("confidence", 0.5))
+        except (TypeError, ValueError):
+            confidence = 0.5
+        start = contract_text.find(span_text)
+        if start < 0:
+            # Model paraphrased instead of copying verbatim — cannot ground
+            # a char offset, so drop rather than invent a position.
+            continue
+        out.append((span_text, start, start + len(span_text), confidence))
+    return out
+
+
+def make_live_agent() -> _AgentFn:
+    """Live CUAD span-extraction agent backed by a Vertex `LlmAgent`.
+
+    A single LlmAgent is asked to extract every verbatim span of the given
+    `clause_type` and emit them as JSON; `_parse_live_spans` grounds each
+    returned span back to a char offset in the source contract (dropping any
+    span the model failed to copy verbatim, rather than fabricating offsets).
+
+    Construction is cheap and ADK-free: the google-adk import lives inside
+    the returned closure (via `scripts._live_agent.run_single_agent`), so
+    importing this module — and constructing the live agent in tests — does
+    not require google-adk or Vertex credentials. `--use-mock` stays the
+    default, so CI never reaches this path.
+    """
+
+    def _agent(
+        contract_text: str, clause_type: str
+    ) -> list[tuple[str, int, int, float]]:
+        # Lazy import: keeps module import (and test construction) ADK-free.
+        from scripts._live_agent import run_single_agent
+
+        instruction = (
+            "You are an expert M&A attorney extracting clauses from a "
+            "commercial contract. Extract every span of text that is an "
+            f"instance of the clause type '{clause_type}'.\n"
+            "Return ONLY a JSON array. Each element must be an object: "
+            '{"text": "<the span copied EXACTLY, character-for-character, '
+            'from the contract>", "confidence": <float between 0 and 1>}.\n'
+            "Copy each span verbatim so it can be located in the source "
+            "text. If no such clause exists, return an empty array []."
+        )
+        user_text = f"=== CONTRACT ===\n{contract_text}"
+        raw = run_single_agent(instruction, user_text, agent_name="cuad_spans")
+        return _parse_live_spans(raw, contract_text)
+
+    return _agent
 
 
 def predictions_from_agent(

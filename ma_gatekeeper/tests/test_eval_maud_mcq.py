@@ -747,3 +747,28 @@ def test_per_category_aupr_present(tmp_path):
         assert out["per_category"][cat]["aupr_degenerate"] == pytest.approx(
             1.0, abs=1e-9
         )
+
+
+# ---------------------------------------------------------------------------
+# 8. Live agent — wired path: cheap/ADK-free construction + choice snapping
+# ---------------------------------------------------------------------------
+
+
+def test_make_live_agent_returns_callable_without_adk():
+    """The live path is wired; `make_live_agent` returns a working closure.
+    The google-adk import is deferred into the closure, so construction stays
+    ADK-free and quota-free (`--use-mock` is still the CLI default)."""
+    agent = M.make_live_agent()
+    assert callable(agent)
+
+
+def test_snap_choice_exact_substring_and_miss():
+    choices = ("Yes", "Yes, with carve-outs", "No")
+    # Exact verbatim -> confidence 1.0
+    assert M._snap_choice("No", choices) == ("No", 1.0)
+    # Substring tier prefers the LONGEST matching choice -> 0.75
+    ans, conf = M._snap_choice("Answer: Yes, with carve-outs.", choices)
+    assert ans == "Yes, with carve-outs" and conf == 0.75
+    # No recoverable choice -> raw echoed at 0.5 so the eval counts it
+    # unmatched rather than snapping to a wrong choice.
+    assert M._snap_choice("Maybe?", choices) == ("Maybe?", 0.5)

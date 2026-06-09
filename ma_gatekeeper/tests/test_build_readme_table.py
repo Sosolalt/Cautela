@@ -5,7 +5,9 @@ or honesty-guard behavior — happy-path rendering is incidental; the
 load-bearing properties are:
   * Honesty-guards never elide a degenerate-AUPR caveat or a P@R
     fallback flag.
-  * The Wilson 95% LB row is ALWAYS labelled load-bearing and the
+  * The cluster-bootstrap 95% LB row is ALWAYS labelled load-bearing
+    (it is the headline; the Wilson row is retained only as an
+    exploratory per-finding-IID cross-check) and the cluster-bootstrap
     pre-commitment caption is appended whenever Internal-30 is present.
   * Dropped folds are NEVER hidden.
   * A missing input renders a clearly-labelled "Not yet available" row
@@ -51,8 +53,9 @@ def _calibrate_payload(
              "abstention": 0.15},
         ],
         "point_block_recall": point_recall,
-        "wilson_one_sided_95_lb_block_recall": wilson_lb,
+        "wilson_one_sided_95_lb_block_recall_exploratory_iid": wilson_lb,
         "cluster_bootstrap_one_sided_95_lb_block_recall": boot_lb,
+        "headline_statistic": "cluster_bootstrap_one_sided_95_lb_block_recall",
         "deployed_tau_h": 0.42,
         "deployed_tau_f": 0.55,
         "tau_h": 0.42,
@@ -727,3 +730,46 @@ def test_e2e_all_three_with_dropped_and_fallback(tmp_path: Path) -> None:
     assert M.DEGENERATE_CAVEAT in table
     # Pre-commitment caption attached.
     assert "load-bearing" in table
+
+
+# ---------------------------------------------------------------------------
+# 18. Fix 10 — cluster bootstrap is the headline; Wilson key migrated.
+# ---------------------------------------------------------------------------
+
+
+def test_headline_statistic_is_cluster_bootstrap() -> None:
+    """Fix 10: the cluster bootstrap row must appear BEFORE the Wilson
+    row in the Internal-30 rendering (it is the load-bearing headline),
+    and its caption must carry the load-bearing/published-unmodified
+    language."""
+    rows = M._build_internal30_rows(_calibrate_payload())
+    metric_order = [r[1] for r in rows]
+    cluster_idx = next(
+        i for i, m in enumerate(metric_order) if "cluster bootstrap" in m
+    )
+    wilson_idx = next(
+        i for i, m in enumerate(metric_order) if "Wilson" in m
+    )
+    assert cluster_idx < wilson_idx, (
+        f"cluster bootstrap row ({cluster_idx}) must precede Wilson "
+        f"row ({wilson_idx}) — it is the headline statistic."
+    )
+    cluster_row = rows[cluster_idx]
+    # Load-bearing language lives on the cluster bootstrap row now.
+    assert "Load-bearing" in cluster_row[3] or "load-bearing" in cluster_row[3]
+    assert "published unmodified" in cluster_row[3]
+
+
+def test_legacy_wilson_key_still_consumed() -> None:
+    """Fix 10 backwards-compat: a thresholds.json payload using the OLD
+    key name (`wilson_one_sided_95_lb_block_recall`, pre-Fix-10) must
+    still render a valid Wilson row for one release cycle."""
+    payload = _calibrate_payload(wilson_lb=0.612)
+    # Simulate an old artifact: only the legacy key is present.
+    del payload["wilson_one_sided_95_lb_block_recall_exploratory_iid"]
+    payload["wilson_one_sided_95_lb_block_recall"] = 0.612
+    rows = M._build_internal30_rows(payload)
+    wilson_rows = [r for r in rows if "Wilson" in r[1]]
+    assert len(wilson_rows) == 1
+    # Value rendered from the legacy key, not em-dash.
+    assert wilson_rows[0][2] == "0.612"

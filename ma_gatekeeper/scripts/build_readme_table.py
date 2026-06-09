@@ -8,9 +8,11 @@ Produces the canonical three-track results table — **Internal-30**,
 Design commitments (per plan §5.2 + PROJECT_LOG L89–96):
   * Each track is reported with its OWN metric. MCQ accuracy and CUAD
     token-F1 are NEVER averaged into a single "score".
-  * The Wilson 95% LB (one-sided) on Internal-30 Block-recall is the
-    load-bearing number and is published unmodified, even if below
-    0.95 (plan §0 + §5.4 v3).
+  * The cluster bootstrap 95% LB (one-sided) on Internal-30 Block-recall
+    is the load-bearing headline number and is published unmodified,
+    even if below 0.95 (plan §0 + §5.4 v3). It treats CONTRACTS as the
+    IID unit; the Wilson row remains as an exploratory per-finding-IID
+    cross-check (over-tight as a cluster-corrected estimate).
   * `aupr_degenerate` on MAUD ALWAYS carries the "degenerate (single
     confidence, not per-choice probs)" caveat in the Notes column so a
     reader does not mistake it for the paper's full AUPR.
@@ -55,16 +57,17 @@ END_MARKER = "<!-- END_RESULTS_TABLE -->"
 # `scripts/eval_maud_mcq.py` module docstring + plan §5.2.
 DEGENERATE_CAVEAT = "degenerate (single confidence, not per-choice probs)"
 
-# Pre-commitment paragraph (verbatim phrasing from `README.md` L257–260
+# Pre-commitment paragraph (verbatim phrasing from `README.md` cluster-bootstrap headline row
 # + plan §5.4 v3) — appended below the table whenever the Internal-30
 # row is present.
-WILSON_PRECOMMIT_CAPTION = (
-    "_Pre-commitment (plan §0 + §5.4 v3): the Wilson 95% LB on Block "
-    "recall is the load-bearing number and is published unmodified "
-    "regardless of whether it clears 0.95. With ~6–10 Block findings per "
-    "fold, the 95% Wilson CI for a proportion near 1.0 spans roughly "
+CLUSTER_BOOTSTRAP_PRECOMMIT_CAPTION = (
+    "_Pre-commitment (plan §0 + §5.4 v3): the cluster-bootstrap 95% LB on "
+    "Block recall is the load-bearing headline number and is published "
+    "unmodified regardless of whether it clears 0.95. With ~6–10 Block "
+    "findings per fold, the 95% CI for a proportion near 1.0 spans roughly "
     "±0.10–0.15; the LB clearing 0.95 is **arithmetically tight, not a "
-    "guarantee**._"
+    "guarantee**. The Wilson row is retained as an exploratory per-finding-"
+    "IID cross-check only._"
 )
 
 
@@ -162,17 +165,38 @@ def _build_internal30_rows(data: dict[str, Any] | None) -> list[Row]:
         f"headline fold(s); frozen fold "
         f"{data.get('frozen_fold', '?')} excluded.",
     ))
+    # Headline row: cluster bootstrap (cluster-correct). Comes BEFORE
+    # the Wilson row so the headline is visually the load-bearing number.
     rows.append((
         track,
-        "Block recall (Wilson 95% LB, one-sided)",
-        _fmt3(data.get("wilson_one_sided_95_lb_block_recall")),
-        "Load-bearing number per plan §0 + §5.4 v3 — published unmodified.",
-    ))
-    rows.append((
-        track,
-        "Block recall (cluster bootstrap 95% LB)",
+        "Block recall (cluster bootstrap 95% LB, one-sided)",
         _fmt3(data.get("cluster_bootstrap_one_sided_95_lb_block_recall")),
-        "Cluster bootstrap over contracts (1000 resamples).",
+        "Load-bearing number per plan §0 + §5.4 v3 — published unmodified. "
+        "Cluster bootstrap over contracts (1000 resamples) — findings "
+        "within a contract are correlated, so contracts are the IID unit.",
+    ))
+    # Backwards-compat key fallback: the V2 gate (FIX_PLAN_NOTES) renamed
+    # the Wilson key from `wilson_one_sided_95_lb_block_recall` to
+    # `wilson_one_sided_95_lb_block_recall_exploratory_iid`. Read both so
+    # an older thresholds.json artifact still renders cleanly for one
+    # release cycle. First non-None wins.
+    wilson_value = None
+    for candidate in (
+        "wilson_one_sided_95_lb_block_recall_exploratory_iid",
+        "wilson_one_sided_95_lb_block_recall",
+    ):
+        v = data.get(candidate)
+        if v is not None:
+            wilson_value = v
+            break
+    rows.append((
+        track,
+        "Block recall (Wilson 95% LB — exploratory, per-finding IID)",
+        _fmt3(wilson_value),
+        "Exploratory cross-check only — assumes findings are IID Bernoulli "
+        "trials, which they are not (findings within a contract are "
+        "correlated). Over-tight as a cluster-corrected estimate; the "
+        "cluster bootstrap row above is the headline.",
     ))
     # `dict.get(key, default)` only returns `default` when the key is
     # ABSENT — an explicit `null` in the JSON would render as the literal
@@ -425,7 +449,7 @@ def render_table(
 ) -> str:
     """Render the four-column Markdown results table.
 
-    The caption (Wilson pre-commitment paragraph) is appended ONLY when
+    The caption (cluster-bootstrap pre-commitment paragraph) is appended ONLY when
     Internal-30 data is present — there is nothing to pre-commit about
     when the row is a placeholder.
     """
@@ -445,7 +469,7 @@ def render_table(
     table_md = "\n".join(lines)
 
     if internal30 is not None:
-        table_md = f"{table_md}\n\n{WILSON_PRECOMMIT_CAPTION}"
+        table_md = f"{table_md}\n\n{CLUSTER_BOOTSTRAP_PRECOMMIT_CAPTION}"
     return table_md
 
 

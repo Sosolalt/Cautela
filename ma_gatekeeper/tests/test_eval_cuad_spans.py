@@ -921,8 +921,37 @@ def test_squad_adapter_drops_rows_without_quoted_phrase():
 # ---------------------------------------------------------------------------
 
 
-def test_make_live_agent_raises_immediately():
-    """`make_live_agent` raises NotImplementedError at the top of the
-    function — no LlmAgent instantiation, no closure trickery."""
-    with pytest.raises(NotImplementedError, match="Runner wrapper"):
-        M.make_live_agent()
+def test_make_live_agent_returns_callable_without_adk():
+    """`make_live_agent` now returns a working agent closure (the live path
+    is wired). Construction must stay cheap and ADK-free — the google-adk
+    import is deferred into the closure body — so this returns a callable
+    without importing google-adk or touching Vertex. `--use-mock` remains
+    the CLI default, so CI never invokes the closure (no quota burn)."""
+    agent = M.make_live_agent()
+    assert callable(agent)
+
+
+def test_parse_live_spans_grounds_verbatim_and_drops_paraphrase():
+    """`_parse_live_spans` grounds verbatim spans to char offsets and DROPS
+    spans the model failed to copy verbatim (no fabricated offsets)."""
+    contract = "Section 4.2. Upon a Change of Control, consent is required."
+    raw = (
+        '[{"text": "Change of Control", "confidence": 0.9}, '
+        '{"text": "paraphrased not present", "confidence": 0.8}]'
+    )
+    spans = M._parse_live_spans(raw, contract)
+    assert len(spans) == 1
+    text, start, end, conf = spans[0]
+    assert text == "Change of Control"
+    assert contract[start:end] == "Change of Control"
+    assert conf == 0.9
+
+
+def test_parse_live_spans_strips_code_fence_and_tolerates_garbage():
+    contract = "the anti-assignment clause forbids transfer"
+    fenced = '```json\n[{"text": "anti-assignment", "confidence": 0.5}]\n```'
+    spans = M._parse_live_spans(fenced, contract)
+    assert len(spans) == 1 and spans[0][0] == "anti-assignment"
+    # Malformed JSON / non-list payloads yield [] rather than raising.
+    assert M._parse_live_spans("not json at all", contract) == []
+    assert M._parse_live_spans('{"text": "x"}', contract) == []

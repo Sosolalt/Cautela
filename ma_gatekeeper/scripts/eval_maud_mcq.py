@@ -209,21 +209,78 @@ def make_mock_agent(seed: int = 42) -> _AgentFn:
     return _agent
 
 
-def make_live_agent() -> _AgentFn:
-    """Wrap the real ADK root agent for live MAUD scoring.
+def _snap_choice(raw: str, choices: tuple[str, ...]) -> tuple[str, float]:
+    """Map a model's free-form reply onto one of the listed MCQ choices.
 
-    Implementation note: the prod root agent is a 4-stage pipeline tuned
-    for full-contract findings extraction, NOT single-question MCQ. A
-    direct MAUD-MCQ deployment would instantiate a single LlmAgent with
-    the MAUD question prompt and wrap it in an ADK Runner; the Runner
-    integration is out of scope for offline eval scripts. We raise loudly
-    so CI can never silently no-op on `--live`.
+    Honest, no-fabrication policy — three tiers, each with a distinct
+    confidence so the degenerate-AUPR path (P(chosen)=confidence) reflects
+    how the answer was recovered:
+      - exact verbatim match            -> (choice, 1.0)
+      - a choice appears as a substring -> (longest such choice, 0.75)
+      - no choice recoverable           -> (raw, 0.5) so the eval counts it
+        as an unmatched response (incrementing `n_unmatched_responses`)
+        rather than silently snapping to a wrong choice.
+
+    The substring tier prefers the LONGEST matching choice so that, when
+    one choice is a prefix/substring of another (e.g. "Yes" vs "Yes, with
+    carve-outs"), the more specific answer wins instead of the short one.
     """
-    raise NotImplementedError(
-        "Live MAUD-MCQ scoring requires a Runner wrapper. Build one "
-        "in scripts/eval_maud_mcq.py:make_live_agent before re-enabling "
-        "--live, OR call the eval module with a custom agent callable."
-    )
+    answer = raw.strip()
+    for choice in choices:
+        if choice == answer:
+            return choice, 1.0
+    substring_hits = [c for c in choices if c and c in answer]
+    if substring_hits:
+        best = max(substring_hits, key=len)
+        return best, 0.75
+    return answer, 0.5
+
+
+def make_live_agent() -> _AgentFn:
+    """Live single-question MCQ agent backed by a Vertex `LlmAgent`.
+
+    Per this module's design, MAUD-MCQ is scored by a single LlmAgent
+    answering one deal-point question at a time — NOT the 4-stage findings
+    pipeline (`agent/agents.py:build_root_agent`), which extracts
+    contract-wide RiskFindings and exposes no MCQ surface. The agent is
+    instructed to reply with EXACTLY one of the listed choices; recovery of
+    a drifted reply is handled transparently by `_snap_choice` so this
+    wrapper never papers over a wrong answer.
+
+    Construction is cheap and ADK-free: the google-adk import lives inside
+    the returned closure (via `scripts._live_agent.run_single_agent`), so
+    importing this module — and constructing the live agent in tests — does
+    not require google-adk or Vertex credentials. Quota is only burned when
+    the closure is actually invoked, and `--use-mock` remains the default so
+    CI never reaches this path.
+    """
+
+    def _agent(
+        contract_text: str, question: str, choices: tuple[str, ...]
+    ) -> tuple[str, float]:
+        if not choices:
+            return "", 0.0
+        # Lazy import: keeps module import (and test construction) ADK-free.
+        from scripts._live_agent import run_single_agent
+
+        choices_block = "\n".join(f"- {c}" for c in choices)
+        instruction = (
+            "You are an expert M&A attorney answering a MAUD deal-point "
+            "multiple-choice question about a merger agreement. Read the "
+            "agreement, then choose the SINGLE best answer. Reply with "
+            "EXACTLY one of the listed choices, copied verbatim, with no "
+            "extra words, punctuation, quoting, or explanation."
+        )
+        user_text = (
+            f"=== MERGER AGREEMENT ===\n{contract_text}\n\n"
+            f"=== QUESTION ===\n{question}\n\n"
+            f"=== CHOICES (reply with exactly one, verbatim) ===\n"
+            f"{choices_block}"
+        )
+        raw = run_single_agent(instruction, user_text, agent_name="maud_mcq")
+        return _snap_choice(raw, choices)
+
+    return _agent
 
 
 # ---------------------------------------------------------------------------
