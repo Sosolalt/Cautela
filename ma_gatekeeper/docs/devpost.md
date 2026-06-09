@@ -88,19 +88,38 @@ proxied through our own subdomain so the iframe embed works without
 sandbox warnings. Seven Phoenix hooks: OpenInference tracing on every
 ADK call, inline `phoenix.evals.create_classifier` for hallucination
 + faithfulness, programmatic span annotations via the Phoenix client,
-MCP introspection (`list-traces`, `get-trace`, …), auto-growing
-regression datasets via MCP `add-dataset-examples`, prompt
-versioning + experiment-gated promotion, and a scheduled batch
+MCP introspection (`list-traces`, `get-trace`, …) whose JSON-shaped
+output of escalation-tagged span ids drives the SDK
+`client.datasets.append_examples` write into the allowlisted
+`regressions-v1` dataset (with a deterministic `get_spans_dataframe`
+fallback when MCP is unreachable), prompt versioning +
+experiment-gated promotion, and a scheduled batch
 `run_evals` cron in place of the SaaS-only AX Online Eval Tasks.
 
-The numbers stack: 5-fold CV calibration with one-sided 95% Wilson
-LBs, non-parametric cluster bootstrap respecting per-contract
-correlation, reliability diagrams over the full pool, and an
-ε = max(SE, 0.03) noise floor on the frozen-fold non-regression
-check. With ~6–10 Block findings per fold the 95% CI for a
-proportion near 1.0 spans roughly ±0.10–0.15 — the Wilson lower
-bound clearing 0.95 is arithmetically tight, not a guarantee, and
-we publish the achieved number unmodified.
+The numbers stack: 5-fold CV calibration with the headline statistic
+being a non-parametric cluster bootstrap that resamples CONTRACTS
+(findings within a contract are correlated, so contracts are the IID
+unit), a one-sided 95% Wilson LB retained as an exploratory
+per-finding-IID cross-check, reliability diagrams over the full pool,
+and an ε = max(SE, 0.03) noise floor on the frozen-fold non-regression
+check. With ~6–10 Block findings per fold the 95% CI for a proportion
+near 1.0 spans roughly ±0.10–0.15 — the cluster-bootstrap lower bound
+clearing 0.95 is arithmetically tight, not a guarantee, and we publish
+the achieved number unmodified.
+
+A fifth standalone agent — the **Portfolio Analyst** — exposes the
+1M-context window of Gemini 3 Pro as a dedicated `/portfolio` endpoint.
+One inference call ingests all thirty Internal-30 EX-2.1 contracts
+concatenated (roughly 800k tokens), uploaded once via the same
+content-sha256-keyed Files API cache the `/review` pipeline uses, and
+returns a structured cross-deal cluster taxonomy: which MAE / MAC
+carve-out templates the portfolio falls into, which deal is the
+outlier, and a verbatim representative-clause excerpt per cluster.
+This is not folded into the per-contract `SequentialAgent` — it runs
+on demand as a separate capability, so per-contract review latency
+stays untouched. Mock-default in dev (`tests/fixtures/portfolio_
+expected_output.json`); `PORTFOLIO_LIVE=1` opts in to the operator-
+wired Vertex path.
 
 Hosting: FastAPI on Cloud Run (autoscaling to zero off-demo), Next.js
 14 / Tailwind frontend with `react-pdf` + Phoenix iframe deep-link,
@@ -147,13 +166,20 @@ test in the suite.
   boundary kept it green and caught logic regressions immediately. See
   `ma_gatekeeper/tests/` for the current count.
 - **Two hard pre-commitments locked in writing**: we publish the
-  achieved Block-recall Wilson lower bound unmodified, and the demo
+  achieved Block-recall cluster-bootstrap lower bound unmodified, and the demo
   voiceover says "five pre-indexed deals" — no soft-deceptive
   "recently indexed."
 - **The Reflector loop is real**, not a sketch — paired-bootstrap CI
   on a regression dataset, frozen-fold non-regression gate, and a
   code-enforced allowlist that refuses Reflector writes to the held-
   out fold 5.
+- **Portfolio Analyst as the data-room wedge**: one Gemini 3 Pro call,
+  all thirty Internal-30 contracts, ~800k input tokens, structured
+  cluster output. This is the capability the per-contract reviewer
+  vendors (Harvey, Kira) do not offer — cross-deal pattern detection
+  exploiting the 1M-context window as a first-class diligence surface,
+  not a chat-with-your-contracts UX. Surfaced as a separate `/portfolio`
+  endpoint + UI route so the per-contract review pipeline is unchanged.
 
 ---
 
@@ -214,10 +240,10 @@ mandatory pane, not three. Each cut survived a reviewer.
 ## Reflector pre-seeding disclosure (REQUIRED in Devpost description)
 
 > The "production" prompt was deliberately seeded weaker 48 hours
-> before demo recording so the auto-improvement loop has a real
-> signal to find. The loop logic itself — paired-bootstrap CI,
-> frozen-fold non-regression, auto-promotion — is unchanged. Honest
-> engineering of reproducibility, not staging.
+> before demo recording so the auto-improvement loop is structurally
+> guaranteed to outperform. The loop logic itself — paired-bootstrap
+> CI, frozen-fold non-regression, auto-promotion — is unchanged.
+> Honest engineering of reproducibility, not staging.
 
 ---
 
@@ -264,4 +290,6 @@ mandatory pane, not three. Each cut survived a reviewer.
       privacy MUST be **Public** or **Unlisted (link accessible)**.
       Do NOT use "Unlisted restricted"; Devpost has DQ'd projects
       for it. Open the link in an incognito browser before submitting.
-- [ ] Payment-eligibility profile (W-9/W-8BEN) complete on Devpost.
+- [ ] Devpost account reachable: valid email + team members added.
+      (No pre-submission tax form exists on Devpost — W-9/W-8BEN-type
+      payout details are collected from winners only, after results.)

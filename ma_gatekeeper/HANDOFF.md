@@ -25,9 +25,12 @@ skim "✅" lines as already-done).
 - [ ] Pick a hosting domain (e.g. `ma-gatekeeper.com`) or use Cloud Run
       default URLs. The "we own the URL" demo story needs a real
       subdomain only if you want it.
-- [ ] Devpost account exists; verify the **payment-eligibility profile
-      is complete** (W-9/W-8BEN-equivalent) so a $5K win can actually
-      be paid — easy to forget and a real failure mode.
+- [ ] Devpost account exists, with a **valid, monitored email** and all
+      team members added. (There is **no** pre-submission tax/payment
+      form on Devpost — W-9/W-8BEN-type tax + payout details are
+      collected from *winners only*, after results, via the
+      sponsor/Devpost payout flow. The only pre-submission action is
+      being reachable: correct email + team listed.)
 - [ ] Decide on a public-passcode for the demo and put it in Secret
       Manager as `demo-passcode`.
 
@@ -352,6 +355,50 @@ PROJECT_LOG.md Phase 6.5).
 - ✅ **README results-table generator** (plan §5.2 + §12 publication artifact) — **shipped 2026-06-04 as `scripts/build_readme_table.py` + 40 tests via Phase 6.7. Three-track Markdown table with regex against the real `eval_cuad_spans.py` flag enum, DEGENERATE_CAVEAT scoped to AUPR row only, partial-input-tolerant (missing tracks render placeholders), CRLF-preserving bytes splice between `<!-- BEGIN_RESULTS_TABLE -->` / `<!-- END_RESULTS_TABLE -->` markers. Operator must add the markers + run `--update-readme` after eval JSONs land on D9/D13/D14. See PROJECT_LOG.md Phase 6.7 entry.**
 - ✅ **PDF↔trace bidirectional sync** (plan §9 "single differentiating interaction") — **shipped 2026-06-04 as `frontend/components/pdf-pane.tsx` v2 + `frontend/app/page.tsx` v2 via Phase 6.7. Forward = lane-tinted bbox overlay via `viewport.convertToViewportPoint`; reverse = click → `convertToPdfPoint` → hit-test on current page with smallest-area + lexicographic tie-break. pdfjs worker pinned to `.min.mjs` per pdfjs-dist 4.x ESM-only contract (R1 bug-hunter caught the fabricated `.min.js` path). See PROJECT_LOG.md Phase 6.7 entry.**
 - **Confidence sparklines on findings cards** — plan §9 calls these out; deferred from Phase 6.7 scope. 2–4h frontend task on `findings-pane.tsx`.
+
+## Post-POC operator items (post-2026-06-11)
+
+Routed here by the `project-team` skill on 2026-06-08 from the
+POST_HACKATHON_BACKLOG.md §11–13 dispatch round (Phase 8 kickoff). These
+are explicitly NOT for the 2026-06-11 submission window; they are gates
+on the post-POC enterprise pilot BOM (§13) and the Build #2 DSL (§11).
+Both require non-code work (legal, insurance, recruiting) Claude cannot
+do.
+
+- [ ] **Malpractice gate** (POST_HACKATHON_BACKLOG §13). Before the first
+      pilot conversation, secure: (a) signed MSA template with a
+      liability cap and an explicit "decision-support, not
+      decision-making" disclaimer (corporate counsel draft, NOT
+      Claude); (b) AI-specific E&O policy from Munich Re / Beazley /
+      Coalition naming the pilot customer as additional insured —
+      target $5–25M tower, $100–500K/yr premium tier; (c) UI-enforced
+      human sign-off step before any Auto-Clear finding becomes work
+      product (currently the Auto-Clear path likely doesn't enforce
+      this — distinct from the LoopAgent auto-PR gate, which is a
+      separate concern). Blocker for §13 BOM completion.
+- [ ] **Recruit part-time M&A counsel for Jurisdiction-Pair Conflict
+      DSL** (POST_HACKATHON_BACKLOG §11 Build #2). ~5–10 hrs/week to
+      curate and grow the seed 50-entry DSL toward the 200–400-entry
+      v1 target. Sourcing channels: paid consult ($300–500/hr) OR
+      Skadden / Davis Polk alumni contact OR ABA M&A Committee
+      referral. Without this hire, Build #2 ships the 50-entry seed
+      and stops there. Blocker for Build #2 reaching v1.
+- [ ] **iManage round-trip validation** for the `.docx` redline
+      (POST_HACKATHON_BACKLOG §11 Build #1 / §13.2). The
+      `agent/docx_redline.py` post-processor (when Build #1 ships)
+      will be validated against Word locally by the test suite;
+      iManage round-trip is an operator validation that cannot be
+      done in CI. Required before any pilot conversation where the
+      partner uses iManage as their DMS (most mid-market boutiques
+      do). One-hour task once Build #1 lands.
+- [ ] **Partner-annotated 25-deal dataset for Build #1**
+      (POST_HACKATHON_BACKLOG §11 Build #1). The Phoenix Dataset
+      requires: 5 existing allow-list deals + 20 EDGAR-derived deals,
+      partner-annotated for (issue, severity, schedule cross-ref
+      status). The 20 new deals must be disjoint from fold-5 of the
+      Internal-30. ~15–25 hours of partner time at consult rates, or
+      a Skadden/Davis Polk alumni contact for in-kind. Blocker for
+      Build #1's Phoenix Experiment scoring loop.
 
 ## Sanity checks that should pass before D7 architecture freeze
 

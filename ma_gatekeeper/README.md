@@ -43,7 +43,7 @@ Reflector (separate Cloud Scheduler cron):
   (regression set + frozen fold-5) -> auto-promote ONLY if both gates pass
 ```
 
-## Seven Arize hooks (plan §6.1)
+## Ten Arize hooks (plan §6.1)
 
 1. OpenInference tracing of every ADK call (`openinference-instrumentation-google-adk`).
 2. Inline `phoenix.evals.create_classifier` for hallucination + faithfulness.
@@ -52,6 +52,9 @@ Reflector (separate Cloud Scheduler cron):
 5. Auto-growing regression dataset via MCP `add-dataset-examples`.
 6. Prompt versioning + experiment-gated promotion (paired bootstrap CI + frozen fold non-regression).
 7. Hook 7: scheduled batch `run_evals` collapsed into the Reflector nightly cron — equivalent batch coverage to Arize AX Online Eval Tasks (which are SaaS-only).
+8. Non-circular citation eval via an independently-sourced gold set (`citation-gold-v1`, curated from Cornell LII + the Atticus CUAD clause taxonomy, a different annotator and source set than the citation map); gold-vs-map agreement logged as dataset metadata.
+9. Per-call `citation_linker_agreement` span annotation written post-hoc from the fire-and-forget proposer — a genuine streaming-eval signal (not batch-collapsed).
+10. Deterministic regex comparator (`citation_exact_match`) surfaced as a Phoenix `create_classifier` rail for grader uniformity — NOT an LLM judge.
 
 ## Repository layout
 
@@ -251,8 +254,13 @@ Reported on **24 contracts (4 folds × 6)**; fold 5 (6 more contracts)
 is reserved as the Reflector's frozen non-regression set and is never
 used for the headline number.
 
-> Held-out Block recall = R, Wilson 95% LB = R_lo, at abstention = Y%;
+> Held-out Block recall = R, cluster-bootstrap 95% LB = R_lo (headline,
+> contracts as IID unit), at abstention = Y%; Wilson 95% LB = R_lo_iid
+> reported as a secondary exploratory per-finding-IID cross-check;
 > per-evaluator thresholds (τ_h, τ_f), 4-fold CV on Internal-30.
+
+<!-- BEGIN_RESULTS_TABLE -->
+<!-- END_RESULTS_TABLE -->
 
 **Expected CI width**: with ~6–10 Block findings per fold, the 95%
 Wilson CI for a proportion near 1.0 spans roughly ±0.10–0.15. The LB

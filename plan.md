@@ -81,6 +81,8 @@ You upload a target company's data room (a merger agreement + 5–30 supporting 
 ### 3.2 What "wins the demo" looks like
 In the 3-minute video, the climactic 10-second shot is: **a Block-lane finding → cmd+click → Phoenix dashboard opens showing the full agent trace, the cited clause span, the hallucination evaluator's output, and the LLM judge's reasoning**. The shot is the **auditability proof** — not novel-looking to an Arize-native judge (they see traces daily), but novel as an artifact of an end-user product the panel can verify. The full demo exists to set up that shot, but its load-bearing work is "this agent is auditable," not "this visual is unprecedented."
 
+`[v4]` **The cmd+click moment is now the cold-open at 0:00-0:04, not the 1:50 climax** — Round-2 review found that opening on the marketing hero burned 5s of the hostile-juror first-30s attention budget on something that read as "design portfolio." Working-agent proof now leads; brand lands as the closing bookend at 2:45-3:00. The surrounding chrome — `/review`, `/results`, `/marketing` — is Documentary Brutalism per [`design/SOURCE_OF_TRUTH.md`](design/SOURCE_OF_TRUTH.md): court-margin rule, taxonomy footnote markers (`† ‡ §`), lane labels as type rather than rounded pills, near-black surface with one accent per surface. The visual register is itself a wedge against "another red/green AI dashboard."
+
 ### 3.3 Why this concept over Ideas 1 / 2 / 3
 - Inherits Idea 1's high-stakes M&A framing (judges respond to "deal value at stake").
 - Inherits Idea 3's clean Document → Parse → Judge → Route architecture.
@@ -102,7 +104,7 @@ In the 3-minute video, the climactic 10-second shot is: **a Block-lane finding �
 | Structured output | **Pydantic + JSON Schema** on every sub-agent | Reliability; clean evaluator I/O |
 | Observability | **Arize Phoenix self-hosted on Cloud Run** + `openinference-instrumentation-google-adk`; `phoenix.otel.register(set_global_tracer_provider=False, auto_instrument=True)` | The `set_global_tracer_provider=False` kwarg avoids collisions with Cloud Run/Vertex's default TracerProvider |
 | Backend | **Cloud Run** (`adk deploy cloud_run`) | Scales to zero; public URL; secrets via Secret Manager |
-| Frontend | **Next.js + shadcn/ui + Tailwind** with a **fallback custom trace-card component** if Phoenix iframe embed is ugly (validated D1-D2 per §7); fallback to Streamlit only if Next.js slips past D17 | Polish first, but with a real fallback locked in |
+| Frontend `[v4]` | **Next.js (App Router) + Tailwind extending `design/tokens.ts`** (Documentary-Brutalism palette — surface near-black, ink + champagne / oxblood / ivory luxury accents, Instrument Serif + Space Grotesk + Geist Mono). **shadcn/ui never adopted** — the existing review app is hand-rolled Tailwind, which aligns with the brand's no-rounded-pill / no-card-frame non-negotiables; Radix primitives pulled à la carte only if a dialog or popover lands on the critical path. Three surfaces share the same Tailwind config and CSS variables: `/review` (working product, Hosted-URL target), `/marketing` (landing page, demo-video closer + Devpost description link), `/results` (eval results, demo-video close shot at 2:30-2:45). Brand QA gated by `design/tokens.test.ts` invariants in CI (Node step in `.github/workflows/tests.yml`). If Phoenix iframe embed is ugly per D1-D2, the right-pane fallback is a custom trace-card rendered against `design/claude-design-output/colors_and_type.css`. **Streamlit fallback removed** — if Next.js slips past D17, fallback is a static `hero-b.html` served via FastAPI `StaticFiles` parent-mount at `/dso` (~45-60 min). Three.js dependency: `hero-scene.js` is 1534 LOC of bespoke WebGL; **SVG-with-depth fallback is the primary ship**, WebGL is a D16 PM stretch only. | Polish first; brand-correct fallbacks at every tier |
 | Auth | Cloud Run default SA → Vertex AI; `--allow-unauthenticated` + single hard-coded passcode for the demo | Zero-OAuth, judge-friendly |
 
 ### 4.2 Multi-agent topology `[v2: dropped Orchestrator and Reporter LlmAgents]`
@@ -409,22 +411,26 @@ This is reproducibility engineering, not staging — the loop runs exactly as it
 - **D11**: Reflector skeleton — `list-traces` → `add-dataset-examples` working via Phoenix MCP. Cloud Scheduler endpoint live (single cron — Reflector + Hook 7 batch eval collapsed per §6.1 v3).
 - **D12**: Reflector prompt iteration — `upsert-prompt` + `add-prompt-version-tag` working. Implement the v3 promotion rule (§6.3): two `run_experiment` calls (regression set + frozen held-out fold 5), paired-bootstrap CI test on the first, non-regression check on the second. `add-prompt-version-tag` only fires if both gates pass.
 - **D13**: Adversarial slice: 5 Gemini-perturbed contracts + **leakage audit** (AUC < 0.6 to ship per §5.3 v3). Re-run 5-fold CV if perturbed contracts shift any fold's curve.
-- **D14**: Hook 7 batch `run_evals` inside the same Reflector cron — backfill annotations on production spans from the last 24h.
+- **D14 AM**: Hook 7 batch `run_evals` inside the same Reflector cron — backfill annotations on production spans from the last 24h.
+- **D14 PM** `[v4]`: **Design-token migration prerequisite (already done in-session 2026-06-08)**: `design/tokens.ts`, `ma_gatekeeper/frontend/tailwind.config.ts`, `app/globals.css`, `app/layout.tsx` migrated to the Documentary-Brutalism palette per the new design system in `design/claude-design-output/`. Legacy specs (`PLAN.md` / `INSPIRATION.md` / `STACK.md` / `SYSTEM.md` / `COPY.md` / `TOOLING.md` / `REVIEW_NOTES.md` in `design/`) banner-marked SUPERSEDED. `design/tokens.test.ts` extended to 13 invariants (no warm-clay, no brand-blue, `border-radius: 0` everywhere, one easing only, contrast guards). **Tailwind class sweep on the product UI deferred to D15 AM** — three real violations remain at `findings-pane.tsx:61` (`rounded` chip), `findings-pane.tsx:55` (`bg-lane-clear/15` filled-tint), `deal-picker.tsx:25` (`rounded`), all surfaced by the corrected three-pass brand-QA grep.
 
 ### Week 3 — Polish, demo, ship (June 3–June 10)
-- **D15**: Next.js + shadcn frontend — PDF viewer (`react-pdf`), three-pane layout, lane chips **with score numbers and confidence sparklines** (not just colors). **PDF↔trace bidirectional sync** wired — feasible in one day because (a) Parser already populated `Clause.pdf_bbox` on D4, (b) Risk Judge stashed bbox on span attributes on D7. Forward (clause→trace) and reverse (trace→clause) are now lookup-based, no late coord-extraction work. `[v3]` If D4 bbox extraction failed, **scope to forward-direction only** for the demo and document the limitation.
-- **D16**: Server-Sent Events streaming from Cloud Run for live progress per clause.
-- **D17**: Hardening — PDF parse failures fall back to Document AI Layout Parser; rate limiting on demo passcode; quota safeguards. Decide GO/NO-GO on Next.js vs Streamlit fallback by end of day.
-- **D18**: Final eval run; publish the per-track results table to the README. **48h Reflector pre-seed begins** (§6.4) so the candidate-vs-production delta will be real on D19 recording. Rehearse the demo end-to-end at least twice.
-- **D19**: `[v3]` **Record the demo today, not D20.** Pre-record one full successful EDGAR run as fallback for the live-demo segment. Pre-load Phoenix in a second visible window (split-screen) so the cmd+click reveal is instant, not anticlimactic (Reviewer 4: "the visual climax is what's in Phoenix when it loads, not the click itself"). Close the video on the auto-promotion event in Phoenix Experiments, not the static results table.
-- **D20**: `[v3]` **Pure submission day, no recording.** README polish. Apache 2.0 LICENSE. Submit Devpost form including all required text sections (§12). Warm Cloud Run with `min-instances=1`. Triple-check track checkbox, gallery image, "Built with" tags, YouTube link is public-accessible (not unlisted-restricted), AI-generated-content disclosure, Demo Scope paragraph, achieved-recall pre-commitment language in README.
-- **D21 (June 10)**: Submit and verify. 24h buffer before June 11 23:00 GMT+2 deadline. Spot-check the hosted URL + Phoenix dashboard hourly until evening. If Phoenix goes down: link the backup screenshot deck from the Devpost description (`[v3]` Reviewer 4 — judges need a fallback artifact, not just "try again later").
+- **D15** `[v4]`: **AM — Tailwind class sweep** (~1-2h): fix `findings-pane.tsx:61` + `:55` + `deal-picker.tsx:25` and any siblings the three-pass grep surfaces (replace the filled tint with a 4px left-edge bar marker). **PM — Next.js review-app shell at `/review`** conforming to Documentary Brutalism per §9: `bg-surface text-ink`, left court-margin hairline, line numbers down the PDF pane, lane labels as uppercase mono with **taxonomy footnote-marker prefix** (`†` = Block, `‡` = Escalate, `§` = Auto-Clear, mapped to `GatekeeperDecision.lane` post-routing; pre-routing rows markerless), score in `mono-badge` 14px, 2px lane-color left-edge bar per row, no rounded chips / filled blocks / shadows. PDF viewer underlines clauses with a 2px stroke + 2px tick at the line-number rail (4px on hover/selected). **PDF↔trace bidirectional sync** wired — feasible in one day because (a) Parser already populated `Clause.pdf_bbox` on D4, (b) Risk Judge stashed bbox on span attributes on D7. `[v3]` If D4 bbox extraction failed, scope to forward-direction only and document. `[v4]` **Deep-link autostart**: add `?deal=X&autostart=1` query-param handling to `app/page.tsx` (~1h) — on mount, if `searchParams.has("autostart")`, skip the deal picker and call the existing `runReview(dealId)` handler. The Hosted Project URL becomes `/review?deal=NVDA-MLNX-2024&autostart=1`. **Replaces the v3 wording "Next.js + shadcn frontend" — shadcn was never adopted.**
+- **D16** `[v4]`: **AM — marketing landing at `/marketing`** as a Next.js route group (`app/(marketing)/page.tsx`). **Primary composition is the SVG-with-depth dimensional fallback** per `design/claude-design-output/README.md` §The dimensional layer — line-number rail + ochre stamp + Newsreader 200/800 + footer band carry the composition; no WebGL dependency, no jank risk. Copy strings locked verbatim from `design/claude-design-output/README.md` §Content fundamentals (hero tagline, sub-line, conservative-stats line, primary CTA `Try the demo →`, secondary CTA `Watch the 60-second demo`, Phoenix span-ID format). Footnote ¹ on "sourced" resolves in the footer band citing Arize Phoenix. Primary CTA links to `/review?deal=...&autostart=1`. **AM noon checkpoint**: if SVG variant is green, optional stretch is porting `hero-scene.js` (1534 LOC of Three.js — three@0.160.0) to a React-lifecycle-safe canvas (10-16h of real work normally; explicitly framed as stretch only, do NOT block landing-page ship on it). **PM — Server-Sent Events streaming from Cloud Run** for live progress per clause.
+- **D17** `[v4]`: Hardening — PDF parse failures fall back to Document AI Layout Parser; rate limiting on demo passcode; quota safeguards. **48h Reflector pre-seed begins here, not D18** (corrects the pre-existing §6.4 vs §7 D18 24h-off drift in v3). **Brand-QA pass — three grep passes**: pass A `rg -nP '\bbg-blue\b|\bshadow-(?!none\b)' ma_gatekeeper/frontend/{app,components}`; pass B `rg -n '\brounded\b' ma_gatekeeper/frontend/{app,components} | rg -v 'rounded-none'`; pass C `rg -nP '\bbg-lane-(block|escalate|clear)(/\d+)?\b' ma_gatekeeper/frontend/{app,components}`. All three must return zero matches. **Add Node CI step** to `.github/workflows/tests.yml`: `node --test --experimental-strip-types design/tokens.test.ts` (~15 min). Side-by-side comparison with `design/claude-design-output/preview/colors-accents.html`, `cmp-cta.html`, `cmp-doc-chrome.html`. **Explicit noon GO/NO-GO**: if landing page or SSE aren't green by 12:00, fire the static-HTML fallback at noon — `from fastapi.staticfiles import StaticFiles`; `app.mount("/dso", StaticFiles(directory="design/claude-design-output", html=True), name="dso")` registered after all other routes in `agent/server.py` (parent-directory mount is required so the file's relative `../../colors_and_type.css` resolves correctly — a `/marketing`-direct mount would 404 on the CSS); add a `/marketing` redirect to `/dso/ui_kits/marketing/hero-b.html`; `COPY design/claude-design-output/ /app/design/claude-design-output/` added to `Dockerfile`; rebuild + smoke-test (~45-60 min total). **Product UI never falls back to Streamlit.**
+- **D18** `[v4]`: Final eval run; results table renders into the README **and** into a `/results` Next.js route on near-black surface, **footnote anchored to the Block-recall number resolves within the same 100vh** per composition rule 8. `/results` reads from `ma_gatekeeper/scripts/eval_*.py` JSON outputs; if piping is non-trivial, render a static markdown-style table — demo-equivalent. Effort ~3-4h. Rehearse demo end-to-end at least twice, including the new 0:00-0:04 cmd+click cold-open and the 2:45-3:00 brand-close bookend. (Pre-seed line removed — it's at D17 now.)
+- **D19**: `[v3]` **Record the demo today, not D20.** `[v4]` **0:00-0:04 is the cmd+click→Phoenix cold-open** (1s product context frame + 3s Phoenix fill — working-agent proof from frame 1); brand hero is the 2:45-3:00 bookend, not the opener. Pre-record one full successful EDGAR run as fallback for the live-demo segment. Pre-load Phoenix in a second visible window (split-screen) so the cmd+click reveal is instant. Close the video on the `/marketing` brand bookend, not the static results table.
+- **D20**: `[v3]` **Pure submission day, no recording.** README polish. Apache 2.0 LICENSE. Submit Devpost form including all required text sections (§12). Warm Cloud Run with `min-instances=1` covering all three surfaces (`/marketing`, `/review`, `/results`). Triple-check track checkbox, gallery image, "Built with" tags, YouTube link is public-accessible (not unlisted-restricted), AI-generated-content disclosure (Gemini + Claude for design-system copy), Demo Scope paragraph, achieved-recall pre-commitment language in README. **`[v4]` Verify Hosted Project URL points to `/review?deal=NVDA-MLNX-2024&autostart=1`**, not `/marketing` — first thing a juror sees is the agent at work; first link in the Devpost *description* points to `/marketing` for jurors who want the brand.
+- **D21 (June 10)**: Submit and verify. 24h buffer before June 11 23:00 GMT+2 deadline. Spot-check the hosted URL + Phoenix dashboard hourly until evening. If Phoenix goes down: link the backup screenshot deck from the Devpost description (`[v3]` Reviewer 4 — judges need a fallback artifact, not just "try again later"; `[v4]` deck now covers Phoenix states + `/marketing` + `/review` mid-stream + `/results`).
 
-### Slip-protection (honest) `[v2: more realistic]`
-- If **end of D9** calibration shows no τ achieves recall=1.0, lower the headline promise to "recall=0.95" and report what the achievable abstention rate is. Honesty wins more than overclaiming.
+### Slip-protection (honest) `[v4: Streamlit OFF, three-tier landing fallback]`
+- If **end of D9** calibration shows no τ achieves recall=1.0, lower the headline promise to "recall=0.95" and report what the achievable abstention rate is.
 - If **end of D12** Reflector isn't promoting, ship the hook 4–5 story alone (introspection + dataset growth, no auto-promotion). Still 5 of 7 Arize hooks.
 - If **end of D14** Cloud Scheduler eval cron is ugly, drop Hook 7 entirely and frame the inline judge as the "always-on guard."
-- If **end of D17** Next.js is behind: Streamlit fallback. Less polished but functional.
+- `[v4]` If **D16 AM noon** SVG-with-depth doesn't ship, skip the Next.js route group entirely — go straight to the D17 static-HTML lift.
+- `[v4]` If **D17 noon GO/NO-GO** fires (landing page or SSE not green), static-HTML lift at `/marketing` via FastAPI `StaticFiles` parent-mount at `/dso` (~45-60 min). Review app at `/review` ships as-is.
+- `[v4]` **Streamlit fallback is OFF.** It cannot render the brand at this commitment level; there is no path back to it.
+- `[v4]` **Three.js stretch is OFF the critical path.** The `hero-scene.js` port (10-16h honest estimate) is a D16 PM stretch only; SVG-with-depth is the primary ship.
 
 ### What will probably actually slip (Reviewer 4's prediction, accepted)
 - **AX Online Eval Task / Cloud Scheduler cron (Hook 7)** — most likely cut.
@@ -433,31 +439,67 @@ This is reproducibility engineering, not staging — the loop runs exactly as it
 
 ---
 
-## 8. Demo Flow `[v2: optimized for the click-into-Phoenix moment]`
+## 8. Demo Flow `[v4: cmd+click cold-open + brand-close bookend]`
+
+`[v4]` Round-2 hostile-juror review found that opening on a marketing hero burns 5s of the first-30s attention budget on something that reads as "design portfolio." Round-3 fresh red-team added a 1s product context frame before the Phoenix fill. The new opening leads with the auditability proof and lands the brand as the closing bookend.
 
 | Time | Beat | What's on screen |
 |---|---|---|
-| 0:00–0:20 | **Problem** | Quote from Potomac Law CoC piece on the missed-clause failure mode; overlay deal-volume + diligence-cost figure (citation visible). |
-| 0:20–0:35 | **Architecture** (compressed from 30s → 15s per Reviewer 4) | One diagram, 3 callouts: Gemini 3 + ADK, Phoenix tracing, MCP self-improvement loop. |
-| 0:35–1:50 | **Live demo** | (a) Pick a deal from the allow-list (presented as "five pre-indexed deals" per the §5.5 pre-commitment — explicitly NOT "recently indexed"); (b) lanes populate as Gemini streams findings via SSE; (c) hover a Block finding → tooltip shows judge score and abstention threshold. |
-| 1:50–2:05 | **THE MOMENT** | Cmd+click the Block finding → Phoenix dashboard opens in a new tab, showing the full trace, the cited span, the hallucination evaluator's output, the LLM judge reasoning, and the score that crossed the threshold. Hold this shot for 8–10 seconds. |
-| 2:05–2:45 | **Self-improvement loop** | Switch to Phoenix Experiments tab. Show last 48h: the Reflector created `candidate` from a real low-score trace, ran an experiment, candidate beat production by +0.07 on regressions-v1, auto-promotion event visible in the prompt history. (Pre-seeded per §6.4 to guarantee a real delta.) |
-| 2:45–3:00 | **Close** | Open the README results table on screen — show MAUD-MCQ accuracy, CUAD-Spans F1, and "recall=1.0 on Block at abstention=Y%" on Internal-30. Final card: GitHub link, hosted URL, Phoenix URL. |
+| **0:00–0:01** | **Product context frame** `[v4]` | `/review` Block-finding row in `bg-surface` with the cursor mid-cmd+click. Visible: `† BLOCK 0.42 NVDA-MLNX change-of-control` with the oxblood 2px left-edge bar. 1 second primes the juror to read what comes next as "the trace behind that BLOCK." |
+| **0:01–0:04** | **THE MOMENT (cold-open)** `[v4]` | Phoenix dashboard fills the screen — full trace, cited span, hallucination evaluator output, judge reasoning, score that crossed τ. **3 seconds of held context with no voiceover.** This IS the wedge. |
+| 0:04–0:08 | **Title card** `[v4]` | *"M&A Gatekeeper — every flag, sourced. Every verdict, traced. Every span, clickable."* on near-black surface, taxonomy footnote `†` anchored to "sourced" resolves to a 14px mono line citing Arize Phoenix. Brand register registered without burning a marketing-hero shot. |
+| 0:08–0:23 | **Problem** | Potomac Law CoC quote on the missed-clause failure mode; overlay deal-volume + diligence-cost figure (citation visible). |
+| 0:23–0:38 | **Architecture** | One diagram, 3 callouts: Gemini 3 + ADK, Phoenix tracing, MCP self-improvement loop. |
+| 0:38–1:50 | **Live demo** | (a) Pick a deal from the allow-list (presented as "five pre-indexed deals" per the §5.5 pre-commitment — explicitly NOT "recently indexed"); (b) findings stream in via SSE as court-document entries: 2px lane-color left-edge bar (200ms recognition) + `† BLOCK 0.42` (Geist Mono, taxonomy-glyph second-read disambiguation) + Space Grotesk body summary; PDF clauses underlined 2px in lane color with line-number-rail ticks; (c) cmd+click another Block → Phoenix opens in a second window (hold 4-5s, shorter than v2's 8-10s because the cold-open already did the heavy lift). |
+| 1:50–2:30 | **Self-improvement loop** | Switch to Phoenix Experiments tab. Show last 48h: the Reflector created `candidate` from a real low-score trace, ran an experiment, candidate beat production by +0.07 on regressions-v1, auto-promotion event visible in the prompt history. (Pre-seeded per §6.4 — pre-seed starts D17, not D18, per the corrected timeline.) |
+| 2:30–2:45 | **Numbers** `[v4]` | Cut to `/results` route — three-track table on near-black surface (MAUD-MCQ accuracy vs baseline; CUAD-Spans F1 + P@R=0.8; Internal-30 Block-recall + Wilson LB + paired-bootstrap CI). Footnote `*` on the Block-recall number resolves within the same 100vh per composition rule 8. |
+| 2:45–3:00 | **Brand close (bookend)** `[v4]` | Cut to the marketing landing at `/marketing` — line-number rail, ochre "M&A SOURCED" stamp, Newsreader 200/800 headline. Final card: GitHub link, **Hosted URL = `/review?deal=NVDA-MLNX-2024&autostart=1`** (working agent mid-stream, not the landing), Phoenix URL. The brand lands here, not at 0:00 — closer not opener. |
 
 **Pre-recorded fallback**: a full clean run captured on D19, ready to swap if the live EDGAR fetch latency exceeds 30s during recording. The cmd+click moment is recorded against the local data and works deterministically.
 
+`[v4]` This §8 supersedes the v2 "Open the README results table on screen" close — the close shot is now the `/marketing` brand bookend, and the numbers table is the 2:30-2:45 `/results` route shot.
+
 ---
 
-## 9. UI/UX `[v2: validated iframe risk, sync as the differentiator]`
+## 9. UI/UX `[v4: Documentary Brutalism applied to three surfaces]`
 
-Three-pane layout:
-- **Left**: PDF viewer (`react-pdf`), clauses highlighted in lane colors **with the score badge inline**.
-- **Center**: Findings list streaming in, each card with: clause snippet, lane chip showing both color AND numeric score (e.g., "BLOCK 0.42"), tiny confidence sparkline showing the judge's runs over time, "View Trace →" link.
-- **Right**: **Either** the Phoenix iframe (if D1 validation showed it embeds cleanly) **or** a custom trace-card component that calls the Phoenix REST API and renders the trace ourselves with a "Open full trace in Phoenix" button.
+**Aesthetic register:** Documentary Brutalism. Source of truth: [`design/SOURCE_OF_TRUTH.md`](design/SOURCE_OF_TRUTH.md) → [`design/claude-design-output/README.md`](design/claude-design-output/README.md) → [`design/claude-design-output/source/design.md`](design/claude-design-output/source/design.md) → [`design/claude-design-output/colors_and_type.css`](design/claude-design-output/colors_and_type.css). Brand non-negotiables (no rounded corners, no shadows, no blue, no system-ui, no centered hero, mono ligatures off, one easing only, one accent per surface in ≤3 placements, footnote markers load-bearing, em-dashes load-bearing, 88px display floor) enforced by `design/tokens.ts` + `design/tokens.test.ts` and apply to **all three** surfaces below.
 
-**The single differentiating interaction**: **PDF↔trace bidirectional sync**. Click a clause in the PDF → the right pane scrolls to the corresponding Phoenix span. Click a span in the right pane → the PDF scrolls and highlights. No competitor ships this. This is what differentiates the demo visually from "another red/green dashboard."
+**Accent palette in use.** M&A luxury palette extension (`champagne` / `champagne-deep` / `champagne-soft` / `oxblood` / `ivory`) defined in `colors_and_type.css` lines 30-35 is the lived palette. The README's original four (`vermillion` / `highlighter` / `ochre` / `cyan-ink`) remain as legacy. Each surface picks one accent and uses it in at most three placements.
 
-Header: deal name, contract count, agent status (parsing / classifying / cross-referencing / judging / done), totals per lane, **τ (threshold) visible**.
+### Working surface (`/review`) — the Hosted Project URL target
+
+Three-pane review layout. Single accent: champagne. Default landing state is mid-SSE-stream: a `?deal=X&autostart=1` query-param handler on `app/page.tsx` skips the deal picker and calls the existing `runReview(dealId)` on mount, so a juror clicking the Hosted URL lands on a working agent in flight, not on an empty picker.
+
+- **Left pane — PDF viewer (`react-pdf`).** Clauses underlined with a **2px stroke** in lane color (oxblood = Block, champagne = Escalate, no decoration = Auto-Clear), sitting 2px below the glyph baseline (not browser `text-decoration` — that vanishes at 720p video downsampling). Hover or selection thickens to **4px** in 200ms `cubic-bezier(0.16, 1, 0.3, 1)`. **Plus a 2px lane-color tick at the line-number rail** mirroring each underlined clause, so the lane-color signal reads at thumbnail scale even when the PDF underline is sub-pixel after H.264. No filled blocks, no rounded chips.
+- **Center pane — findings list.** Each finding renders as a court-document entry:
+  - **2px lane-color left-edge bar** in the gutter — the 200ms color signal a juror parses on first glance (brand-compliant per `claude-design-output/README.md` §Backgrounds: "depth through overlap, scale, or a single hairline rule"). Selected row thickens the bar to 4px; **no background tint** (filled colored row backgrounds explicitly banned).
+  - **Taxonomy footnote-marker prefix** mapped to `GatekeeperDecision.lane` (post-routing): `†` = Block, `‡` = Escalate, `§` = Auto-Clear. Taxonomy glyphs are explicitly permitted per `claude-design-output/README.md` line 62; numeric `¹²³` was rejected because it double-encodes priority order with "Block" and risks parsing as "first finding." Pre-routing rows (only `RiskFinding.severity` known) render markerless until the SSE frame that delivers the lane assignment arrives.
+  - **Lane label** in uppercase Geist Mono (`mono-foot` 11px, `text-ink-muted`).
+  - **Score** in `mono-badge` 14px alongside (`BLOCK 0.42`).
+  - **One-line summary** in Space Grotesk body.
+  - **Hairline rule** below — no card frame, no shadow.
+- **Right pane — Phoenix evidence column.** Either the Phoenix iframe (if D1-D2 validation passes) or a custom trace-card rendered against `colors_and_type.css`. Court-margin hairline down the left edge. **Phoenix span ID gets architectural placement as a vertical mono column down the right-pane left margin** (mirroring `hero-a.html`'s span-ID rail per `claude-design-output/README.md` §The three lineages §3) — not a 14px label tucked under chrome.
+
+**Differentiating interaction:** PDF↔trace bidirectional sync (unchanged from v3 plan; degrades to forward-only if D4 bbox is incomplete).
+
+**Header.** Deal name on the left in `display-sm` Instrument Serif. τ value visible as a footnote-style mono label (`mono-foot` 11px), not as a chip. **Status string in sentence case**, `body-sm` Space Grotesk (*"Parsing the contract."* / *"Cross-referencing six agents."* / *"Done."*) — uppercase reserved for §A document IDs and tracking labels per `claude-design-output/README.md` §Casing.
+
+### Marketing surface (`/marketing`) — demo-video closer + Devpost description link
+
+One 100vh hero, no nav, no footer-with-links, no logo strip, no testimonials. **Primary composition is the SVG-with-depth dimensional fallback** per `claude-design-output/README.md` §The dimensional layer — line-number rail (01-28) down the left edge, doc ID `EX-2.1 / 2026-06-08 / 1 of 312` top-right, vertical court-margin hairline at 80px, Newsreader 200 + 800 paired headline (216px ceiling on desktop, 88px floor on mobile), ochre "M&A SOURCED" stamp, footer band. Warm-paper surface (`--surface-alt`). Single accent: ochre, in three placements: stamp, footnote-resolution rule, primary-CTA underline-hover state. Footnote ¹ on "sourced" resolves in the footer band. Primary CTA *Try the demo →* underlined type, arrow translates 6-8px right on hover. Secondary CTA *Watch the 60-second demo* underlined small text inline — **not** a second button. Phoenix span ID `phoenix:span:7f3a-c2b1-9d04-…` sits bottom-left as the document's tracking number. **WebGL Three.js variant from `hero-scene.js` (1534 LOC) is a D16 PM stretch goal only**, never blocks ship.
+
+### Results surface (`/results`) — demo-video close-shot at 2:30-2:45
+
+Single 100vh table on near-black surface (`bg-surface text-ink`). Three rows: MAUD-MCQ accuracy vs baseline; CUAD-Spans token-F1 + P@R=0.8; Internal-30 5-fold-CV held-out Block-recall + 95% Wilson LB + 95% paired-bootstrap CI. Footnote `*` on the Block-recall number resolves within the same 100vh viewport per composition rule 8. No nav, no footer. Data sourced from `ma_gatekeeper/scripts/eval_*.py` JSON outputs; if piping is non-trivial, render a static markdown-style table at build time (demo-equivalent).
+
+### Motion
+
+One easing only: `cubic-bezier(0.16, 1, 0.3, 1)`. Two durations: 200ms (hover/interaction), 800ms (entry). `prefers-reduced-motion: reduce` honored — the static composition reads as composed without motion.
+
+### Forbidden (all three surfaces)
+
+Mesh gradients, aurora, glassmorphism, noise overlays, raster imagery, Lottie, Rive, post-processing bloom, particle systems, autoplay video, emoji (including ✓ and →-as-icon), shadcn-default rounded chips, system blue, filled colored row backgrounds.
 
 ---
 
@@ -476,9 +518,9 @@ The original v1 list (A2A, question-gen, deal-risk score, multi-language, data-r
 
 | Risk | Likelihood | Severity | Mitigation |
 |---|---|---|---|
-| Phoenix iframe embed looks bad (auth chrome, scrollbar wars) | Medium | High | **D1 visual validation**; Plan B custom trace-card UI from Phoenix REST API ready by D3 |
+| Phoenix iframe embed looks bad (auth chrome, scrollbar wars) | Medium | High | **D1 visual validation**; Plan B custom trace-card UI from Phoenix REST API ready by D3, rendered against `design/claude-design-output/colors_and_type.css` `[v4]` — not a generic-Tailwind card |
 | Phoenix self-hosted deploy fights us | Medium | High | Budget 2 days (D1+D2) not 1; reverse-proxy through our domain so we can fall back to Phoenix Cloud without losing the "our URL" demo story |
-| **Dead Cloud Run URL during judging** `[v2: upgraded Low→High]` | Medium | High | min-instances=1 from D20; status check hourly until June 11 evening; pre-recorded walkthrough linked from README; uptime monitor |
+| **Dead Cloud Run URL during judging** `[v2: upgraded Low→High]` | Medium | High | min-instances=1 from D20 covers all three surfaces on the same Cloud Run service (`/marketing`, `/review`, `/results`) `[v4]`; status check hourly until June 11 evening; pre-recorded walkthrough linked from README; uptime monitor |
 | **Vertex AI Gemini 3 Pro quota 429s during demo** `[v2: new]` | Medium | High | Request quota bump on D3; hold a fallback Gemini 3 Flash codepath; cache last successful demo run for fallback |
 | Gemini PDF parsing degrades on scanned/older filings | Medium | Medium | Document AI Layout Parser fallback; the 5-deal allow-list is pre-vetted for digital-native PDFs |
 | Internal-30 annotation slips | High | Medium | LLM-assist mandatory; spread across D5–D9 not weekend burst; ship 25 if 30 doesn't fit |
@@ -492,6 +534,10 @@ The original v1 list (A2A, question-gen, deal-risk score, multi-language, data-r
 | **Devpost video aspect ratio / size rejection** `[v2: new]` | Low | High | Follow Devpost video spec exactly; upload to YouTube unlisted as backup |
 | MAUD/CUAD attribution miss | Low | Medium | Attribution block in README and demo video credits per CC-BY-4.0 |
 | **Synthetic perturbation leakage detectable by agent** | Medium | Medium | D13 leakage audit; **`[v3]` tightened to AUC < 0.6 to ship, redo if ≥ 0.7** |
+| **Three.js `hero-scene.js` port overruns the brief's complexity budget (~1534 LOC of bespoke WebGL)** `[v4]` | High | Low | **SVG-with-depth fallback is the primary ship; WebGL is a D16 PM stretch only.** Honest port estimate 10-16h, not the v1-naive 4-6h. Out-of-scope unless landing-page core is clean by D16 noon. |
+| **Landing page slips, working agent still ships at `/review`** `[v4]` | Medium | Low | D17 noon GO/NO-GO; static `hero-b.html` lift at `/marketing` via FastAPI `StaticFiles` parent-mount at `/dso` (`from fastapi.staticfiles import StaticFiles`; `app.mount("/dso", StaticFiles(directory="design/claude-design-output", html=True), name="dso")` registered after all other routes + a `/marketing` → `/dso/ui_kits/marketing/hero-b.html` redirect; parent-mount is required so the file's relative `../../colors_and_type.css` resolves) + `COPY design/claude-design-output/ /app/design/claude-design-output/` in `Dockerfile`; ~45-60 min. The working-agent demo doesn't depend on the landing page (it's the demo-video closer + a Devpost description link). |
+| **Brand drift between the three surfaces (`/review`, `/marketing`, `/results`)** `[v4]` | Medium | Medium | Single `design/tokens.ts` import on all three; `design/tokens.test.ts` invariants in CI on every merge (Node step added to `.github/workflows/tests.yml`); brand QA on D17 cross-references `design/claude-design-output/preview/*.html` cards. |
+| **PDF↔trace sync degrades to forward-only because D4 bbox extraction was incomplete** `[v4]` | Medium | Medium | If Parser bbox population is missing or wrong on >10% of clauses, scope to forward-direction only (PDF→trace) and document in README. Never block ship on reverse sync. |
 | **Phoenix dashboard cold-start during judging window** `[v3: new]` | Medium | High | min-instances=1 on Phoenix Cloud Run; monitor uptime; the README's "Click any decision to verify" wedge depends on Phoenix being reachable — treat as SLO from D20 onward |
 | **Calibrate-on-test contamination undermines headline number** `[v3: new — was a real v2 bug]` | Was High | Was Catastrophic | **Fixed in §5.4 v3** with 5-fold CV and per-fold held-out reporting; no remaining mitigation needed |
 | **Reflector auto-promotes overfit / noise** `[v3: new — was a real v2 bug]` | Was High | Was High | **Fixed in §6.3 v3** with paired-bootstrap CI + frozen held-out non-regression check |
@@ -523,12 +569,25 @@ The original v1 list (A2A, question-gen, deal-risk score, multi-language, data-r
 - [ ] **CITATIONS.md**: MAUD, CUAD, EDGAR, all cited sources
 - [ ] `[v3]` **Devpost browse-page preview line** (first sentence of description) tuned to be selling — judges click in from here
 - [ ] `[v3]` **YouTube video set to Public or "Unlisted with link accessible"** — never "Unlisted restricted." Devpost has DQ'd projects for this
-- [ ] `[v3]` **AI-generated-content disclosure** per Devpost rules (we use Gemini extensively; disclose)
-- [ ] `[v3]` **Backup Phoenix screenshot deck** linked from Devpost description, in case the Phoenix instance is cold/down during judging
+- [ ] `[v3/v4]` **AI-generated-content disclosure** per Devpost rules — covers (a) Gemini extensively for agent reasoning, **(b) Claude for design-system copy and brand strings in `design/claude-design-output/`** `[v4]`
+- [ ] `[v3/v4]` **Backup screenshot deck** linked from Devpost description — covers Phoenix dashboard states, **`/marketing` landing screenshot, `/review` mid-SSE-stream screenshot, `/results` table screenshot** `[v4]` — in case Cloud Run is cold or any Next.js route group fails during judging
 - [ ] `[v3]` **Reflector pre-seeding disclosure** in README: "production prompt was deliberately seeded weaker 48h before demo recording to give the auto-improvement loop a real signal; the loop logic itself is unchanged"
 - [ ] `[v3]` **Phoenix dashboard URL warmed by `min-instances=1`** at D20 and verified clickable by judges with no login (read-only / shared link)
-- [ ] `[v4]` **Devpost payment-eligibility verification** completed in Devpost user profile (W-9 / W-8BEN equivalent) — required to actually receive the $5K if we win, easy to forget
+- [ ] `[v4]` **Devpost account reachable** — valid/monitored email + all team members added. (Correction: there is no pre-submission tax/payment form on Devpost; W-9/W-8BEN-type details are collected from *winners only*, post-results, via the sponsor/Devpost payout flow. Nothing to complete in-profile beforehand beyond being reachable.)
 - [ ] `[v4]` **README "Expected CI width" paragraph** — explicitly state "~±0.10-0.15 expected Wilson CI width given N=24 contracts and 6-10 Block findings per fold" so judges aren't surprised by a wide interval
+
+### Website-track checklist additions `[v4]`
+
+- [ ] `[v4]` **Hosted Project URL points to `/review?deal=NVDA-MLNX-2024&autostart=1`** (working agent with a deal pre-loaded mid-stream — first thing a juror sees is the agent at work, not a marketing page). First link in the Devpost *description* points to `/marketing` for jurors who want the brand.
+- [ ] `[v4]` **Landing page deployed at `/marketing` on the same Cloud Run service** — either Next.js route group (primary) or FastAPI `StaticFiles` mount of `design/claude-design-output/` at `/dso` plus a `/marketing` redirect (fallback per §11; mount the parent so `hero-b.html`'s relative `../../colors_and_type.css` resolves).
+- [ ] `[v4]` **Results page deployed at `/results` on the same Cloud Run service** — referenced from the demo video close shot at 2:30-2:45.
+- [ ] `[v4]` **Hero matches `design/claude-design-output/ui_kits/marketing/hero-b.html`** within brand-QA tolerance — line numbers, court-margin rule, Newsreader 200/800 paired, ochre stamp, **SVG-with-depth dimensional layer is the primary ship** (`hero-scene.js` Three.js port is a D16 PM stretch only, never blocks ship).
+- [ ] `[v4]` **Locked copy strings present verbatim** on `/marketing` AND in the demo-video title card: hero tagline, sub-line, conservative-stats line, primary CTA `Try the demo →`, secondary CTA `Watch the 60-second demo`, Phoenix span-ID format `phoenix:span:7f3a-c2b1-9d04-…` per `design/claude-design-output/README.md` §Content fundamentals.
+- [ ] `[v4]` **`design/tokens.test.ts` invariants pass in CI on the submission commit** — concrete CI step in `.github/workflows/tests.yml`: `node --test --experimental-strip-types design/tokens.test.ts`. No warm-clay (`#B86F3D`), no `brand-blue` token, `border-radius: 0` on every key, one easing only, contrast guards pass.
+- [ ] `[v4]` **Brand-QA grep clean (three passes — `-P` PCRE required)**:
+  - Pass A: `rg -nP '\bbg-blue\b|\bshadow-(?!none\b)' ma_gatekeeper/frontend/{app,components}` returns zero matches.
+  - Pass B: `rg -n '\brounded\b' ma_gatekeeper/frontend/{app,components} | rg -v 'rounded-none'` returns zero matches (today flags `findings-pane.tsx:61` and `deal-picker.tsx:25`; D15 AM sweep fixes them).
+  - Pass C: `rg -nP '\bbg-lane-(block|escalate|clear)(/\d+)?\b' ma_gatekeeper/frontend/{app,components}` returns zero matches (today flags `findings-pane.tsx:55` selected-row tint; replaced with a 4px left-edge bar marker).
 
 ---
 
@@ -537,10 +596,73 @@ The original v1 list (A2A, question-gen, deal-risk score, multi-language, data-r
 1. Phoenix self-hosted vs Phoenix Cloud: try self-hosted D1 morning; fall back to Phoenix Cloud through our reverse-proxy if it fights us past lunch D2.
 2. Stay tight on the 4 trigger clause types (CoC, anti-assignment, MAC, accelerated vesting); resist scope creep into reps & warranties.
 3. Reflector cron cadence: nightly is enough. Demo recording uses pre-seeded prompts (§6.4).
+4. **Offline / on-prem posture for enterprise customers** — see §14 for the discussion to have before pitching this to law firms or in-house corp-dev teams.
 
 ---
 
-## 14. Appendix — Source citations
+## 14. Offline / On-Prem Deployment for Enterprise Customers (Discussion) `[new]`
+
+> Not a hackathon-scope deliverable. This is a section we owe to anyone who will ask us **"could a Wall Street firm actually run this on a real deal?"** — because in M&A diligence the answer "send your draft merger agreement to our Cloud Run endpoint" is, for many firms, an instant no.
+
+### 14.1 Why this matters
+
+Diligence material is **the single most confidentiality-sensitive corpus a corporate lawyer ever touches**: draft merger agreements, target-company cap tables, unredacted commercial contracts under NDA, MNPI that triggers insider-trading rules the moment it leaves a controlled environment. The buying audience for a Gatekeeper-style tool — AmLaw 100 firms, in-house corp-dev teams at F500s, PE/VC mid-market shops — operates under three overlapping constraints:
+
+- **Client engagement letters** that explicitly forbid sending privileged or work-product material to third-party SaaS without written consent.
+- **Regulatory regimes**: GDPR (EU-resident counterparties), HIPAA-adjacent (healthcare deals), DORA (EU financial services), bank-supervisory data-residency rules, ITAR / EAR for defense-sector targets, SEC Reg FD on selective disclosure.
+- **Internal infosec policy**: SOC 2 / ISO 27001 vendor reviews, data-residency contracts, "no public cloud" clauses, BYOK / HYOK requirements, audit-log retention that the customer (not the vendor) controls.
+
+For these buyers, "trust us, it's on Google Cloud" is not an acceptable answer no matter how good the Phoenix audit trail is. The audit trail proves the *model* behaved correctly; it does not address whether **the data ever should have left the customer's perimeter in the first place**.
+
+This is a strategic conversation, not an engineering one, and we need to have it explicitly before any customer call.
+
+### 14.2 The deployment spectrum we should think through
+
+Five postures, ranked from most-cloud to most-isolated. Each is a real product decision with different revenue/effort tradeoffs:
+
+1. **Pure SaaS (what we ship for the hackathon)** — our Cloud Run, our Phoenix, our Vertex. Fine for the demo, fine for non-sensitive evaluation deals, not viable for a real bake-off at a top-tier firm.
+2. **Single-tenant SaaS in customer's GCP project** — same code, but deployed into a project the customer owns, BYOK on Cloud KMS, VPC-SC perimeter around Vertex calls, Phoenix self-hosted in the same project. Customer's security team can audit it like any other GCP workload. **This is the realistic first enterprise tier and the one we should optimize for next.**
+3. **Hybrid: customer-owned data plane, vendor-owned control plane** — contracts and traces stay in the customer's VPC; only anonymized eval aggregates (no clause text, no party names) flow back to our Reflector loop. Tricky to get right — the value of the self-improvement loop drops sharply when you can't see the failure cases — but it's the only posture some firms will agree to.
+4. **On-prem / customer-managed Kubernetes** — Phoenix runs on the customer's cluster; the LLM call is to a customer-controlled inference endpoint (e.g., Vertex via PrivateLink, or an Anthropic/Google enterprise-tenant deployment). We ship a Helm chart, they operate it. Higher ACVs, much slower sales cycle, real SRE burden.
+5. **Fully air-gapped / fully local** — model weights run inside the customer's environment with no outbound network. Only feasible today with open-weights models (Llama-class, Mistral-class) or an enterprise on-prem deal with a frontier vendor. **Quality drops materially** — none of the open-weights models match Gemini 3 Pro on long-context legal reasoning yet — but for nation-state-sensitive deals (defense M&A, sovereign-wealth transactions) it's the only acceptable answer.
+
+### 14.3 Where our current stack helps and where it hurts
+
+What carries over cleanly to single-tenant / on-prem:
+
+- **Arize Phoenix is OSS and self-hostable** — already a strength. Our hackathon already deploys it self-hosted, which is exactly the muscle an on-prem customer needs.
+- **Google ADK is open-source Python**; the agent code itself is portable.
+- **OpenInference instrumentation is vendor-neutral** — traces flow into any OTel-compatible backend, not just Phoenix.
+- **The Reflector loop's logic is deployable anywhere** — what changes is what it's allowed to write to and read from.
+
+What breaks or weakens:
+
+- **Gemini 3 Pro is Google-cloud-only** at frontier quality. Customers who reject public cloud entirely need a different inference story (Vertex-in-customer-project / private endpoint at minimum; open-weights at the extreme).
+- **The auto-promotion loop assumes we can see failure cases**. In hybrid / on-prem postures we may only see aggregates, which means slower improvement and a different value proposition (we sell the *framework*, not the *learning*).
+- **Files API URI TTL + Phoenix-hosted trace links** — the demo's "click any decision" climax depends on URLs *we* host. In an on-prem world those URLs live behind the customer's firewall and aren't shareable to a third party. The audit trail is still there; it's just not a public demo artifact.
+
+### 14.4 Questions to answer before pitching enterprise
+
+Open questions, not commitments. Each one is a real conversation to have with one design partner each before promising anything:
+
+- **Who is the actual buyer?** A managing partner at an AmLaw firm has different infosec gravity than a corp-dev VP at a PE shop. The first will demand on-prem; the second may accept single-tenant SaaS with BYOK. Don't generalize.
+- **What does the customer's existing AI-vendor policy permit?** Most large firms already have an approved-vendor list (Harvey, Kira, etc.). Knowing whether we need to clear a net-new vendor review or piggyback on an existing Google-Cloud master agreement changes the sales motion completely.
+- **What's the minimum-viable on-prem ship?** Probably: Helm chart for Phoenix + agent, documented inference-endpoint adapter (`VertexClient` / `AnthropicClient` / `OpenWeightsClient` swappable), customer-owned KMS keys, customer-owned audit-log sink. Estimate: 4–6 weeks of work after the hackathon, not a hackathon deliverable.
+- **What does the self-improvement loop look like with no eval data egress?** Either (a) the loop runs entirely inside the customer's environment on their own annotated failures and we ship them prompt-version updates as releases; or (b) we federate — they send us only differential-private aggregates, we ship improvements back. Both are real research/product problems.
+- **How do we measure quality drop when the inference endpoint isn't Gemini 3 Pro?** We need a portable eval harness (MAUD-MCQ + CUAD-Spans + Internal-30) that runs against *any* inference endpoint, so a customer asking "what's the recall if I run this on Llama-3.1-405B in my own VPC?" gets a real number, not a shrug. **This eval portability is something the hackathon evals already give us for free** — worth calling out.
+- **Pricing tiers**: SaaS per-seat or per-deal; single-tenant a one-time deployment fee plus support; on-prem a higher-ACV annual license. Standard enterprise-SaaS playbook but worth deciding before the first sales call so we don't anchor low.
+
+### 14.5 What to do about this in the hackathon
+
+**Nothing technical.** The deployment posture is a 2027 conversation, not a June-2026 one. But the Devpost write-up should include one paragraph — in "What's next" — acknowledging the on-prem reality. Specifically:
+
+> *"For real-world adoption, M&A diligence material rarely leaves a customer's perimeter. Phoenix is already self-hostable; the agent is portable Python; the OpenInference traces are vendor-neutral. A single-tenant deployment into a customer's own GCP project (BYOK, VPC-SC, customer-owned audit sink) is the realistic next step, with a full on-prem / air-gapped variant for firms that can't use public cloud at all. The eval harness shipped here runs against any inference endpoint, so we can publish recall numbers for the customer's chosen model — frontier or open-weights — under their own infrastructure."*
+
+That's enough to signal we've thought about it without overpromising. The judges who care about real-world deployment will recognize the answer; the ones who don't won't penalize us for including it.
+
+---
+
+## 15. Appendix — Source citations
 
 **Market & legal:**
 - Peony — Due Diligence Costs 2025: https://www.peony.ink/blog/due-diligence-cost-breakdown-2025
@@ -565,6 +687,12 @@ The original v1 list (A2A, question-gen, deal-risk score, multi-language, data-r
 - EdgarTools MCP: https://www.edgartools.io/edgartools-mcp-for-sec-filings/
 - Argilla: https://argilla.io/
 
+**Design system `[v4]`:**
+- `design/SOURCE_OF_TRUTH.md` — short index of locked brand decisions (Documentary Brutalism).
+- `design/claude-design-output/README.md` — long-form design system (content fundamentals, visual foundations, iconography, composition rules).
+- `design/claude-design-output/source/design.md` — original creative brief (authoritative).
+- `design/claude-design-output/colors_and_type.css` — canonical CSS for the M&A luxury palette extension (champagne / oxblood / ivory).
+
 **Arize:**
 - Phoenix MCP: https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp
 - Phoenix MCP docs: https://arize.com/docs/phoenix/integrations/phoenix-mcp-server
@@ -587,3 +715,5 @@ The original v1 list (A2A, question-gen, deal-risk score, multi-language, data-r
 ---
 
 *v2 — ready for second review pass. Targeted change log: §1 stats trimmed; §1.4 differentiation honest; §2 wedge limited to the Reflector loop; §4 dropped Orchestrator/Reporter; §5 three eval tracks, 30 contracts, defined metrics, calibration protocol, leakage audit, allow-list demo; §6 corrected `phoenix.evals` API + `arize-phoenix-client` annotation path, fixed Hook 7 Online-Eval/Self-hosted mismatch via Cloud Scheduler, added §6.4 demo pre-seeding; §7 Phoenix ramp stretched to D1-D2, annotation spread D5-D9; §8 reordered around the cmd+click climax + pre-recorded fallback; §9 PDF↔trace sync + score-on-chip; §10 cut 6 of 8 extensions; §11 upgraded dead-URL/quota risks, added Devpost form & video-spec risks; §12 added Devpost gallery image / Built-with tags / text sections / eligibility.*
+
+*Late addition — §14 inserted to cover the on-prem / offline deployment posture for enterprise customers (sensitive-data buyers won't accept pure SaaS for real diligence work). Discussion-only; not a hackathon deliverable. Appendix renumbered §14 → §15.*
