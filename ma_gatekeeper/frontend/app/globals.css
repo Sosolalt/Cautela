@@ -2,7 +2,158 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Google Fonts — Documentary-Brutalism stack (mirrors
+   design/claude-design-output/colors_and_type.css).
+     Display    : Instrument Serif + Newsreader (200 + 800 weights)
+     Body / UI  : Space Grotesk + Inter Tight
+     Mono       : Geist Mono + IBM Plex Mono (ligatures forced off)
+   The commercial families specified in the brief (PP Editorial New, PP Neue
+   Montreal, Berkeley Mono) are not licensed; these are the locked subs. */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Newsreader:opsz,wght@6..72,200;6..72,400;6..72,800&family=Space+Grotesk:wght@300;400;500;600;700&family=Inter+Tight:wght@300;400;500;600;700&family=Geist+Mono:wght@300;400;500;600;800&family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap');
+
+/* :root custom-property declarations — mirror design/tokens.ts color tokens so
+   the focus-ring + link rules below resolve, and so component code that reads
+   `var(--surface)` etc. picks up the canonical values. The source-of-truth is
+   design/claude-design-output/colors_and_type.css; this block is the runtime
+   declaration for the product-UI surface. */
+:root {
+  /* Surface + ink (Documentary-Brutalism palette). */
+  --surface:        #0B0B0C;
+  --surface-alt:    #F4F2EC;
+  --ink:            #ECECEA;
+  --ink-muted:      #8A8A86;
+  --ink-faint:      #54534F;
+  --ink-dim:        #2A2A28;
+  --ink-paper:      #1A1916;
+
+  /* M&A luxury accents. */
+  --accent-champagne:      #C9A961;
+  --accent-champagne-deep: #9C7E3F;
+  --accent-champagne-soft: #E0CB94;
+  --accent-oxblood:        #8B2635;
+  --accent-ivory:          #E8DDC4;
+
+  /* Focus-ring + link — champagne. */
+  --focus-ring-color:  #C9A961;
+  --focus-ring-width:  2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-style:  solid;
+  --link-color:        #C9A961;
+
+  /* Motion — one easing, two durations (the brand's locked values). */
+  --ease:        cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-hover:   200ms;
+  --dur-entry:   800ms;
+
+  /* Hero (marketing) tokens — mirror design/claude-design-output/colors_and_type.css.
+     The standalone hero CSS references these custom properties directly (the product
+     UI uses the Tailwind `font-*` utilities instead, which hardcode the same families).
+     `--accent-vermillion` is the Documentary-Brutalism hero accent (distinct from the
+     product UI's champagne/oxblood). Additive only — no existing token changes. */
+  --accent-vermillion: #E63D2F;
+  --font-display:      'Instrument Serif', 'Newsreader', Georgia, serif;
+  --font-display-news: 'Newsreader', 'Instrument Serif', Georgia, serif;
+  --font-body:         'Space Grotesk', 'Inter Tight', system-ui, sans-serif;
+  --font-mono:         'Geist Mono', 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+/* Light-mode opt-in — attach `data-theme="light"` to `<html>` in app/layout.tsx
+   to flip to the warm-paper surface. The dark anchor is the default per the
+   Documentary-Brutalism brief; light mode is parity only. */
+[data-theme="light"] {
+  --link-color: #9C7E3F; /* champagne-deep on paper passes contrast */
+}
+
 html,
 body {
   height: 100%;
+}
+
+/* Body type defaults — Space Grotesk per Documentary-Brutalism. */
+body {
+  font-family: 'Space Grotesk', 'Inter Tight', system-ui, sans-serif;
+  font-feature-settings: "ss01" 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Mono ligatures off — the Phoenix span ID `phoenix:span:7f3a--c2b1` must
+   render `--` as two literal hyphens, NOT fused into an em-dash glyph.
+   Tailwind has no `fontFeatureSettings` extend point, so the JS export in
+   tokens.ts is documentation only; this CSS rule is what actually disables
+   the ligature fusion. */
+.font-mono {
+  font-family: 'Geist Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
+/* Display defaults — Instrument Serif. Components that want the Documentary-
+   Brutalism display register should add the `.display` class or pass
+   `font-display` via Tailwind (resolves to fontFamily.display in tokens.ts). */
+.display {
+  font-family: 'Instrument Serif', 'Newsreader', Georgia, serif;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  margin: 0;
+}
+
+/* Anchor default — champagne underline. Without this rule, raw `<a>` elements
+   fall back to the browser default (system blue), violating the brand's
+   `no-blue` non-negotiable. The underline carries the link affordance for
+   users who can't perceive the color. */
+a {
+  color: var(--link-color);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Focus-visible default — every interactive primitive inherits this; per-
+   primitive overrides are forbidden. */
+:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Global border-radius lock — the brand's non-negotiable. Tailwind's `rounded-*`
+   utilities still emit class rules; this declaration overrides them so square
+   corners always win, regardless of which `rounded-*` a legacy component
+   carries. The tokens.ts borderRadius scale also resolves every key to "0",
+   so this is belt-and-braces. */
+* {
+  border-radius: 0 !important;
+  box-shadow: none;
+}
+
+/* Reduced-motion — scoped, not blanket. Preserves the 150ms focus-ring outline
+   transitions so keyboard / screen-reader users retain focus-indicator
+   discoverability under the system preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  :where(:focus-visible) {
+    transition-duration: 150ms !important;
+    transition-property: outline-color, outline-offset !important;
+  }
+}
+
+/* Skip-to-content anchor target reset. */
+#main-content {
+  scroll-margin-top: 80px;
+}
+
+/* Selection — oxblood stamp on near-black. */
+::selection {
+  background: var(--accent-oxblood);
+  color: var(--ink);
 }

@@ -206,8 +206,8 @@ export function PdfPane({ dealId, rows, selectedFindingId, onSelect }: Props) {
 
   if (!dealId) {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-sm text-neutral-500">
-        Select a deal to load its 8-K Exhibit 2.1 filing.
+      <div className="flex h-full items-center justify-center p-6 text-center font-mono text-xs uppercase tracking-[0.14em] text-ink-muted">
+        Select a deal to load its 8-K Exhibit 2.1 filing
       </div>
     );
   }
@@ -219,7 +219,11 @@ export function PdfPane({ dealId, rows, selectedFindingId, onSelect }: Props) {
   // and render react-pdf or a sandboxed iframe accordingly. Until
   // then this pane still tries the PDF path; an HTML response will
   // trigger onLoadError and the user sees the empty state.
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "";
+  // Match lib/api.ts's API_BASE default — earlier this defaulted to "" which
+  // silently hit the Next app origin (/filing/<id> → 404) instead of the
+  // FastAPI host. Same default keeps the PDF pane and the SSE client aligned
+  // when NEXT_PUBLIC_API_BASE is unset locally.
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
   const passcode = process.env.NEXT_PUBLIC_DEMO_PASSCODE ?? "";
   const pdfFile = {
     url: `${apiBase}/filing/${dealId}`,
@@ -228,12 +232,15 @@ export function PdfPane({ dealId, rows, selectedFindingId, onSelect }: Props) {
   };
 
   return (
-    <div ref={containerRef} className="h-full overflow-y-auto">
-      <div className="border-b border-neutral-200 px-3 py-2 text-sm text-neutral-700">
+    <div ref={containerRef} className="h-full overflow-y-auto bg-surface">
+      <div className="sticky top-0 z-10 border-b border-ink-faint bg-surface px-3 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
         {dealId} · page {pageNumber}
       </div>
       {Doc ? (
-        <Doc.Document file={pdfFile} onLoadError={(e) => console.error("pdf load", e)}>
+        <Doc.Document file={pdfFile} onLoadError={(e) => console.warn("pdf load", e)}>
+          {/* The rendered filing stays a real white document — it floats,
+              centered, on the near-black pane so it reads as evidence-on-a-desk. */}
+          <div className="flex justify-center p-4">
           {/* `position: relative` anchors the absolute overlay AND scopes the
               click handler to the rendered page region only — clicking the
               chrome above doesn't fire a reverse-lookup. */}
@@ -257,9 +264,10 @@ export function PdfPane({ dealId, rows, selectedFindingId, onSelect }: Props) {
               />
             )}
           </div>
+          </div>
         </Doc.Document>
       ) : (
-        <div className="p-6 text-sm text-neutral-500">Loading PDF viewer…</div>
+        <div className="p-6 font-mono text-xs uppercase tracking-[0.14em] text-ink-muted">Loading PDF viewer…</div>
       )}
     </div>
   );

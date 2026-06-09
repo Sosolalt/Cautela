@@ -1,0 +1,352 @@
+/* =============================================================
+   Hero — Documentary-Brutalism marketing surface.
+   Ported verbatim from
+   design/claude-design-output/ui_kits/marketing/hero-b.html <style>,
+   with two integration changes:
+     1. Every selector is scoped under `.hero-stage` so the generic
+        class names (.text/.sub/.id/.meta/.label/.kicker/.doc-id...)
+        cannot leak into the review app's components.
+     2. The source `html,body{height:100%;overflow:hidden}` rule is
+        replaced by `.hero-stage` owning the viewport box + the
+        `--surface` backdrop (the canvas is alpha:true/transparent and
+        composites over it).
+   The global border-radius:0 / box-shadow:none locks already live in
+   app/globals.css, so they are not repeated here.
+   ============================================================= */
+
+.hero-stage {
+  position: relative;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+/* WebGL canvas — full viewport. The pile sits inside it, positioned in
+   world-space to land in the right ~50% of the viewport. Transparent canvas
+   over the dark .hero-stage surface. */
+.hero-stage .canvas-wrap {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 0;
+}
+.hero-stage #three-canvas { display: block; width: 100%; height: 100%; }
+
+/* SVG hairline overlay — same full viewport. */
+.hero-stage .trace-svg {
+  position: absolute; top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 4;
+}
+.hero-stage #trace-line {
+  stroke: var(--accent-vermillion);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+  opacity: 0;
+}
+
+/* Line-rail — far-left vertical hairline + line numbers 01..28 */
+.hero-stage .line-rail {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 48px;
+  z-index: 3;
+}
+.hero-stage .line-rail .nums {
+  position: absolute;
+  top: 96px;
+  bottom: 96px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.06em;
+  user-select: none;
+}
+.hero-stage .line-rail .nums span { display: block; line-height: 1; }
+
+/* Doc ID — top-right */
+.hero-stage .doc-id {
+  position: absolute;
+  top: 32px;
+  right: 40px;
+  z-index: 5;
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: right;
+  line-height: 1.7;
+}
+.hero-stage .doc-id .num { color: var(--ink); font-weight: 500; }
+.hero-stage .doc-id .effective {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ink-faint);
+  color: var(--ink-faint);
+}
+
+/* ============================================================
+   Typography zone — left, no rigid divider, max-width 65vw.
+   ============================================================ */
+.hero-stage .text {
+  position: absolute;
+  top: 9vh;
+  left: 56px;
+  right: 40px;
+  max-width: min(940px, 65vw);
+  z-index: 2;
+  pointer-events: none;
+}
+.hero-stage .text > * { pointer-events: auto; }
+
+.hero-stage .kicker {
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-size: 11px;
+  color: var(--accent-vermillion);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin: 0 0 56px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--accent-vermillion);
+  display: inline-block;
+}
+
+.hero-stage .headline {
+  font-family: var(--font-display-news);
+  font-size: clamp(56px, 7.4vw, 132px);
+  line-height: 0.95;
+  letter-spacing: -0.028em;
+  margin: 0 0 36px 0;
+  color: var(--ink);
+}
+.hero-stage .headline .l1 { font-weight: 200; }
+.hero-stage .headline .l2 { font-weight: 800; }
+.hero-stage .headline .l3 { font-weight: 200; font-style: italic; color: var(--ink-muted); }
+.hero-stage .headline .l3 .solid { font-weight: 800; font-style: normal; color: var(--ink); }
+.hero-stage .headline a.fn-link {
+  font-family: var(--font-body);
+  font-size: 0.18em;
+  vertical-align: super;
+  font-weight: 500;
+  color: var(--accent-vermillion);
+  margin-left: 0.05em;
+  text-decoration: none;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-block;
+}
+.hero-stage .headline a.fn-link:hover { transform: rotate(-6deg) translateY(-2px); }
+
+.hero-stage .sub {
+  margin: 0 0 64px 0;
+  max-width: 520px;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.hero-stage .sub .muted { color: var(--ink-muted); }
+
+.hero-stage .ctas {
+  display: flex;
+  align-items: baseline;
+  gap: 48px;
+  margin-top: 36px;
+}
+.hero-stage .cta-primary {
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink);
+  padding: 0 0 6px 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  transition: border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hero-stage .cta-primary .arrow {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-block;
+  color: var(--accent-vermillion);
+}
+.hero-stage .cta-primary:hover { border-bottom-color: var(--accent-vermillion); }
+.hero-stage .cta-primary:hover .arrow { transform: translateX(8px); }
+.hero-stage .cta-secondary {
+  font-size: 13px;
+  color: var(--ink-muted);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition: color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hero-stage .cta-secondary:hover { color: var(--ink); }
+
+/* ============================================================
+   Footnote — bottom-LEFT.
+   ============================================================ */
+.hero-stage .footnote {
+  position: absolute;
+  left: 96px;
+  bottom: 32px;
+  z-index: 3;
+  max-width: 460px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+  border-top: 1px solid var(--ink-faint);
+  padding-top: 10px;
+}
+.hero-stage .footnote .marker {
+  color: var(--accent-vermillion);
+  font-weight: 500;
+  margin-right: 6px;
+  vertical-align: super;
+  line-height: 0;
+  font-size: 11px;
+}
+.hero-stage .footnote .stats {
+  display: block;
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+
+/* ============================================================
+   PHOENIX TRACE — bottom-RIGHT overlay (brutalist cut into the document).
+   ============================================================ */
+.hero-stage .span-anchor {
+  position: absolute;
+  right: clamp(220px, 17vw, 290px);
+  bottom: clamp(150px, 19vh, 220px);
+  z-index: 3;
+  width: clamp(280px, 23vw, 330px);
+  box-sizing: border-box;
+  background: var(--surface);
+  padding: 22px 26px 24px 26px;
+  /* Always a clean rectangle: a full 1px vermillion hairline on all four
+     sides (was a brutalist top+left L-cut, which read as a broken/clipped box
+     at some sizes). Square corners + no shadow per the brand lock. */
+  border: 1px solid var(--accent-vermillion);
+}
+.hero-stage .span-anchor .label {
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-size: 10px;
+  color: var(--accent-vermillion);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hero-stage .span-anchor .label::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--accent-vermillion);
+  display: inline-block;
+}
+.hero-stage .span-anchor .id {
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-size: clamp(18px, 1.6vw, 26px);
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  line-height: 1.15;
+}
+.hero-stage .span-anchor .meta {
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ink-faint);
+  display: grid;
+  grid-template-columns: auto auto auto;
+  gap: 8px 16px;
+}
+.hero-stage .span-anchor .meta .clause { color: var(--ink); }
+.hero-stage .span-anchor .meta .ci { color: var(--accent-vermillion); }
+
+/* ============================================================
+   Mobile (<=900px): the desktop composition is absolutely-positioned and
+   only works when the 3D dossier occupies the right half. On narrow screens
+   that collapses to a corner triangle and the absolute card overlaps the
+   body copy. So below 900px we switch to a clean VERTICAL DOCUMENT FLOW:
+   the 3D becomes a faint fixed backdrop, and the text + verdict card stack
+   in normal flow with real spacing — nothing overlaps, the card stays a
+   full rectangle, and the page scrolls if it needs to.
+   ============================================================ */
+@media (max-width: 900px) {
+  .hero-stage {
+    height: auto;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  /* 3D pile → hidden on mobile. At a portrait aspect the cinematic rig frames
+     the stack as a flat gray wedge that reads as a clipped/broken object, so we
+     hide it with `visibility:hidden` (NOT display:none) — the canvas keeps real
+     dimensions, so the scene's clientWidth/Height reads stay valid. The mobile
+     hero is then clean editorial type + the verdict card on near-black. */
+  .hero-stage .canvas-wrap {
+    position: fixed;
+    visibility: hidden;
+  }
+  .hero-stage .text {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    max-width: none;
+    padding: 104px 24px 0;
+  }
+  .hero-stage .headline { font-size: clamp(40px, 11vw, 60px); }
+  .hero-stage .sub { margin-bottom: 40px; }
+  .hero-stage .doc-id { right: 16px; top: 16px; font-size: 9px; }
+  .hero-stage .span-anchor {
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: auto;
+    margin: 8px 24px 56px;
+    padding: 20px 22px 22px;
+    /* The scene drives this card's opacity 0->1 over its 7s loop to sync with
+       the (desktop) 3D flip. On mobile the 3D is hidden and the card is just a
+       content block, so an in-flow card blinking to invisible looks broken —
+       pin it visible. !important overrides the scene's inline style.opacity. */
+    opacity: 1 !important;
+  }
+  .hero-stage .footnote {
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    max-width: none;
+    margin: 0 24px 32px;
+  }
+  .hero-stage .trace-svg { display: none; }
+}

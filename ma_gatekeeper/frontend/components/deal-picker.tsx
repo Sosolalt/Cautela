@@ -19,10 +19,10 @@ interface Props {
  */
 export function DealPicker({ deals, value, onChange, disabled }: Props) {
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <span className="text-neutral-600">Pre-indexed deal</span>
+    <label className="flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.16em]">
+      <span className="text-ink-muted">Pre-indexed deal</span>
       <select
-        className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm disabled:opacity-50"
+        className="appearance-none border border-ink-faint bg-surface px-2 py-1 pr-3 text-xs normal-case tracking-normal text-ink focus-visible:border-accent-vermillion disabled:opacity-50"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled || deals.length === 0}
