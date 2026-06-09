@@ -382,6 +382,57 @@ def _current_trace_id() -> str | None:
     return format_trace_id(trace_int)
 
 
+def _current_span_id() -> str:
+    """Active OTel span id as 16-char lowercase hex (all-zero outside a span).
+
+    The citation background task annotates against the span_id (NOT the 32-hex
+    trace_id that _current_trace_id returns). Captured at the _stream_findings
+    call site BEFORE asyncio.create_task, because OTel context does not
+    propagate across create_task. Best-effort: a NoOp span yields the all-zero
+    id and the annotation simply won't link — the proposer is fire-and-forget.
+    """
+    try:
+        from opentelemetry.trace import format_span_id, get_current_span
+    except Exception:
+        return "0" * 16
+    span = get_current_span()
+    ctx = span.get_span_context()
+    return format_span_id(getattr(ctx, "span_id", 0))
+
+
+def _force_flush_spans(timeout_millis: int = 500) -> bool:
+    """Flush the span exporter so a background annotation POST doesn't race the
+    parent span's export (Phoenix 404s on an unknown span_id).
+
+    Returns True when flushed — or when there is nothing to flush (no provider,
+    or a provider without force_flush, as in dev/test). Returns False only when
+    a real provider's force_flush reports incompleteness or raises; the citation
+    background task then falls back to sync=True so the annotation isn't lost.
+    """
+    try:
+        from opentelemetry import trace as _ot_trace
+    except Exception:
+        return True
+    provider = _ot_trace.get_tracer_provider()
+    force_flush = getattr(provider, "force_flush", None)
+    if not callable(force_flush):
+        return True
+    try:
+        result = force_flush(timeout_millis=timeout_millis)
+    except Exception as exc:
+        _LOG.warning("span force_flush raised: %s", exc)
+        return False
+    # SDK force_flush returns True on success / False on timeout; some return None.
+    return True if result is None else bool(result)
+
+
+# Strong references to fire-and-forget citation-proposer tasks. asyncio holds
+# only weak refs to tasks, so without this the event loop could garbage-collect
+# a task before its background annotation POST completes (~seconds later). The
+# done-callback discards each task once finished.
+_BG_TASKS: set = set()
+
+
 def _sniff_mime(raw: bytes) -> str:
     """Detect mime type from magic bytes — authoritative when present.
 
@@ -870,13 +921,62 @@ async def _stream_findings(
                         f_score=f_score, f_label=f_label,
                         thresholds=thresholds,
                     )
+
+                    # ----- Citation-linkage layer (design/STATUTE_LAYER.md §2.1) -----
+                    # Synchronous cold path: deterministic map lookup ONLY. This
+                    # is the sole citation rendered to users; the LLM proposer
+                    # below never reaches user-facing output. The finding's tag
+                    # keys the map (RiskFinding carries no jurisdiction field, so
+                    # the map's canonical authority for the tag is returned).
+                    from .citation_linker import (
+                        _run_llm_proposer_and_annotate,
+                        lookup_citation,
+                    )
+                    static_ref = lookup_citation(finding.tag)
+                    finding = finding.model_copy(
+                        update={"citation_ref": static_ref}
+                    )
+
+                    # Capture the 16-hex span_id BEFORE create_task — OTel context
+                    # does not propagate across create_task, and the BG annotation
+                    # needs the span_id, not finding.trace_id (the 32-hex trace id).
+                    current_span_id_hex = _current_span_id()
+                    # Flush the exporter so the BG task's annotation POST (seconds
+                    # later) doesn't race the parent span being exported. On a
+                    # False/timeout return the BG task writes with sync=True.
+                    flushed = _force_flush_spans(timeout_millis=500)
+                    _LOG.info(
+                        "span force_flush before citation annotation: %s", flushed
+                    )
+                    # Fire-and-forget: proposer + Python comparator run in the
+                    # background and write a Phoenix annotation. NEVER blocks
+                    # /review; NEVER mutates the user-facing finding. The strong
+                    # ref in _BG_TASKS keeps the loop from GC-ing it mid-flight.
+                    _task = asyncio.create_task(
+                        _run_llm_proposer_and_annotate(
+                            clause_text=finding.clause_text,
+                            tag=finding.tag,
+                            static_ref=static_ref,
+                            span_id=current_span_id_hex,
+                            flushed=flushed,
+                        )
+                    )
+                    _BG_TASKS.add(_task)
+                    _task.add_done_callback(_BG_TASKS.discard)
+
                     # Unified "finding" event carries both the RiskFinding
                     # and its routing decision so the frontend doesn't
                     # have to correlate two parallel streams. Invariant:
                     # decision.finding_id == finding.clause_id (see router).
+                    # exclude=_EVAL_ONLY_FIELDS is belt-and-suspenders on top of
+                    # the RiskFinding.model_dump override (Guard #2) — eval-only
+                    # linker_* fields must never reach the wire.
+                    from .schemas import _EVAL_ONLY_FIELDS
                     yield _sse({
                         "event": "finding",
-                        "finding": finding.model_dump(mode="json"),
+                        "finding": finding.model_dump(
+                            mode="json", exclude=_EVAL_ONLY_FIELDS
+                        ),
                         "decision": decision.model_dump(mode="json"),
                         "h_score": h_score, "f_score": f_score,
                     })
@@ -1078,3 +1178,117 @@ async def reflect() -> dict:
     from .reflector import run_reflection_cycle
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, run_reflection_cycle)
+
+
+# ---------------------------------------------------------------------------
+# §11 Build #3 + §12 — Reflector-as-LoopAgent on-demand endpoint.
+# ---------------------------------------------------------------------------
+# Distinct from `/reflect` (the OIDC-gated nightly cron): `/reflect/loop`
+# is the "Run Reflector now" button surface. Passcode-gated (mirrors
+# `/portfolio`'s posture), streams SSE events from the LoopAgent body,
+# and emits a terminal `auto_promoted` or `no_promotion` event.
+#
+# The hard-gate contract (Phoenix MCP `list_traces` per iteration) is
+# enforced in `reflector_loop._run_one_iteration`; this endpoint is the
+# thin SSE adapter.
+
+
+class ReflectorLoopRequest(BaseModel):
+    """JSON body for `/reflect/loop`. `deal_id` is optional — when
+    present the loop surfaces it on every event payload so the frontend
+    can correlate the running loop with the currently-open deal pane.
+    """
+
+    deal_id: str | None = None
+
+
+async def _stream_reflector_loop_events(
+    deal_id: str | None,
+) -> AsyncIterator[bytes]:
+    """SSE adapter for `run_reflector_loop`.
+
+    Mirrors the `_stream_findings` shape: yields one `data: <json>\n\n`
+    frame per `ReflectorLoopEvent`, then a terminal `done` frame so the
+    frontend can close the stream cleanly. Exceptions are surfaced as
+    an `error` SSE event before the terminal `done`.
+    """
+    from .reflector_loop import run_reflector_loop
+
+    n_events = 0
+    try:
+        async for event in run_reflector_loop(deal_id=deal_id):
+            n_events += 1
+            yield _sse({"event": "reflector_loop", **event.model_dump(mode="json")})
+    except Exception as exc:
+        _LOG.exception("/reflect/loop stream failed")
+        yield _sse({
+            "event": "error",
+            "stage": "reflector_loop_stream",
+            "message": str(exc),
+        })
+    yield _sse({"event": "done", "n_events": n_events})
+
+
+@app.post("/reflect/loop", dependencies=[Depends(passcode_dep)])
+async def reflect_loop(body: ReflectorLoopRequest) -> StreamingResponse:
+    """Trigger one Reflector LoopAgent run on demand.
+
+    Passcode-gated (NOT OIDC) — this is the operator-visible "Run
+    Reflector now" button, not the nightly cron. Mirrors the security
+    posture of `/portfolio`. The `_frame_lockdown` middleware is global,
+    so X-Frame-Options + CSP frame-ancestors apply automatically.
+    """
+    return _sse_response(_stream_reflector_loop_events(body.deal_id))
+
+
+# ---------------------------------------------------------------------------
+# Fix 7 — Portfolio Analyst endpoint (1M-context cross-deal cluster output).
+# ---------------------------------------------------------------------------
+# One Gemini 3 Pro call against all 30 Internal-30 contracts concatenated.
+# Returns a synchronous JSON response (NOT SSE) — the output is one
+# structured `PortfolioReport`, not a stream. Mirrors the security
+# posture of /review: passcode-gated, fail-closed on missing config.
+# Mock-default in dev; PORTFOLIO_LIVE=1 environment flag opts in to the
+# live ADK Runner path (mirrors VALIDATE_ALLOW_LIST_ON_BOOT=1).
+
+
+@app.post("/portfolio", dependencies=[Depends(passcode_dep)])
+async def portfolio() -> dict:
+    """Run the Portfolio Analyst over the Internal-30 contract set.
+
+    Live vs mock:
+      - PORTFOLIO_LIVE unset (default): returns the canonical mock
+        fixture deterministically. Quota-free. Reproducible.
+      - PORTFOLIO_LIVE=1: invokes `make_live_portfolio()` which is
+        wired by the operator on D9 (currently raises
+        NotImplementedError). When wired, the live path uploads the 30
+        EX-2.1 bytes via the existing `_ensure_files_api_upload` cache
+        and runs one Gemini 3 Pro call against the concatenated input.
+
+    `trace_id` is populated server-side from the active OTel span
+    context — never by the LLM — mirroring the RiskFinding pattern.
+    """
+    from .portfolio_analyst import (
+        load_sample_contracts,
+        make_live_portfolio,
+        make_mock_portfolio,
+    )
+
+    contracts = load_sample_contracts()
+
+    if os.environ.get("PORTFOLIO_LIVE", "0") == "1":
+        agent = make_live_portfolio()  # raises NotImplementedError until wired
+    else:
+        agent = make_mock_portfolio()
+
+    # The agent call is sync-ish (mock is trivial; live wraps an ADK
+    # Runner). Offload to a thread so the event loop stays free.
+    loop = asyncio.get_running_loop()
+    report = await loop.run_in_executor(None, agent, contracts)
+
+    # Server-populated trace_id (mirrors RiskFinding pattern in
+    # _stream_findings). The LLM's value, if any, is discarded.
+    trace_id = _current_trace_id()
+    report = report.model_copy(update={"trace_id": trace_id})
+
+    return report.model_dump(mode="json")

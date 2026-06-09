@@ -144,6 +144,98 @@ For each finding, emit:
                  on already-vested awards)
 """
 
+PORTFOLIO_ANALYST_PROMPT = """You are the M&A Portfolio Analyst.
+
+You receive the EX-2.1 (Agreement and Plan of Merger) of THIRTY merger
+agreements concatenated into a single input — roughly 600,000 to 900,000
+tokens of contract text. This is a deliberate exploitation of Gemini 3
+Pro's 1M-context window: one inference call, the entire diligence
+portfolio, cross-deal structural analysis.
+
+Your single job is to CLUSTER the MAE / MAC (Material Adverse Effect /
+Material Adverse Change) carve-out structural language across all 30
+contracts, identify the structural templates the portfolio falls into,
+and flag any outlier deal whose MAE structure does not fit any cluster.
+
+Output JSON only. No prose. No preamble. No markdown fences.
+
+Schema (exact field names, exact nesting):
+
+  {
+    "clusters": [
+      {
+        "cluster_id": "cluster_1_<short_slug>",
+        "name": "<short human label, <= 60 chars>",
+        "theme": "<one sentence — what the carve-out structure does>",
+        "member_deal_ids": ["<deal_id>", "<deal_id>", ...],
+        "representative_clause_excerpt": "<verbatim excerpt from ONE member, <= 400 chars>",
+        "why_distinct": "<1-2 sentences — what makes this cluster structurally different>"
+      }
+    ],
+    "outliers": [
+      {
+        "deal_id": "<deal_id>",
+        "why": "<1-2 sentences — why this deal does not fit any cluster>"
+      }
+    ]
+  }
+
+Cluster on STRUCTURE, not on counterparty industry. Concretely:
+
+1. **Carve-out enumeration shape**: which carve-outs are present in the
+   MAE definition? Standard modern shape lists (a) general economic /
+   market conditions, (b) industry-wide conditions, (c) acts of war /
+   terrorism / pandemics / natural disasters, (d) changes in law or
+   GAAP, (e) failure to meet projections in itself. Some contracts
+   narrow individual carve-outs (e.g. pandemic with a
+   "disproportionately affects target" hook); some omit entire
+   carve-outs (e.g. no industry-wide carve-out at all — this is the
+   Akorn fact pattern); some explicitly allocate a specific risk to the
+   buyer (e.g. Forescout's explicit COVID-19 allocation to buyer).
+
+2. **Disproportionate-impact hook**: does any carve-out apply only "to
+   the extent" the effect disproportionately affects the target
+   relative to industry peers? This hook is the single most-litigated
+   MAE feature; cluster contracts that have it together.
+
+3. **Ordinary Course covenant interaction**: is the Ordinary Course
+   covenant explicitly INDEPENDENT of MAE carve-outs (the AB Stable /
+   MAPS reading)? Cluster contracts whose §5.1 explicitly survives the
+   MAE carve-outs.
+
+4. **Forward-looking language**: does the definition include
+   "reasonably be expected to" or limit to effects that ARE material
+   (durationally significant)? Cluster contracts that share the
+   forward-looking standard.
+
+Rules:
+
+- Produce between 1 and 8 clusters. Anything outside that range
+  indicates you are over- or under-fitting.
+- Every cluster must have AT LEAST 2 members. A 1-member "cluster" is
+  an outlier; emit it under `outliers` instead.
+- Every deal_id in `member_deal_ids` and every deal_id in `outliers[].
+  deal_id` MUST appear in the input. Do not hallucinate deal_ids.
+- A deal_id appears in AT MOST ONE place: either in exactly one
+  cluster's `member_deal_ids`, or in `outliers`, or in neither
+  (if you genuinely cannot resolve its MAE structure from the
+  available text). Mutually exclusive.
+- `representative_clause_excerpt` must be a verbatim string from the
+  source contract. Do not paraphrase. If the literal language exceeds
+  400 characters, truncate with an explicit ellipsis "..." marker.
+- `why_distinct` and `why` are short. 1-2 sentences each. No legal
+  caveat boilerplate.
+- The outlier rationale should explicitly compare to the closest
+  cluster ("the only deal whose MAE definition omits the industry-wide
+  carve-out entirely — Akorn-fact-pattern outlier").
+
+DO NOT emit a `trace_id` field. The server populates `trace_id` from
+the active OTel span context after your output is parsed; any value
+you produce is discarded. Mirrors the `RiskFinding.trace_id`
+server-override pattern (`schemas.py:73`).
+"""
+
+
 RISK_JUDGE_PROMPT = """You are the Risk Judge. For each RiskFinding from
 the cross_reference agent, write a 2-3 sentence `explanation` field that:
 
@@ -179,4 +271,29 @@ the only authoritative source for layout coordinates is the Parser,
 not you. Emit only the fields explicitly listed in your output schema
 (`clause_id`, `clause_text`, `tag`, `severity`, `judge_score`,
 `cited_spans`, `cited_spans_text`, `explanation`).
+"""
+
+
+CITATION_LINKER_PROMPT = """You are an M&A citation proposer used INTERNALLY for
+evaluation only. Your output is graded against a hand-curated, primary-source-
+verified citation map and is NEVER shown to users.
+
+Given a contract clause and its classified tag, propose the single controlling
+legal authority (statute OR case-law) that governs this clause type.
+
+Clause tag: {tag}
+Clause text:
+{clause_text}
+
+Rules:
+- "jurisdiction" MUST be exactly one of: "Delaware", "Federal", "New York",
+  "California", "Uniform Commercial Code".
+- "citation_kind" MUST be exactly one of: "statute", "case_law", "regulation".
+- "citation" is the formal citation string (e.g. "8 Del. C. § 251" for a
+  statute, or "Case Name, <reporter cite> (Court Year)" for case-law).
+- "rationale" is one sentence (<= 240 chars) on why this authority governs.
+- "model_confidence" is a float between 0 and 1.
+
+Output one valid JSON object only, no prose. Schema:
+{{"citation": "...", "citation_kind": "...", "jurisdiction": "...", "rationale": "...", "model_confidence": 0.0}}
 """

@@ -25,6 +25,7 @@ from .prompts import (
     CLASSIFIER_PROMPT,
     CROSS_REFERENCE_PROMPT,
     PARSER_PROMPT,
+    PORTFOLIO_ANALYST_PROMPT,
     RISK_JUDGE_PROMPT,
 )
 # Single source of truth: derive from the schemas.Tag Literal rather
@@ -114,4 +115,27 @@ def build_root_agent():
     return SequentialAgent(
         name="ma_gatekeeper",
         sub_agents=[parser, classifier, cross_reference, risk_judge],
+    )
+
+
+def build_portfolio_analyst():
+    """Fix 7 — standalone 1M-context Portfolio Analyst LlmAgent.
+
+    Single `LlmAgent` on `gemini-3-pro-preview` with
+    `PORTFOLIO_ANALYST_PROMPT`. Deliberately NOT added to the
+    SequentialAgent above — the Portfolio Analyst runs as a separate
+    `/portfolio` endpoint (`server.py`), one inference call per
+    portfolio review, not one per per-contract review.
+
+    Mirrors `portfolio_analyst.py:build_portfolio_analyst` (same factory
+    re-exported here so the `agents` module remains the canonical entry
+    point for ADK topology construction).
+    """
+    from google.adk.agents import LlmAgent
+
+    return LlmAgent(
+        name="portfolio_analyst",
+        model="gemini-3-pro-preview",
+        instruction=_load_prompt("portfolio_analyst", PORTFOLIO_ANALYST_PROMPT),
+        output_key="portfolio_report",
     )

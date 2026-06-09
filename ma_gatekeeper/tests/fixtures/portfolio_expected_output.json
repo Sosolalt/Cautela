@@ -1,0 +1,75 @@
+{
+  "clusters": [
+    {
+      "cluster_id": "cluster_1_standard_modern_mae",
+      "name": "Standard modern MAE — full carve-outs + disproportionate-impact hook",
+      "theme": "Enumerated carve-outs (economic, industry-wide, war/terrorism/pandemic, changes in Law/GAAP) gated by a disproportionate-impact hook applied uniformly across all clauses.",
+      "member_deal_ids": [
+        "hpe-juniper-doj",
+        "chevron-hess",
+        "albertsons-kroger",
+        "synopsys-ansys",
+        "paramount-skydance",
+        "capital-one-discover",
+        "mars-kellanova",
+        "tapestry-capri",
+        "jetblue-spirit",
+        "amazon-irobot",
+        "adobe-figma",
+        "post-cutoff-clean-comparable-a",
+        "post-cutoff-clean-comparable-b",
+        "microsoft-activision",
+        "cisco-splunk",
+        "exxon-pioneer",
+        "hpe-juniper-signing",
+        "bms-celgene-cvr",
+        "cincom-novelis",
+        "sql-solutions-oracle",
+        "meso-scale-roche",
+        "ppg-guardian"
+      ],
+      "representative_clause_excerpt": "Material Adverse Effect shall not include any effect resulting from (a) general economic or political conditions, (b) conditions generally affecting Target's industries, (c) acts of war, terrorism, pandemics, or natural disasters, (d) changes in Law or GAAP; provided that (a)-(d) apply only to the extent the effect disproportionately affects Target relative to industry peers.",
+      "why_distinct": "Modern default template — four standard carve-out buckets present, all gated by the disproportionate-impact hook applied uniformly. Contemporary M&A practice has converged on this shape; deviations signal idiosyncratic negotiation."
+    },
+    {
+      "cluster_id": "cluster_2_pandemic_deviation",
+      "name": "Pandemic carve-out specifically deviated",
+      "theme": "Standard enumerated carve-outs PLUS a structural deviation that singles out the pandemic clause — either excluded from the disproportionate-impact hook or explicitly allocated to one party.",
+      "member_deal_ids": [
+        "pfizer-seagen",
+        "forescout-advent"
+      ],
+      "representative_clause_excerpt": "Notwithstanding the foregoing carve-outs (economic, industry-wide, war/terrorism, changes in Law), the parties EXPLICITLY allocate to BUYER any effect of the COVID-19 pandemic on the Company's business — no disproportionate-impact hook applies to pandemic effects; pandemic risk is contractually buyer's burden.",
+      "why_distinct": "Both deals depart from Cluster 1 by treating the pandemic clause asymmetrically — Pfizer/Seagen by removing the disproportionate-impact hook from pandemic effects only, Forescout/Advent by contractually allocating COVID-19 risk to the buyer. The structural feature in common is that pandemic risk is NOT pooled with the other carve-outs."
+    },
+    {
+      "cluster_id": "cluster_3_forward_looking_durationally_significant",
+      "name": "Forward-looking 'reasonably be expected to' + durationally-significant standard",
+      "theme": "MAE definition has NO enumerated carve-out list; instead, governs via a forward-looking 'reasonably be expected to' threshold tied to long-term earnings power.",
+      "member_deal_ids": [
+        "hexion-huntsman",
+        "ibp-tyson",
+        "channel-medsystems"
+      ],
+      "representative_clause_excerpt": "Material Adverse Effect means any effect that has had or would reasonably be expected to have a durationally-significant material adverse effect on the long-term earnings power of the Company. The forward-looking 'reasonably be expected to' standard governs; short-term variations do not qualify.",
+      "why_distinct": "These deals do not negotiate carve-outs at all — they govern via the IBP/Tyson durationally-significant forward-looking standard. Industry-wide comparison is implicit in the long-term-earnings-power lens, not enumerated. This is the foundational Strine template and predates the modern carve-out norm."
+    },
+    {
+      "cluster_id": "cluster_4_ordinary_course_independent",
+      "name": "Ordinary Course covenant independent of MAE carve-outs",
+      "theme": "MAE carve-outs are present but the §5.1 Ordinary Course covenant operates as an INDEPENDENT closing condition — pandemic effects can satisfy the MAE carve-out yet still breach the Ordinary Course covenant.",
+      "member_deal_ids": [
+        "ab-stable-maps",
+        "tiffany-lvmh"
+      ],
+      "representative_clause_excerpt": "MAE excludes economic, industry-wide, war/terrorism, and law/GAAP effects subject to the disproportionate-impact hook. The Ordinary Course covenant in Section 5.1 operates INDEPENDENTLY of these MAE carve-outs — pandemic effects can clear the MAE bar and still breach Ordinary Course.",
+      "why_distinct": "Both contracts pair a standard MAE carve-out list with an explicit gap between MAE risk allocation and the Ordinary Course covenant — the AB Stable / MAPS reading. A buyer cannot rely on a clean MAE result to discharge an Ordinary Course breach. The structural feature in common is the SEPARATION of the two closing-condition rails."
+    }
+  ],
+  "outliers": [
+    {
+      "deal_id": "akorn-fresenius",
+      "why": "Sole deal whose MAE definition contains NO enumerated carve-out for industry-wide conditions, no carve-out for changes in Law or GAAP, and no disproportionate-impact hook — the Akorn fact pattern. Every other contract in the portfolio negotiates at least the standard four-bucket carve-out list (Cluster 1) or governs via the forward-looking standard (Cluster 3); this deal does neither."
+    }
+  ]
+}
