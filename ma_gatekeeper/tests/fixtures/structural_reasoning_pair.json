@@ -1,0 +1,93 @@
+{
+  "_meta": {
+    "purpose": "Fix 6 — paired mini-contracts with IDENTICAL anti-assignment clause text but DIFFERENT deal_structure metadata. Drives scripts/verify_structural_reasoning.py: the CrossReference agent must produce structure-conditional verdicts (RTM = no-trigger, citing Meso Scale; forward merger = trigger, citing Cincom / PPG). If the live verification fails, the Fix-6 demo beat is CUT per FIX_PLAN cut-criteria — faking it is worse than skipping.",
+    "controlling_precedents": {
+      "rtm_no_trigger": [
+        "Meso Scale Diagnostics v. Roche Diagnostics, 62 A.3d 62 (Del. Ch. 2013)",
+        "SQL Solutions v. Oracle (N.D. Cal. 1991, unreported) — distinguished where acquirer is direct competitor"
+      ],
+      "forward_merger_trigger": [
+        "Cincom Systems v. Novelis, 581 F.3d 431 (6th Cir. 2009)",
+        "PPG Industries v. Guardian Industries, 597 F.2d 1090 (6th Cir. 1979)"
+      ]
+    },
+    "source_rows": "internal30_deal_bank.md §2 Narrative-10 table (12 rows) — Meso Scale row L78, SQL Solutions row L77, Cincom row L76, PPG row L79.",
+    "schema_anchor": "ma_gatekeeper/agent/schemas.py — Clause (id, section_path, text, page, char_start, char_end). The expected verdict reuses RiskFinding.severity ('block' | 'watch' | 'info') and RiskFinding.cited_spans."
+  },
+  "pairs": [
+    {
+      "fixture_id": "rtm_delaware",
+      "deal_structure": "reverse_triangular_merger_delaware_law",
+      "structure_narrative": "Acquirer forms a Delaware merger subsidiary; the merger sub merges WITH AND INTO Target; Target survives as a wholly-owned subsidiary of Acquirer. No transfer of Target's contracts occurs at the contract level — Target remains the contracting entity, only its equity ownership changes.",
+      "target_entity": "TargetCo, Inc. (a Delaware corporation)",
+      "governing_law": "Delaware",
+      "expected_verdict": {
+        "severity": "info",
+        "rationale_keywords": ["reverse triangular", "operation of law", "Meso Scale", "no assignment", "equity transfer", "target survives"]
+      },
+      "clauses": [
+        {
+          "id": "def_assignment",
+          "section_path": ["Definitions", "Assignment"],
+          "text": "\"Assignment\" means any transfer, conveyance, or delegation of this Agreement or any rights or obligations hereunder, whether voluntary, involuntary, by operation of law, or otherwise.",
+          "page": 3,
+          "char_start": 1240,
+          "char_end": 1430
+        },
+        {
+          "id": "sec_12_3_anti_assignment",
+          "section_path": ["Article XII", "Section 12.3", "Anti-Assignment"],
+          "text": "This Agreement may not be assigned by either party, in whole or in part, without the prior written consent of the other party. Any purported assignment in violation of this Section shall be null and void.",
+          "page": 27,
+          "char_start": 48210,
+          "char_end": 48420
+        },
+        {
+          "id": "recital_b_structure",
+          "section_path": ["Recitals", "(B)"],
+          "text": "WHEREAS, the contemplated transaction is structured as a reverse triangular merger under Section 251 of the Delaware General Corporation Law, in which a wholly-owned Delaware merger subsidiary of the Acquirer will merge with and into TargetCo, Inc., with TargetCo surviving as a wholly-owned subsidiary of the Acquirer.",
+          "page": 1,
+          "char_start": 320,
+          "char_end": 640
+        }
+      ]
+    },
+    {
+      "fixture_id": "forward_merger",
+      "deal_structure": "forward_merger",
+      "structure_narrative": "Target merges WITH AND INTO Acquirer (or into a non-surviving acquirer subsidiary); Target ceases to exist as a separate legal entity. Target's contracts transfer to the surviving entity by operation of state merger statutes — which under Cincom and PPG IS treated as an assignment by operation of law for non-assignable licenses.",
+      "target_entity": "TargetCo, Inc.",
+      "governing_law": "Ohio (Sixth Circuit)",
+      "expected_verdict": {
+        "severity": "block",
+        "rationale_keywords": ["forward merger", "operation of law", "Cincom", "PPG", "Guardian", "assignment", "consent required", "target ceases to exist"]
+      },
+      "clauses": [
+        {
+          "id": "def_assignment",
+          "section_path": ["Definitions", "Assignment"],
+          "text": "\"Assignment\" means any transfer, conveyance, or delegation of this Agreement or any rights or obligations hereunder, whether voluntary, involuntary, by operation of law, or otherwise.",
+          "page": 3,
+          "char_start": 1240,
+          "char_end": 1430
+        },
+        {
+          "id": "sec_12_3_anti_assignment",
+          "section_path": ["Article XII", "Section 12.3", "Anti-Assignment"],
+          "text": "This Agreement may not be assigned by either party, in whole or in part, without the prior written consent of the other party. Any purported assignment in violation of this Section shall be null and void.",
+          "page": 27,
+          "char_start": 48210,
+          "char_end": 48420
+        },
+        {
+          "id": "recital_b_structure",
+          "section_path": ["Recitals", "(B)"],
+          "text": "WHEREAS, the contemplated transaction is structured as a forward merger in which TargetCo, Inc. shall merge with and into Acquirer (or a non-surviving subsidiary of Acquirer), with TargetCo ceasing to exist as a separate legal entity and all of its rights and obligations under contracts vesting in the surviving entity by operation of the applicable state merger statute.",
+          "page": 1,
+          "char_start": 320,
+          "char_end": 690
+        }
+      ]
+    }
+  ]
+}
