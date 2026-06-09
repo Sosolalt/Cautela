@@ -105,3 +105,89 @@ def run_inline_judges(*, context: str, explanation: str,
     h = h_scores[0]
     f = f_scores[0]
     return float(h.score), str(h.label), float(f.score), str(f.label)
+
+
+# ---------------------------------------------------------------------------
+# Citation-linkage evaluators (design/STATUTE_LAYER.md §3.3).
+# ---------------------------------------------------------------------------
+# Two complementary axes graded against the citation-gold-v1 dataset:
+#   - citation_validity   : LLM — "is this even a real, well-formed provision?"
+#   - citation_exact_match : DETERMINISTIC regex — "is it the RIGHT one?"
+# citation_faithfulness was cut (Wave-2 scope) as the weakest/most circular axis.
+
+
+@functools.lru_cache(maxsize=1)
+def make_citation_validity_classifier():
+    """LLM classifier: is a citation a real, correctly-formed legal authority?
+
+    Rails: valid_citation / invalid_citation / malformed. Same call shape as the
+    other classifiers — `.evaluate({"citation": ...})` returns List[Score].
+    """
+    from phoenix.evals import create_classifier
+    return create_classifier(
+        name="citation_validity",
+        prompt_template=(
+            "Determine whether the following legal citation refers to a real, "
+            "correctly-formatted statutory provision or judicial decision.\n"
+            "Citation:\n{citation}\n\n"
+            "Reply with exactly one of: valid_citation, invalid_citation, malformed."
+        ),
+        choices={"valid_citation": 1.0, "invalid_citation": 0.0, "malformed": 0.0},
+        llm=_make_llm(),
+    )
+
+
+def _citation_score(score: float, label: str, explanation: str):
+    """A Phoenix-Score-shaped result (.score/.label/.explanation). Uses the real
+    phoenix.evals.Score when available, else a lightweight stand-in so the
+    deterministic rail works without the phoenix install (and in tests)."""
+    try:
+        from phoenix.evals import Score
+        return Score(score=score, label=label, explanation=explanation,
+                     name="citation_exact_match")
+    except Exception:
+        from types import SimpleNamespace
+        return SimpleNamespace(score=score, label=label, explanation=explanation,
+                               name="citation_exact_match")
+
+
+def make_citation_exact_match_classifier():
+    """DETERMINISTIC comparator surfaced in the create_classifier `.evaluate(
+    dict) -> List[Score]` shape for Phoenix UI uniformity — **NOT an LLM judge**
+    (no Gemini call; see README §6.1 Hook 10).
+
+    Compares a candidate citation to the gold/expected citation using the same
+    section-normaliser the live comparator uses. Rails: exact / normalised_match
+    / miss. Accepts `expected` (gold) under several common keys and the
+    candidate under `citation`/`output`/`candidate`.
+    """
+    from .citation_linker import _normalise
+
+    class _CitationExactMatchClassifier:
+        name = "citation_exact_match"
+        rails = ("exact", "normalised_match", "miss")
+
+        def evaluate(self, eval_input: dict):
+            expected = str(
+                eval_input.get("expected")
+                or eval_input.get("gold_citation")
+                or eval_input.get("reference")
+                or ""
+            ).strip()
+            candidate = str(
+                eval_input.get("citation")
+                or eval_input.get("output")
+                or eval_input.get("candidate")
+                or ""
+            ).strip()
+            if expected and candidate and expected == candidate:
+                label, score = "exact", 1.0
+            elif expected and candidate and _normalise(expected) == _normalise(candidate):
+                label, score = "normalised_match", 1.0
+            else:
+                label, score = "miss", 0.0
+            return [_citation_score(
+                score, label, f"expected={expected!r} candidate={candidate!r}"
+            )]
+
+    return _CitationExactMatchClassifier()

@@ -1,0 +1,161 @@
+{
+  "_meta": {
+    "schema_version": "citation-map-v1",
+    "description": "Deterministic clause-tag -> controlling-authority map. Statute AND case-law anchors. Every entry's `citation` is verified against a primary source via WebFetch; the audit trail (URL + method per entry) lives in CITATION_MAP_SIGNOFF.md. This map is the ONLY citation source rendered to users; the LLM proposer (agent/citation_linker.py) is graded against it and never reaches user-facing output.",
+    "curated_by": "M&A counsel persona (per design/STATUTE_LAYER.md s4.4 #5)",
+    "verified_date": "2026-06-09",
+    "lookup": "lookup_citation(tag, jurisdiction_hint=None) returns the first entry whose tag matches; when jurisdiction_hint is given it is preferred. Entries are ordered so the canonical controlling authority for each tag is first. Tags with no entry (e.g. accelerated_vesting -> contract-anchored) return None by design."
+  },
+  "entries": [
+    {
+      "tag": "change_of_control",
+      "jurisdiction": "Delaware",
+      "citation": "8 Del. C. § 251",
+      "citation_kind": "statute",
+      "uri": "https://delcode.delaware.gov/title8/c001/sc09/index.html",
+      "rationale": "Delaware merger statute: board resolution plus a majority stockholder vote to adopt a merger agreement. A change-of-control clause triggers on the very transaction this section authorizes.",
+      "verified_date": "2026-06-09",
+      "primary_source": "delcode.delaware.gov"
+    },
+    {
+      "tag": "change_of_control",
+      "jurisdiction": "Delaware",
+      "citation": "8 Del. C. § 271",
+      "citation_kind": "statute",
+      "uri": "https://delcode.delaware.gov/title8/c001/sc10/index.html",
+      "rationale": "Sale, lease or exchange of all or substantially all assets requires majority stockholder approval — the asset-deal route to a change of control alongside the § 251 merger route.",
+      "verified_date": "2026-06-09",
+      "primary_source": "delcode.delaware.gov"
+    },
+    {
+      "tag": "change_of_control",
+      "jurisdiction": "Federal",
+      "citation": "15 U.S.C. § 18a",
+      "citation_kind": "statute",
+      "uri": "https://www.law.cornell.edu/uscode/text/15/18a",
+      "rationale": "Hart-Scott-Rodino premerger notification and waiting period: change-of-control acquisitions over the size thresholds must notify the FTC/DOJ and observe the waiting period before closing.",
+      "verified_date": "2026-06-09",
+      "primary_source": "Cornell LII"
+    },
+    {
+      "tag": "change_of_control",
+      "jurisdiction": "Federal",
+      "citation": "15 U.S.C. § 18",
+      "citation_kind": "statute",
+      "uri": "https://www.law.cornell.edu/uscode/text/15/18",
+      "rationale": "Clayton Act § 7: prohibits stock or asset acquisitions whose effect may be substantially to lessen competition or tend to create a monopoly — the substantive antitrust limit on a change of control.",
+      "verified_date": "2026-06-09",
+      "primary_source": "Cornell LII"
+    },
+    {
+      "tag": "change_of_control",
+      "jurisdiction": "New York",
+      "citation": "N.Y. Bus. Corp. Law § 902",
+      "citation_kind": "statute",
+      "uri": "https://www.nysenate.gov/legislation/laws/BSC/902",
+      "rationale": "New York analogue to DGCL § 251: the board adopts a plan of merger or consolidation for a New York constituent corporation (shareholder authorization follows under § 903).",
+      "verified_date": "2026-06-09",
+      "primary_source": "nysenate.gov"
+    },
+    {
+      "tag": "change_of_control",
+      "jurisdiction": "Delaware",
+      "citation": "In re Trados Inc. S'holder Litig., 73 A.3d 17 (Del. Ch. 2013)",
+      "citation_kind": "case_law",
+      "uri": "https://courts.delaware.gov/opinions/download.aspx?ID=193520",
+      "rationale": "Directors owe duties to common stockholders; a board conflicted by preferred-holder interests in approving a merger is judged under entire fairness — the fiduciary-duty backdrop to change-of-control deals.",
+      "verified_date": "2026-06-09",
+      "primary_source": "courts.delaware.gov"
+    },
+    {
+      "tag": "anti_assignment",
+      "jurisdiction": "Uniform Commercial Code",
+      "citation": "U.C.C. § 9-406",
+      "citation_kind": "statute",
+      "uri": "https://www.law.cornell.edu/ucc/9/9-406",
+      "rationale": "Terms restricting assignment of accounts, chattel paper, payment intangibles or promissory notes are ineffective — caps the reach of a contractual no-assignment clause over receivables.",
+      "verified_date": "2026-06-09",
+      "primary_source": "Cornell LII"
+    },
+    {
+      "tag": "anti_assignment",
+      "jurisdiction": "Uniform Commercial Code",
+      "citation": "U.C.C. § 2-210",
+      "citation_kind": "statute",
+      "uri": "https://www.law.cornell.edu/ucc/2/2-210",
+      "rationale": "Delegation of performance and assignment of rights in sale-of-goods contracts; a bare prohibition on assigning 'the contract' bars only delegation of performance, not assignment of accrued rights.",
+      "verified_date": "2026-06-09",
+      "primary_source": "Cornell LII"
+    },
+    {
+      "tag": "ip_assignment",
+      "jurisdiction": "Federal",
+      "citation": "35 U.S.C. § 261",
+      "citation_kind": "statute",
+      "uri": "https://www.law.cornell.edu/uscode/text/35/261",
+      "rationale": "Patents are personal property assignable only by a written instrument; governs assignment of patent rights in an M&A IP transfer and PTO recordation against later purchasers.",
+      "verified_date": "2026-06-09",
+      "primary_source": "Cornell LII"
+    },
+    {
+      "tag": "ip_assignment",
+      "jurisdiction": "Federal",
+      "citation": "17 U.S.C. § 204(a)",
+      "citation_kind": "statute",
+      "uri": "https://www.law.cornell.edu/uscode/text/17/204",
+      "rationale": "A transfer of copyright ownership is invalid unless in a signed written instrument of conveyance — the writing requirement for assigning copyrights in a deal.",
+      "verified_date": "2026-06-09",
+      "primary_source": "Cornell LII"
+    },
+    {
+      "tag": "ip_assignment",
+      "jurisdiction": "Federal",
+      "citation": "15 U.S.C. § 1060",
+      "citation_kind": "statute",
+      "uri": "https://www.law.cornell.edu/uscode/text/15/1060",
+      "rationale": "A registered trademark is assignable only with the goodwill of the business it symbolizes; a bare 'assignment in gross' is invalid — controls trademark transfers in M&A.",
+      "verified_date": "2026-06-09",
+      "primary_source": "Cornell LII"
+    },
+    {
+      "tag": "mac",
+      "jurisdiction": "Delaware",
+      "citation": "Akorn, Inc. v. Fresenius Kabi AG, 2018 WL 4719347 (Del. Ch. Oct. 1, 2018), aff'd, 198 A.3d 724 (Del. 2018)",
+      "citation_kind": "case_law",
+      "uri": "https://courts.delaware.gov/Opinions/Download.aspx?id=279250",
+      "rationale": "First Delaware decision finding a Material Adverse Effect that justified terminating a merger; the controlling authority for MAC/MAE clause disputes.",
+      "verified_date": "2026-06-09",
+      "primary_source": "courts.delaware.gov"
+    },
+    {
+      "tag": "mac",
+      "jurisdiction": "Delaware",
+      "citation": "AB Stable VIII LLC v. MAPS Hotels & Resorts One LLC, 2020 WL 7024929 (Del. Ch. Nov. 30, 2020), aff'd, 268 A.3d 198 (Del. 2021)",
+      "citation_kind": "case_law",
+      "uri": "https://law.justia.com/cases/delaware/court-of-chancery/2020/c-a-no-2020-0310-jtl.html",
+      "rationale": "Post-Akorn MAC / ordinary-course-covenant case: a seller's reasonable but extraordinary COVID-19 response breached the ordinary-course covenant, excusing the buyer from closing.",
+      "verified_date": "2026-06-09",
+      "primary_source": "courts.delaware.gov (C.A. No. 2020-0310-JTL)"
+    },
+    {
+      "tag": "exclusivity",
+      "jurisdiction": "Delaware",
+      "citation": "Revlon, Inc. v. MacAndrews & Forbes Holdings, Inc., 506 A.2d 173 (Del. 1986)",
+      "citation_kind": "case_law",
+      "uri": "https://law.justia.com/cases/delaware/supreme-court/1986/506-a-2d-173-1.html",
+      "rationale": "Once a sale or break-up is inevitable, directors must maximize immediate stockholder value; no-shop / lock-up deal-protection devices that foreclose higher bids draw enhanced scrutiny.",
+      "verified_date": "2026-06-09",
+      "primary_source": "Delaware Supreme Court (verified via Penn Carey Law DE Corp Law Resource Center)"
+    },
+    {
+      "tag": "non_compete",
+      "jurisdiction": "California",
+      "citation": "Cal. Bus. & Prof. Code § 16600",
+      "citation_kind": "statute",
+      "uri": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=BPC&sectionNum=16600.",
+      "rationale": "Every contract restraining a lawful profession, trade or business is void in California — the broad statutory bar on employee/seller non-competes (amended eff. Jan. 1, 2024).",
+      "verified_date": "2026-06-09",
+      "primary_source": "leginfo.legislature.ca.gov"
+    }
+  ]
+}

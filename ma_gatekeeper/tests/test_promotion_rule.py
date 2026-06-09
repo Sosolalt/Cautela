@@ -105,3 +105,70 @@ def test_allowlist_blocks_writes_to_frozen_fold5():
         assert_writable("internal-30-holdout-fold-5")
     with pytest.raises(PermissionError):
         assert_writable("anything-else")
+
+
+def test_allowlist_admits_citation_regressions():
+    """Citation-linkage adds one writable dataset; the frozen gold stays out."""
+    assert_writable("citation-regressions")
+    with pytest.raises(PermissionError):
+        assert_writable("citation-gold-v1")  # gold is frozen, never writable
+
+
+# ---------------------------------------------------------------------------
+# Citation composite promotion gate (design/STATUTE_LAYER.md §3.4).
+# Mirrors test_promotion_blocked_on_held_out_regression above: the other gates
+# pass, but a citation_exact_match regression on citation-gold-v1 blocks.
+# ---------------------------------------------------------------------------
+
+def test_citation_promotion_gate_blocks_on_citation_regression():
+    rng = np.random.default_rng(0)
+    reg = rng.normal(0.20, 0.05, size=40)        # candidate wins on regressions
+    f5_cand = rng.normal(0.85, 0.02, size=8)     # fold-5 holds
+    f5_prod = rng.normal(0.85, 0.02, size=8)
+    cit_cand = np.full(20, 0.60)                 # but citations regress hard
+    cit_prod = np.full(20, 0.90)
+    ok, diag = should_promote(
+        regression_deltas=reg,
+        fold5_candidate_scores=f5_cand,
+        fold5_production_scores=f5_prod,
+        citation_candidate_scores=cit_cand,
+        citation_production_scores=cit_prod,
+    )
+    assert not ok, diag
+    assert diag["citation_gate_ok"] == 0.0
+    # Prove it was the citation gate, not the others, that blocked.
+    assert diag["regression_gate_ok"] == 1.0
+    assert diag["fold5_non_regression_ok"] == 1.0
+
+
+def test_citation_promotion_gate_passes_within_se_band():
+    rng = np.random.default_rng(0)
+    reg = rng.normal(0.20, 0.05, size=40)
+    f5_cand = rng.normal(0.85, 0.02, size=8)
+    f5_prod = rng.normal(0.85, 0.02, size=8)
+    cit_cand = np.full(20, 0.92)                 # citations within the SE band
+    cit_prod = np.full(20, 0.90)
+    ok, diag = should_promote(
+        regression_deltas=reg,
+        fold5_candidate_scores=f5_cand,
+        fold5_production_scores=f5_prod,
+        citation_candidate_scores=cit_cand,
+        citation_production_scores=cit_prod,
+    )
+    assert ok, diag
+    assert diag["citation_gate_ok"] == 1.0
+
+
+def test_citation_gate_is_vacuous_without_citation_scores():
+    """Backward-compat: omitting citation scores leaves the original two-gate
+    decision unchanged (the citation gate is vacuously satisfied)."""
+    rng = np.random.default_rng(0)
+    reg = rng.normal(0.20, 0.05, size=40)
+    f5 = rng.normal(0.85, 0.02, size=8)
+    ok, diag = should_promote(
+        regression_deltas=reg,
+        fold5_candidate_scores=f5,
+        fold5_production_scores=f5,
+    )
+    assert ok, diag
+    assert diag["citation_gate_ok"] == 1.0
