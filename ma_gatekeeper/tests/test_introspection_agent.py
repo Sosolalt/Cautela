@@ -773,3 +773,270 @@ def test_unregister_drops_toolset_from_registry():
     # Unregistering a non-member is a clean no-op (idempotent).
     reflector._unregister_toolset(t)
     reflector._unregister_toolset(_T())  # never-registered, must not raise
+
+
+# ===========================================================================
+# Fix 5 — MCP introspection now DRIVES regression-set growth (not just
+# decorative). The LlmAgent's JSON output feeds `_append_to_dataset`;
+# the SDK `get_spans_dataframe` path is a documented fallback only.
+# ===========================================================================
+
+
+def test_parse_introspection_output_extracts_fenced_json():
+    """The instruction tells the agent to wrap its result in a ```json
+    fenced block. The parser must lift the `failing_spans` list out
+    cleanly."""
+    from agent import reflector
+
+    text = (
+        "Here is the result:\n"
+        "```json\n"
+        '{"failing_spans": ['
+        '{"span_id": "abc123", "clause_text": "no MAC carve-out", "label": "escalate"},'
+        '{"span_id": "def456", "clause_text": "anti-assignment trigger", "label": "escalate"}'
+        "]}\n"
+        "```\n"
+    )
+    spans = reflector._parse_introspection_output(text)
+    assert spans is not None
+    assert len(spans) == 2
+    assert spans[0]["span_id"] == "abc123"
+    assert spans[1]["span_id"] == "def456"
+
+
+def test_parse_introspection_output_handles_raw_json():
+    """If the agent skips the fence and emits raw JSON, still parseable."""
+    from agent import reflector
+
+    text = '{"failing_spans": [{"span_id": "raw1"}]}'
+    spans = reflector._parse_introspection_output(text)
+    assert spans == [{"span_id": "raw1"}]
+
+
+def test_parse_introspection_output_empty_list_is_honored():
+    """An explicit empty `failing_spans` list means MCP introspected
+    successfully and found no escalations — return `[]`, NOT `None`.
+    `None` would trigger the SDK fallback, which we DO NOT want when
+    MCP correctly reports zero failures."""
+    from agent import reflector
+
+    text = '```json\n{"failing_spans": []}\n```'
+    spans = reflector._parse_introspection_output(text)
+    assert spans == []  # honored as a real result
+    assert spans is not None  # NOT the fallback sentinel
+
+
+def test_parse_introspection_output_returns_none_on_garbage():
+    """Malformed / non-JSON output returns `None` so the cycle falls
+    back to the SDK `_failing_traces` path."""
+    from agent import reflector
+
+    assert reflector._parse_introspection_output("") is None
+    assert reflector._parse_introspection_output(
+        "lol the model ignored its instructions"
+    ) is None
+    assert reflector._parse_introspection_output(
+        '{"other_key": [1,2,3]}'  # valid JSON, wrong shape
+    ) is None
+
+
+def test_run_reflection_cycle_uses_mcp_output_to_drive_append(monkeypatch):
+    """The core Fix 5 invariant: when MCP introspection returns a
+    parseable list of failing spans, THOSE spans (not the SDK dataframe
+    query) flow into `_append_to_dataset`.
+
+    Pin this by stubbing the introspection agent to return a known
+    JSON payload, asserting the SDK `_failing_traces` is NOT called,
+    and asserting `_append_to_dataset` was called with the MCP-derived
+    list.
+    """
+    from agent import reflector
+
+    mcp_payload = (
+        '```json\n{"failing_spans": ['
+        '{"span_id": "mcp-1", "clause_text": "MCP-discovered escalation"}'
+        ']}\n```'
+    )
+
+    monkeypatch.setattr(reflector, "_run_introspection_agent", lambda: mcp_payload)
+
+    sdk_called = {"n": 0}
+
+    def _no_sdk(*args, **kwargs):
+        sdk_called["n"] += 1
+        return [{"span_id": "should-not-appear"}]
+
+    monkeypatch.setattr(reflector, "_failing_traces", _no_sdk)
+
+    appended: dict = {}
+
+    def fake_append(client, name, examples):
+        appended["name"] = name
+        appended["examples"] = list(examples)
+
+    monkeypatch.setattr(reflector, "_append_to_dataset", fake_append)
+
+    # Stub everything downstream so the cycle short-circuits cleanly.
+    monkeypatch.setattr(reflector, "_generate_candidate_prompt", lambda f: "PROMPT")
+    monkeypatch.setattr(reflector, "_upsert_prompt", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        reflector, "_run_experiment_pairwise",
+        lambda *a, **kw: (__import__("numpy").array([]), __import__("numpy").array([])),
+    )
+    monkeypatch.setattr(reflector, "_backstop_run_evals", lambda *a, **kw: None)
+
+    # Stub phoenix.client.Client so the cycle reaches the introspection step.
+    import sys
+    import types
+
+    fake_phoenix = types.ModuleType("phoenix")
+    fake_phoenix_client = types.ModuleType("phoenix.client")
+    fake_phoenix_client.Client = lambda: object()
+    monkeypatch.setitem(sys.modules, "phoenix", fake_phoenix)
+    monkeypatch.setitem(sys.modules, "phoenix.client", fake_phoenix_client)
+
+    reflector.run_reflection_cycle()
+
+    assert sdk_called["n"] == 0, (
+        "SDK `_failing_traces` must NOT be called when MCP introspection "
+        "produced a parseable failing-spans list — that's the whole point "
+        "of Fix 5 (MCP drives the write, SDK is fallback only)."
+    )
+    assert appended.get("name") == "regressions-v1"
+    assert len(appended.get("examples", [])) == 1
+    assert appended["examples"][0]["span_id"] == "mcp-1"
+
+
+def test_run_reflection_cycle_falls_back_to_sdk_when_mcp_unparseable(monkeypatch):
+    """Fallback policy contract: when MCP produces garbage / empty
+    output (e.g. model outage, env unset), the cycle MUST fall back to
+    the deterministic SDK `_failing_traces` path so the nightly
+    regression dataset still grows."""
+    from agent import reflector
+
+    monkeypatch.setattr(reflector, "_run_introspection_agent", lambda: "")
+
+    sdk_called = {"n": 0}
+
+    def fake_sdk(client, project, hours):
+        sdk_called["n"] += 1
+        return [{"span_id": "sdk-fallback-1"}]
+
+    monkeypatch.setattr(reflector, "_failing_traces", fake_sdk)
+
+    appended: dict = {}
+
+    def fake_append(client, name, examples):
+        appended["name"] = name
+        appended["examples"] = list(examples)
+
+    monkeypatch.setattr(reflector, "_append_to_dataset", fake_append)
+    monkeypatch.setattr(reflector, "_generate_candidate_prompt", lambda f: "PROMPT")
+    monkeypatch.setattr(reflector, "_upsert_prompt", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        reflector, "_run_experiment_pairwise",
+        lambda *a, **kw: (__import__("numpy").array([]), __import__("numpy").array([])),
+    )
+    monkeypatch.setattr(reflector, "_backstop_run_evals", lambda *a, **kw: None)
+
+    import sys
+    import types
+
+    fake_phoenix = types.ModuleType("phoenix")
+    fake_phoenix_client = types.ModuleType("phoenix.client")
+    fake_phoenix_client.Client = lambda: object()
+    monkeypatch.setitem(sys.modules, "phoenix", fake_phoenix)
+    monkeypatch.setitem(sys.modules, "phoenix.client", fake_phoenix_client)
+
+    reflector.run_reflection_cycle()
+
+    assert sdk_called["n"] == 1, "SDK fallback must fire on unparseable MCP output"
+    assert appended.get("examples") == [{"span_id": "sdk-fallback-1"}]
+
+
+def test_run_reflection_cycle_honors_empty_mcp_result(monkeypatch):
+    """An explicit empty MCP result (`failing_spans: []`) is a SUCCESS,
+    not a fallback trigger. The SDK path must NOT run. Append is still
+    called (with an empty list — `_append_to_dataset` short-circuits
+    on empty per its own contract).
+    """
+    from agent import reflector
+
+    monkeypatch.setattr(
+        reflector, "_run_introspection_agent",
+        lambda: '```json\n{"failing_spans": []}\n```',
+    )
+
+    sdk_called = {"n": 0}
+    monkeypatch.setattr(
+        reflector, "_failing_traces",
+        lambda *a, **kw: sdk_called.__setitem__("n", sdk_called["n"] + 1) or [],
+    )
+
+    appended: dict = {}
+    monkeypatch.setattr(
+        reflector, "_append_to_dataset",
+        lambda c, name, ex: appended.update({"name": name, "examples": list(ex)}),
+    )
+    monkeypatch.setattr(reflector, "_generate_candidate_prompt", lambda f: "PROMPT")
+    monkeypatch.setattr(reflector, "_upsert_prompt", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        reflector, "_run_experiment_pairwise",
+        lambda *a, **kw: (__import__("numpy").array([]), __import__("numpy").array([])),
+    )
+    monkeypatch.setattr(reflector, "_backstop_run_evals", lambda *a, **kw: None)
+
+    import sys
+    import types
+
+    fake_phoenix = types.ModuleType("phoenix")
+    fake_phoenix_client = types.ModuleType("phoenix.client")
+    fake_phoenix_client.Client = lambda: object()
+    monkeypatch.setitem(sys.modules, "phoenix", fake_phoenix)
+    monkeypatch.setitem(sys.modules, "phoenix.client", fake_phoenix_client)
+
+    reflector.run_reflection_cycle()
+
+    assert sdk_called["n"] == 0, (
+        "empty MCP result is a real answer, not a fallback trigger"
+    )
+    assert appended["examples"] == []
+
+
+def test_assert_writable_invariant_survives_rewire():
+    """Fix 5 explicit precondition: the allowlist invariant must survive.
+    Re-pin here so a future change to the MCP path that somehow widens
+    the writable set is caught alongside the rewire test."""
+    from agent import reflector
+
+    reflector.assert_writable("regressions-v1")
+    with pytest.raises(PermissionError):
+        reflector.assert_writable(reflector._FROZEN_HELD_OUT)
+    # Pin the allowlist's identity so a regression that widens it (e.g. adds the
+    # frozen fold-5 or the frozen citation gold) is caught. The citation-linkage
+    # layer added exactly one writable dataset (citation-regressions); the gold
+    # set (citation-gold-v1) stays frozen — never writable.
+    assert reflector._WRITABLE_DATASETS == frozenset(
+        {"regressions-v1", "citation-regressions"}
+    )
+    assert reflector._FROZEN_HELD_OUT == "internal-30-holdout-fold-5"
+    assert reflector._FROZEN_HELD_OUT not in reflector._WRITABLE_DATASETS
+    assert "citation-gold-v1" not in reflector._WRITABLE_DATASETS
+    with pytest.raises(PermissionError):
+        reflector.assert_writable("citation-gold-v1")
+
+
+def test_append_to_dataset_enforces_allowlist_on_mcp_input():
+    """Even if a malicious / buggy MCP output named the frozen fold-5
+    as the target dataset, the allowlist gate inside `_append_to_dataset`
+    must still raise. This is the Arize-juror invariant: the frozen
+    held-out set is code-level tamper-evident regardless of where the
+    failing list came from."""
+    from agent import reflector
+
+    with pytest.raises(PermissionError):
+        reflector._append_to_dataset(
+            client=object(),
+            dataset_name=reflector._FROZEN_HELD_OUT,
+            examples=[{"span_id": "x"}],
+        )
