@@ -1,3 +1,7 @@
+> **⚠ SUPERSEDED — 2026-06-08.** The design system this file reviewed has been replaced. Canonical brand → [`design/claude-design-output/`](claude-design-output/README.md); index → [`design/SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md). Audit-trail only.
+
+---
+
 # Design Plan — Expert Review Log
 
 Audit trail of the multi-round expert review of `design/PLAN.md`.
@@ -146,6 +150,86 @@ All 5 reviewers VALIDATED. Loop closed in 3 rounds, well under the 4-round cap.
 8. **Promoted the wordmark** from a passing question to a real Phase-5 deliverable with kill-switch.
 9. **Removed "your data stays in your project"** (unsupported architectural claim) and replaced with defensible retention/no-training language tied to the actual single-tenant Cloud Run posture.
 10. **Cut the console.log easter egg** (juvenile for a serious legal tool) and replaced with build-SHA + model-pin + eval-link as engineering-discipline signal.
+
+---
+
+# Citation-Layer Feature — Multi-Wave Review (separate from the design-plan loop above)
+
+User-requested feature added post-plan-convergence: deterministic citation map + LLM proposer + Phoenix-evaluated comparator. Full spec at [`STATUTE_LAYER.md`](STATUTE_LAYER.md). This loop ran 3 designer + 3 reviewer × 3 review rounds and converged on user-VALIDATED scores 8/10–9/10 across the reviewer panel.
+
+## Pre-design 4-agent vote (A vs B vs C)
+
+Before designing, ran a debate on which architecture variant:
+- ML/Arize specialist: **C 9/10** (Hybrid uniquely converts Mata-v.-Avianca failure into eval-theater)
+- M&A Attorney: **A 9/10** (C is malpractice trap if UI mislabels)
+- Hackathon Judge: **C 9/10** (with fallback to A, NEVER B)
+- Backend Architect: **A 8/10** (C costs 5.5 dev-days)
+
+Vote 2-2. User chose **C** for Phoenix leverage value. Designers and reviewers worked from that decision.
+
+## Wave-1 designers (parallel proposals)
+
+| Designer | Self-confidence | Biggest open Q (later resolved) |
+|----------|-----------------|----------------------------------|
+| ADK Architecture Lead | 7.5/10 | ADK ParallelAgent + non-LLM shim (→ replaced by plain asyncio) |
+| Phoenix Eval Methodologist | 7.5/10 | Independent-annotator bar (→ κ pass deferred post-hackathon) |
+| UX & Liability Designer | 8.5/10 | Own-domain `/evals` route safe in video (→ Phoenix-hosted only) |
+
+## Wave-2 reviewers (Round 1)
+
+| Reviewer | Verdict | Killer finding |
+|----------|---------|----------------|
+| M&A Attorney | VALIDATED 8.5/10 | **§2.2 #11 Roadmap "promoted to user-facing" clause = future-malpractice exhibit.** MAC is common-law, not statutory. Cut "We graded our own model" line. |
+| Backend Architect | **NOT VALIDATED** | **Ran schema in venv.** Pydantic v2 hard-rejects `_linker_*` field names. Project has no `.j2` templates (Guard #3 defends nothing). Cold-path latency claim false. 8d > 7d budget. |
+| Hackathon Judge | VALIDATED 9/10 | 3-hook story holds. Phoenix-hosted-only is the right call. |
+
+In-domain conflict on "We graded our own model" line: M&A Attorney wins (malpractice owns marketing copy that touches legal posture). Banned from all written channels.
+
+## Wave-3 reviewers (Round 2 after 17-fix rewrite)
+
+| Reviewer | Verdict | Finding |
+|----------|---------|---------|
+| M&A Attorney | **VALIDATED 9/10** | Caught my own spec citing `Akorn` as `198 A.3d 724` (the affirmance cite, not the Chancery merits opinion `2018 WL 4719347`). **Perfect proof-of-need for the sign-off gate.** 5 polish fixes applied. |
+| Backend Architect | **NOT VALIDATED** | **`finding.trace_id` is 32-hex trace id; `_annotate` requires 16-hex span_id. Every annotation 100% 404s.** Also recommended `model_dump` subclass override + `force_flush` race fix. |
+
+## Wave-4 reviewer (Round 3, BE Architect only)
+
+| Reviewer | Verdict | Notes |
+|----------|---------|-------|
+| Backend Architect | **VALIDATED 8/10** | All 4 blockers resolved. 3 cosmetic notes applied: override `model_dump_json` too; log `force_flush` return + sync=True fallback; document span grouping under parent. |
+
+## Final convergence
+
+| Reviewer | Final | Δ |
+|---|---|---|
+| Backend Architect | **VALIDATED 8/10** | from NOT-VALIDATED (3 rounds) |
+| M&A Attorney | **VALIDATED 9/10** | from 8.5/10 (2 rounds) |
+| Hackathon Judge | **VALIDATED 9/10** | clean single-round |
+
+**Total cost: 7 dev-days product-track** (4.5 Arch + 1.5 Eval + 0.75 UX + 0.25 buffer). Fits remaining budget exactly.
+
+## Highest-impact changes the citation-layer loop produced
+
+1. **Renamed statute_map → citation_map** + 4 named case-law anchors (Akorn, Revlon, AB Stable, Trados). MAC doctrine is common-law; statute-only map was structurally incomplete.
+2. **Pydantic underscore fields → subclass `model_dump` override** with `_EVAL_ONLY_FIELDS`. Backend Architect ran the original schema in venv and proved Pydantic v2 rejects it at import.
+3. **`trace_id` vs `span_id` bug**. Every annotation would have 404'd. Caught by Round-3 BE Architect.
+4. **§2.2 #11 Roadmap "promoted to user-facing" clause deleted**. That clause was the future-malpractice exhibit hostile counsel quotes at trial. Rewritten to "informs map expansion, never replaces it."
+5. **LLM linker moved off cold path** via `asyncio.create_task` fire-and-forget. User p50 unchanged.
+6. **`force_flush` race fix** + return-value logging + sync=True fallback. Without this, annotations silently fail intermittently.
+7. **AST contract test → SSE wire-output regression test**. Project has no Jinja, original guard defended nothing.
+8. **"We graded our own model" banned from written channels** per Twitter-v-Musk discovery precedent.
+9. **CI staleness gate** (`verified_date > 180 days fails build`).
+10. **κ inter-rater + `citation_faithfulness` cut to fit 7-day budget**; both post-hackathon follow-ups.
+11. **Video y-axis tick labels stripped entirely** (not just fuzzed gridlines).
+12. **Akorn citation flagged for Day-2 attorney verification** before code lands.
+
+## Open items deferred
+
+- κ inter-rater computation (post-hackathon).
+- `citation_faithfulness` evaluator (post-hackathon).
+- Tighter span grouping under `risk_judge` vs SequentialAgent parent (v2).
+- `model_dump_internal` escape-hatch grep audit (Day-7 task).
+- Real (non-persona) GC reviewer for citation-map sign-off (depends on user access).
 
 ---
 

@@ -1,0 +1,24 @@
+<!-- Wordmark — for use as a small mark in margins / footers.
+     Renders the brand name in the display family. Sits flush; no symbol mark. -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; background: var(--surface); padding: 48px; }
+  .wordmark {
+    font-family: var(--font-display);
+    font-size: 72px;
+    line-height: 0.9;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+  }
+  .wordmark .amp { font-style: italic; }
+  .wordmark .dot { color: var(--accent-vermillion); }
+</style>
+</head>
+<body>
+  <div class="wordmark">M<span class="amp">&amp;</span>A Gatekeeper<span class="dot">.</span></div>
+</body>
+</html>

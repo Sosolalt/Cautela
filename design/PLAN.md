@@ -1,3 +1,7 @@
+> **⚠ SUPERSEDED — 2026-06-08.** This file is no longer the design source-of-truth. The canonical brand and design system now lives in [`design/claude-design-output/`](claude-design-output/README.md) and is indexed from [`design/SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md). The visual register has shifted from "modern SaaS / warm-clay accent" to **Documentary Brutalism / champagne+oxblood**, which contradicts most aesthetic decisions locked here. Read this file only for audit-trail value. Do not propagate any color, typography, motion, or composition rule from here into new work.
+
+---
+
 # Art Direction Plan — M&A Gatekeeper
 
 > **Goal**: ship a landing page that earns an unprompted "wow" from the Devpost jury — and that a corporate counsel could forward to their partners without embarrassment.
@@ -241,7 +245,7 @@ Design without a message is decoration. Before pixel work, the **Copy Lead** (§
 2. **Hero** — tagline + sub-line + primary CTA + secondary CTA ("Watch 60s demo"). Visual: candidate #2 from §1.4 (or fallback #5 — editorial typographic hero). *Phoenix appears in the sub-line, not just in the footer logo wall.*
 3. **The problem** — *Monday-morning board call. Exhibit 2.1 hit Friday 6pm. Three associates, two paralegals, one MAC clause nobody has read.* Visceral, partner-POV, with one striking number. (Prior draft framed this from the junior associate's POV — GCs identify with the partner who signs the opinion letter, not the associate who got the file.)
 4. **How it works** — the agent pipeline, expanded interactively. Hover a node, see what it does + its real prompt.
-5. **The audit trail (the moneymoment)** — see §6.4. Dedicated subsection treatment, dedicated motion budget, dedicated review gate. 1.5 viewports of vertical space. Includes both the trace AND a "click any span" interaction. **This is where the page is won or lost.**
+5. **The audit trail (the moneymoment)** — see §6.4. Dedicated subsection treatment, dedicated motion budget, dedicated review gate. 1.5 viewports of vertical space. Includes the **three-layer trace → clause → citation** sequence (statute or case-law), the "click any span" interaction, and the §6.4 unfurl gesture. **This is where the page is won or lost.** Full citation-layer spec in [`STATUTE_LAYER.md`](STATUTE_LAYER.md).
 6. **What this is not** — *GC-trust-builder*. A five-bullet honesty block. Each bullet has a *concrete* answer in `COPY.md` — placeholder text is not acceptable; this is the section a GC screenshots to forward to InfoSec, and vague language kills the procurement.
    - **Not legal advice.** Output is a triage aid; sign-off remains with counsel.
    - **Not trained on your documents.** Inference-only; no fine-tuning or retention beyond the session.
@@ -249,6 +253,7 @@ Design without a message is decoration. Before pixel work, the **Copy Lead** (§
    - **Data handling — required fields locked in `COPY.md`**: (a) processing region (Cloud Run region + zone), (b) retention TTL in hours, (c) who holds the encryption keys (customer-supplied vs. Google-managed), (d) deletion-on-request path and SLA.
    - **Security posture — required fields locked in `COPY.md`**: SOC 2 status (e.g. *"Type II in progress, target [date]"*), pen-test status (*"scheduled / completed by [firm]"*), and whether the report is shareable under NDA. This is the "what we will commit to do, on a date" layer that converts the honesty block from a defensive crouch into a credible posture.
    - **Trust-packet items for the future `/security` sub-page** (called out here so a GC reader who clicks through sees the trail isn't ending): subprocessor list (Google Cloud, model provider, Phoenix host), breach-notification SLA, GDPR Art. 28 / DPA posture for EU deals. Not required on the landing page itself, but referenced as "downloadable trust-packet — request via [email]" so the page doesn't dead-end at the honesty block.
+   - **Not a substitute for primary-source review.** Citations are pinned to a deterministic, hand-curated map of clause-tag → controlling authority (statute or case-law), verified against the primary source on the date stamped on each citation. The LLM never proposes citations to users; an internal proposer is graded against the map, and its output is never rendered. Full spec in [`STATUTE_LAYER.md`](STATUTE_LAYER.md).
 
    *Voluntary scope-limitation is the single strongest signal a GC reader looks for. Tools that won't say what they're not are hiding something.*
 7. **The honest numbers** — two-layer presentation:
@@ -256,16 +261,22 @@ Design without a message is decoration. Before pixel work, the **Copy Lead** (§
    - **Expandable "show the math" panel**: Wilson lower bound, 5-fold CV, calibration plot, paired-bootstrap CI. For the technical judges.
 8. **The self-improving loop** — Reflector cron animated as a loop with the gate that blocks regression. Phoenix trace IDs visible on the gate output.
 9. **Try it** — the demo (5 pre-indexed deals). See §"Resolved decisions" for embed strategy.
-10. **Built on / Where it lives** — *restructured*. Lead with the **deployment story** that the architecture actually supports today (Cloud Run region + zone, retention TTL in hours, no training-set usage, key-management posture, BAA-equivalent status). Do *not* claim "your data stays in your project" — the current architecture is single-tenant Cloud Run, not per-customer GCP projects; a GC catches that claim in five seconds. The defensible version reads as *"documents are processed in [region], not retained beyond [N] hours, and never used to train any model."* Logos come *after* the story, with **Arize Phoenix annotated as "open-source observability"** so a GC who Googles it doesn't read it as a startup dependency risk.
-11. **FAQ / objections** — *GC objections*, not dev-Twitter objections. **Hard requirement**: draft answers (not just questions) land in `COPY.md` by Day-2 EOD and are reviewed by the GC-persona before Day-3 build starts. Weak answers ("we take privilege seriously") invert the section — the team signals they don't understand the question. Day-6 pre-merge gate: GC-persona legal review pass.
+10. **Built on / Where it lives** — *restructured*. Lead with the **deployment story** that the architecture actually supports today (Cloud Run region + zone, retention TTL in hours, no training-set usage, key-management posture, BAA-equivalent status). Do *not* claim "your data stays in your project" — the current architecture is single-tenant Cloud Run, not per-customer GCP projects; a GC catches that claim in five seconds. The defensible version reads as *"documents are processed in [region], not retained beyond [N] hours, and never used to train any model."* **Append**: *"Citations resolve through a deterministic clause-tag → controlling-authority map, versioned in source and verified against primary sources. A separate LLM proposer is graded against that map in a Phoenix dataset (`citation-gold-v1`); its output is never rendered to users."* Logos come *after* the story, with **Arize Phoenix annotated as "open-source observability"** so a GC who Googles it doesn't read it as a startup dependency risk.
+11. **What ships next** — *new section, post-Wave-3 review*. Roadmap honest about today vs. next vs. future. **No future-malpractice commitments** (the prior draft promised an LLM proposer "promoted to user-facing if Wilson LB clears" — Wave-2 M&A counsel flagged that as a foreseeability exhibit; rewritten):
+    > **Today.** Citations resolve through a deterministic clause-tag → controlling-authority map (statutes and case-law), hand-curated across four jurisdictions (Delaware, federal, NY, UK), verified against primary sources and stamped with the verification date.
+    >
+    > **Next.** A Phoenix-evaluated LLM proposer continues to run as an internal grader against the map. Expansion of the deterministic map is informed by — never replaced by — its disagreement set. The proposer never reaches user-facing rendering.
+    >
+    > **Future.** An ELI/LKIF ontology graph for cross-jurisdiction resolution — so a Delaware DGCL § 251(c) citation resolves automatically to its NY BCL § 902 and UK Companies Act 2006 § 979 analogues for cross-border deals.
+12. **FAQ / objections** — *GC objections*, not dev-Twitter objections. **Hard requirement**: draft answers (not just questions) land in `COPY.md` by Day-2 EOD and are reviewed by the GC-persona before Day-3 build starts. Weak answers ("we take privilege seriously") invert the section — the team signals they don't understand the question. Day-6 pre-merge gate: GC-persona legal review pass.
     - **Privilege**: does using this waive work-product? Where is the data processed; who can subpoena the logs?
     - **Standard of care / malpractice**: if I rely on a Block call and miss a MAC, who is on the hook?
     - **Confidentiality / data residency**: are deal docs training future models? BAA-equivalent posture?
     - **Model continuity**: if Google deprecates Gemini 3 mid-deal, what happens?
     - **Conflicts**: if opposing counsel uses the same tool, does that create issues?
     - (Dev-audience FAQs — "is this a wrapper?" / "why not GPT?" — get a single collapsed line at the bottom, not their own block.)
-12. **Devpost demo-scope paragraph** — the required disclosure from `README.md` ("hosted demo runs against a curated list of five recent 8-K/Ex 2.1 merger filings, pre-validated to surface at least one change-of-control, anti-assignment, or MAC-related finding so the agent has something interesting to do on camera. The filings are fetched live from EDGAR via the EdgarTools MCP server at demo time.") — included in `COPY.md` from Day 1, not surprised on Day 6.
-13. **Footer** — credits, license, hackathon attribution, one easter egg, build SHA + model pin (see §7.3).
+13. **Devpost demo-scope paragraph** — the required disclosure from `README.md` ("hosted demo runs against a curated list of five recent 8-K/Ex 2.1 merger filings, pre-validated to surface at least one change-of-control, anti-assignment, or MAC-related finding so the agent has something interesting to do on camera. The filings are fetched live from EDGAR via the EdgarTools MCP server at demo time.") — included in `COPY.md` from Day 1, not surprised on Day 6.
+14. **Footer** — credits, license, hackathon attribution, one easter egg, build SHA + model pin (see §7.3).
 
 ### 2.3 Voice rules
 
@@ -276,6 +287,7 @@ Design without a message is decoration. Before pixel work, the **Copy Lead** (§
   - General: *revolutionize, unleash, supercharge, leverage, robust, seamless.*
   - **Legal-tech specific** (worse for our audience): *AI-powered, trusted by, next-generation, enterprise-grade, purpose-built, human-in-the-loop, co-pilot, transform your practice, white-glove.*
 - **Never claim "trusted by [logos]" without named, real users.** Implying customers you don't have reads as a lie the moment a GC clicks to verify.
+- **Banned from every written channel** (Slack, commit messages, internal docs, PR descriptions, this plan): *"We graded our own model against the law. The law won."* — Wave-2 M&A counsel: hostile counsel reads it as "vendor admits its model failed against the law and shipped it anyway." Slack-as-trial-exhibit precedent (cf. *Twitter v. Musk* discovery) makes this unsafe even internally. **Public-facing variant approved**: *"Citations are pinned to primary sources, not generated."*
 
 **Deliverable**: `design/COPY.md` — full page copy, written before any visual design. Includes the Devpost demo-scope paragraph (§2.2 #12). Reviewed by `expert-review-loop` with reviewers Skeptic / GC / Hackathon Judge.
 
@@ -553,7 +565,7 @@ The audit-trail section (§2.2 #5) is the page's single strongest argument. The 
 - **Dedicated motion budget**: separate from §4.3 constants for this section only — Motion Designer signs off on a per-frame timing sheet.
 - **Dedicated review gate**: Art Director + Motion Designer + Supervisor co-review at Day 5 EOD, before merge.
 - **The gesture (v0 — to be sharpened on Day 5)**: as the user scrolls into the section, the trace card "unfurls" span-by-span — each span fading in left-to-right like a redline draft being read; the RiskJudge span lights with the warm-clay accent (§5.1) at the moment a Block verdict resolves; on hover/click, the lit span lifts ~8px off the surface and reveals the underlying prompt + Phoenix span ID + eval verdict in a side card. The unfurl-then-lift sequence is the specific weird-but-tasteful gesture that distinguishes this section from "another animated card."
-- **Engineered screenshot frame**: one specific frame designed to be screenshot-worthy as a still — composed of: (a) the **Wilson-LB recall headline number** (e.g. "0.94 Wilson 95% LB" rendered in the Lane-A display serif at maximum scale), (b) the Block verdict badge in warm clay, (c) the Phoenix span ID rendered in mono just below as a small craft-signal. The Art Director draws this frame on paper before any animation lands. This is what a Devpost juror captures and remembers.
+- **Engineered screenshot frame**: one specific frame designed to be screenshot-worthy as a still — composed of: (a) the **Wilson-LB recall headline number** (e.g. "0.94 Wilson 95% LB" rendered in the Lane-A display serif at maximum scale), (b) the Block verdict badge in warm clay, (c) the **citation row** — `DGCL § 251(c) · Delaware` in display serif 14px / 600, champagne pill on jurisdiction, mono `statute` badge in 11px (statute OR case-law per [`STATUTE_LAYER.md`](STATUTE_LAYER.md) §4.1), (d) the Phoenix span ID rendered in 11px mono with `verified 2026-06-01` microcopy in 10px below. **Single oxblood underline on `§ 251(c)` — locked rule, ACCENT BUDGET: 1, enforced in the per-frame timing sheet.** No other accent. The Art Director draws this frame on paper before any animation lands. This is what a Devpost juror captures and remembers.
 - **Fallback** (if iframe is mocked, per §"Resolved decisions"): the moneymoment ships as a designed playback of a *real* recorded review — recording is fine, fakery is not.
 
 ---
@@ -572,10 +584,14 @@ Per Round-A reviewer, the prior draft confused *capture settings* with *video pr
 |------|------|------------------|-----------|
 | 0:00–0:05 | **The hook** | Hero frame with tagline + Phoenix span ID visible | One line, voice-over: the differentiator in one sentence. |
 | 0:05–0:30 | **The problem** | Problem section — Monday morning board call vignette | Set the partner-POV stakes. |
-| 0:30–1:25 | **The moneymoment** *(rebalanced — 55s)* | Audit-trail playback (§6.4) — trace unfurls span-by-span, RiskJudge span lights, span clicked, prompt + Phoenix span ID + eval verdict revealed; engineered screenshot frame held for ~2s | "Every flag is sourced to the clause. Every verdict links to its Phoenix trace." |
+| 0:30–1:25 | **The moneymoment** *(rebalanced — 55s)* | Audit-trail playback (§6.4) — trace unfurls span-by-span, RiskJudge span lights, **third frame slides up at ~0:55 showing the citation row (`DGCL § 251(c) · Delaware · verified 2026-06-01`), held ~3s**, span clicked, prompt + Phoenix span ID + eval verdict revealed; engineered screenshot frame held for ~2s | "Every flag is sourced to its clause, and the clause traces to the controlling authority — pinned to the primary source, dated, and click-through." |
 | 1:25–1:55 | **The honest numbers** | Two-layer numbers section, "show the math" expand | "We report the worst case. The improvement loop has to beat a frozen held-out set." |
-| 1:55–2:15 | **The self-improving loop** | Reflector animation + the gate visualizing | The Arize partner-track wedge. Phoenix MCP visible on screen. |
+| 1:55–2:15 | **The self-improving loop + Phoenix-hosted citation dataset** | Reflector animation + the gate visualizing; ~4s cut to the **Phoenix-hosted `citation-gold-v1` dataset UI** with on-screen overlay text *"internal eval signal — never shown to users."* **Y-axis tick labels stripped entirely** — trend curve visible, no specific number legible at frame-pause (Wave-3 attorney requirement: visible numbers = admissible vendor representation). | The Arize partner-track wedge. Phoenix MCP + dataset both visible. |
 | 2:15–2:30 | **The CTA** | Demo dropdown, 5 deals visible, deploy URL in lower third | "Live at [domain]. Five real deals. Click any verdict." |
+
+**Hard rule for video edit (citation layer)**: no cross-fade between Findings frames and the Phoenix-hosted dataset frame — cut only. Cross-fade conflates the two surfaces and breaks the deposition defense documented in [`STATUTE_LAYER.md`](STATUTE_LAYER.md) §4.3.
+
+**Day-7 pre-launch dry-run**: 15-second dry-run from a clean device of the lower-third URL → Phoenix-hosted dataset path. Failure mode if skipped: click-through 404 during judging.
 
 Copy Lead locks the narration script in `COPY.md` by Day 2 EOD. Re-cut after the moneymoment lands on Day 5.
 
@@ -650,6 +666,7 @@ Iterate until all four return VALIDATED.
   - **Upside swap**: if `/reflect` does land iframe-ready by design-Day-6, swap the embed in. **Day-1 EOD Frontend Architect confirms**: (a) same-origin embed (works because both surfaces live in the same Next app per §4.1), (b) `X-Frame-Options` / `frame-ancestors` set on the FastAPI server.py to allow the marketing origin, (c) OIDC flow survives iframe under Safari ITP (test before commitment), (d) mobile fallback — static screenshot + "open in new tab" CTA below 768px, (e) skeleton + warm-ping to mask Cloud Run cold-start latency, (f) loading/error/timeout states designed.
   - **Recording**: the Devpost video is shot against whichever variant is live by Day-7 morning. The mock is built to be recording-quality regardless.
 - **Color** — **deep forest emerald primary + warm clay accent + signal-green-as-state-only**. See §5.1.
+- **Citation layer** — **Option C: deterministic citation map + LLM proposer + Phoenix-evaluated comparator**. Marketing-page surface lands in §2.2 #5/#6/#10/#11, §6.4, §7.0; full product-track spec in [`STATUTE_LAYER.md`](STATUTE_LAYER.md). Product-track cost: **7 dev-days** (Architecture 4.5 + Eval 1.5 + UX 0.75 + buffer 0.25). User explicitly requested the feature for Phoenix-leverage / partner-track scoring. Decided after a Wave-1-4 review loop: ML/Arize specialist → C 9/10, M&A Attorney → C 9/10 (after malpractice fixes), Backend Architect → 8/10 (after Pydantic + span_id + force_flush fixes), Hackathon Judge → 9/10. Three new README §6.1 Arize hooks (8/9/10): non-circular citation eval via independently-sourced gold, per-call streaming `citation_linker_agreement` annotation, deterministic regex comparator surfaced as a Phoenix rail. **Banned line** (added to §2.3 voice rules): *"We graded our own model against the law. The law won."* — hostile counsel reads it as vendor admission; never in written channels.
 
 **Two user-locked items were updated based on Round-A reviewer findings**; both flagged separately to the user before applying:
 1. The iframe-by-Day-5 commitment was found to be mathematically blocked by the product timeline (PROJECT_LOG fact-check, not opinion). Rewritten to mock-as-base.
@@ -680,6 +697,7 @@ The plan is the **rules of the game**, not the moves.
 ```
 design/
   PLAN.md            # this file
+  STATUTE_LAYER.md   # citation-layer product-track spec (cross-track)
   TOOLING.md         # Phase 0 output
   INSPIRATION.md     # Phase 1 output (with screenshots)
   COPY.md            # Phase 2 output — full copy + Devpost demo-scope paragraph + video narration script

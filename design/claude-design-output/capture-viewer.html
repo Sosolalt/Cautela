@@ -1,0 +1,3 @@
+<!doctype html><html><head><meta charset="utf8"><style>html,body{margin:0;background:#0B0B0C}img{display:block;width:100%}</style></head>
+<body><img id="v"><script>document.getElementById('v').src=localStorage.getItem(location.hash.slice(1)||'__capture')||'';
+addEventListener('hashchange',()=>{document.getElementById('v').src=localStorage.getItem(location.hash.slice(1))||'';});</script></body></html>

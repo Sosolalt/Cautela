@@ -1,0 +1,42 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css"></head>
+<body style="padding:24px 32px; background:#0B0B0C;">
+  <div class="mono mono-foot" style="margin-bottom:18px;">DIMENSIONAL ELEMENT — REQUIRED, ONE PER VIEWPORT</div>
+  <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px;">
+    <div>
+      <div style="height:80px; background:#0B0B0C; border:1px solid #2A2A28; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) perspective(200px) rotateX(40deg) rotateY(-15deg); width:42px; height:54px; background:#E63D2F;"></div>
+      </div>
+      <div class="mono mono-foot" style="padding-top:8px;">i · THREE.JS</div>
+      <div class="body-sm" style="color:#8A8A86; padding-top:2px;">single object, ~150 LOC</div>
+    </div>
+    <div>
+      <div style="height:80px; background:#0B0B0C; border:1px solid #2A2A28; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:30%; left:36%; transform:perspective(400px) rotateX(50deg) rotateY(-20deg); width:48px; height:60px; background:#ECECEA;"></div>
+        <div style="position:absolute; top:36%; left:40%; transform:perspective(400px) rotateX(50deg) rotateY(-20deg); width:48px; height:60px; background:#8A8A86;"></div>
+        <div style="position:absolute; top:42%; left:44%; transform:perspective(400px) rotateX(50deg) rotateY(-20deg); width:48px; height:60px; background:#54534F;"></div>
+      </div>
+      <div class="mono mono-foot" style="padding-top:8px;">ii · CSS 3D</div>
+      <div class="body-sm" style="color:#8A8A86; padding-top:2px;">page stack, mouse parallax</div>
+    </div>
+    <div>
+      <div style="height:80px; background:repeating-linear-gradient(0deg, #0B0B0C 0px, #0B0B0C 3px, #1a1a1a 3px, #1a1a1a 4px); border:1px solid #2A2A28; position:relative; overflow:hidden;">
+        <div style="position:absolute; inset:0; background:radial-gradient(circle at 50% 50%, rgba(43,212,217,0.4), transparent 60%);"></div>
+      </div>
+      <div class="mono mono-foot" style="padding-top:8px;">iii · SHADER</div>
+      <div class="body-sm" style="color:#8A8A86; padding-top:2px;">≤60 LOC GLSL · scan-line/noise</div>
+    </div>
+    <div>
+      <div style="height:80px; background:#0B0B0C; border:1px solid #2A2A28; position:relative; overflow:hidden;">
+        <svg style="position:absolute; inset:8px;" viewBox="0 0 80 60">
+          <rect x="10" y="6" width="40" height="48" fill="#ECECEA" opacity="0.4"/>
+          <rect x="16" y="10" width="40" height="48" fill="#ECECEA" opacity="0.7"/>
+          <rect x="22" y="14" width="40" height="48" fill="#ECECEA"/>
+        </svg>
+      </div>
+      <div class="mono mono-foot" style="padding-top:8px;">iv · SVG DEPTH</div>
+      <div class="body-sm" style="color:#8A8A86; padding-top:2px;">lowest-risk option</div>
+    </div>
+  </div>
+</body></html>

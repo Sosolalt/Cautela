@@ -1,67 +1,90 @@
+> **⚠ SUPERSEDED — 2026-06-08.** The canonical copy and voice rules now live in [`design/claude-design-output/README.md`](claude-design-output/README.md) §Content fundamentals (voice, casing, punctuation, vocabulary, locked headline/sub-line/CTA strings, footnote register). Index: [`design/SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md). The locked tagline ("Every flag, sourced. Every verdict, traced. Every span, clickable."), sub-line, conservative-stats line, and CTA strings carried forward verbatim — but the surrounding section copy here was sized to a now-retired creative direction. Audit-trail only.
+
+---
+
 # M&A Gatekeeper — Page Copy
 
 > Phase 2 deliverable per `design/PLAN.md` §2.
-> **Owner**: Copy Lead. **Reviewer**: Art Director (post-draft). **Locked**: 2026-05-26 (**v2** — critique-and-refine of v1; v1 was drafted by the Supervisor as a generalist, v2 is the Copy-Lead pass).
+> **Owner**: Copy Lead. **Reviewer**: Art Director (post-draft). **Locked**: 2026-05-27 (**v3.1** — applies 6 surgical fixes from Round-3: 4 cadence/voice items from the Voice & Cadence specialist's first finding-list (their Round-2 spawn hit session-limit), plus 2 RESIDUAL-MINOR copy-fidelity nits from M&A Counsel. v3 baseline applied the 12 consolidated must-fix items from Round-B (7 M&A Counsel, 5 Devpost Judge).).
 > **Voice anchors**: per [design/INSPIRATION.md](INSPIRATION.md) §Voice — Mercury (CFO-aware specificity), Stripe Press (editorial reportage), anthropic.com (declarative restraint), cal.com (bounded humor), stripe.com/privacy + /docs/security (three-beat fragment cadence for §6 + §11). All copy honors PLAN §2.3 voice rules + ban list.
-> **Cadence enforcement**: §6 and §11 use the `[Region]. [Number]. [Custodian].` three-beat fragment cadence per INSPIRATION.md §Voice. §3 uses the partner-POV reportage register per Stripe Press anchor. **§3 names a specific clause (anti-assignment + change-of-control trigger), not generic MAC** — per INSPIRATION §Five-weird-lifts §Voice. No "trusted by" claims; no marketing-bro words; no console.log easter eggs.
+> **Cadence enforcement**: §6 and §11 use the `[Region]. [Number]. [Custodian].` three-beat fragment cadence per INSPIRATION.md §Voice. §3 uses the partner-POV reportage register per Stripe Press anchor. §2 sub-line is editorial specificity below the cadence-led hero; its anchor is Stripe Press editorial prose, **not** resend.com three-beat fragments (v3.1 attribution correction — see DELTA #4). **§3 names a specific clause (anti-assignment + change-of-control trigger), not generic MAC** — per INSPIRATION §Five-weird-lifts §Voice. No "trusted by" claims; no marketing-bro words; no console.log easter eggs.
 > **Open queue**: items marked `<<DEPLOY-LOCKED>>` resolve at deploy time. Items marked `<<USER-CONFIRM>>` need product-side sign-off before they ship (current placeholder is the honest default).
 
 ---
 
-## DELTA — what changed v1 → v2
+## DELTA — v3 → v3.1
 
-| § | Disposition | Change in 1 line |
-|---|---|---|
-| §0 | EDIT | Replaced rephrasing-alternates (1) and (3) with two genuinely differentiated A/B lanes (cadence-led + verb-led); kept (2) number-led; (4) weird-lift vignette retained for video. |
-| §1 | EDIT | Renamed "Built on" nav label to "Where it lives" to match §10 section heading; struck dangling label mismatch. |
-| §2 | KEEP | Tagline + sub-line both locked anchors; sub-line already executes three-beat fragment cadence. No edit. |
-| §3 | EDIT + REPLACE-line | Swapped generic "one MAC clause nobody has read" for "one anti-assignment with a change-of-control trigger nobody flagged at signing" — the §Five-weird-lifts §Voice "specific clause type" requirement. |
-| §4 | KEEP | Six agent cards are short, declarative, specific. Already in register. |
-| §5 | KEEP | §6.4 composition spec lifted verbatim from INSPIRATION §Composition (Supervisor-defended). No edit. |
-| §6 | EDIT | Stripped Mercury-aspirational tails ("we make legal work shorter" / "The opinion letter carries the partner's name, not the model's" / "Production deployments would land CMEK before a regulated engagement" / "Will be a precondition for any real-deal engagement") and tightened to `[Region]. [Number]. [Custodian].` three-beat cadence. Fielded data (us-central1 / 0h / Google-managed / same-day / Q3-Q4 2026) unchanged per Supervisor defense. |
-| §7 | KEEP | Two-layer presentation; numerics fielded; "upper bound is what gets a partner fired" earns its specificity. |
-| §8 | KEEP | D18 pre-seed disclosure (PLAN §6.1 Day-2 requirement, Supervisor-defended) unchanged. Body already in cadence. |
-| §9 | KEEP | EDGAR fetch description fielded; iframe-retirement note is accurate. |
-| §10 | KEEP | Deployment-story-first; Phoenix labeled "open-source observability"; logos secondary. In register. |
-| §11 | EDIT | All five GC-FAQ answers tightened: shorter declarative openers, dropped one "We do not represent…" hedge, replaced the §11.2 "We do not introduce model output into discovery" line with the fielded version. Cadence verified as Stripe-doc, not Mercury-marketing. |
-| §12 | KEEP | Required Devpost disclosure verbatim (Supervisor-defended). |
-| §13 | KEEP | Build SHA + model pin + CSP signal per PLAN §7.3 (Supervisor-defended). Easter egg single, quiet, on-register. |
-| §14 | KEEP | Error/loading microcopy is specific (clause numbers, EDGAR-503 honesty, "this is real, not a mock"). cal.com personality without sliding. |
-| §15 | KEEP | OG tagline truncation "Every flag is sourced. Every verdict is traced." is three-beat. |
-| §16 | EDIT | Hook beat (0:00-0:05) tightened from 24 words to fit 5s @150 wpm; problem beat (0:05-0:30) trimmed from ~85 words to fit 25s. Moneymoment / numbers / loop / CTA beats all read clean at 150 wpm — kept. |
-| §17 | KEEP | Open-queue table is operational; markers + owners + dates accurate. |
-| §18 | KEEP | Cross-references to Phase-5 design system are correct hand-off. |
+6 surgical fixes from Round-3: 4 cadence/voice surgical fixes (Voice & Cadence specialist's first finding-list, ITERATE verdict) + 2 M&A Counsel RESIDUAL-MINOR copy-fidelity nits.
 
-**Counts**: 0 REPLACE · 7 EDIT · 11 KEEP. Well under the 8-REPLACE abort trigger.
+| # | § | Disposition | Change in 1 line | Source |
+|---|---|---|---|---|
+| 1 | §6 bullet 4 | EDIT | Moved 23-word parenthetical tails from Retention + Key custody bullets to a single `*Files-API caching note*` footnote at the end of §6 (small mono, `--neutral-500`) — preserves the three-beat fragment cadence claim. | Voice & Cadence (a) |
+| 2 | §6 bullet 5 | EDIT | Collapsed three-sentence defensive sandwich to two declarative fragments per sub-bullet: `Out of scope (hackathon). Production roadmap: [single specific detail].` Dropped the redundant "not a hackathon-scope commitment" third sentence. | Voice & Cadence (b) |
+| 3 | §14 L406 | EDIT | Committed cold-start microcopy to one register — operational: `Warming the agents. Six prompts loading. Roughly eight seconds.` (matches Cloud Run cold-start latency.) Was: `…A moment.` (mixed half-witty / half-operational). | Voice & Cadence (c) |
+| 4 | §2 sub-line note + top-of-doc cadence enforcement | EDIT | Dropped the "resend three-beat" cadence attribution from the §2 sub-line — a 24-word em-dash editorial sentence is not three-beat resend cadence. Re-attributed to Stripe Press editorial prose, which is what it actually does. | Voice & Cadence (d) |
+| 5 | §11.5 | EDIT | Corrected attribution slip: the 36h `FILES_API_URI_TTL_SECONDS` is the **agent-server** cache TTL (we evict before Google's 48h Files-API server-side expiration), not "Google-side." Per HANDOFF.md:244. | M&A Counsel RESIDUAL-MINOR |
+| 6 | §11.4 | EDIT | Verb shift "we pin" → "we aim to pin" — moves the 14-day model-continuity claim from contracted-SLA register to forward-commitment register, defensible without contract language. | M&A Counsel RESIDUAL-MINOR |
+
+**Counts**: 0 REPLACE · 6 EDIT · all other sections KEEP. No scope expansion, no PLAN-level decisions touched.
+
+---
+
+## DELTA — what changed v2 → v3
+
+Round-B reviewer-cohort must-fix list (12 items). 11 applied silently; 1 (item #8, §2 tagline architecture) flagged for Supervisor sign-off because it touches a PLAN-locked decision.
+
+| # | § | Disposition | Change in 1 line | Source |
+|---|---|---|---|---|
+| 1 | §6 bullet 5 | EDIT (critical) | Struck fabricated SOC 2 "Q4 2026" / pen-test "Q3 2026" target dates — not in HANDOFF.md, §17 itself flags them `<<USER-CONFIRM>>` unresolved. Replaced with date-free production-roadmap language explicitly scoped out of hackathon commitment. | M&A Counsel #1 |
+| 2 | §11.5 | EDIT (critical) | Rewrote "zero-retention defeats that vector at the source" — technically inaccurate given §6 bullet 4's own Files API 48h / agent-server 36h URI cache parenthetical. New version names the actual posture (no document content retained beyond inference window; URI cache holds opaque handles, not clause text). | M&A Counsel #2 |
+| 3 | §11.1 | EDIT (critical) | Rewrote "Work-product privilege survives because the model produces a triage memo" — that was a legal conclusion the page cannot make. New version: jurisdiction-specific call for counsel of record; our posture preserves the factual predicates a privilege analysis depends on. | M&A Counsel #3 |
+| 4 | §11.3 | EDIT | "Google does not train" downgraded to the precise paraphrase of the Vertex AI Service-Specific Terms ("prohibit use of customer prompts for foundation-model training"). | M&A Counsel #4 |
+| 5 | §13 | EDIT | Footer disclaimer expanded: added (a) no attorney-client relationship formed, (b) governing-law placeholder, (c) terms-of-service link placeholder `<<TOS-URL>>`. | M&A Counsel #5 |
+| 6 | §6 lede | EDIT | Stripped the meta-marketing tail ("Voluntary scope-limitation is the strongest signal a GC reader looks for. Tools that won't say what they're not are hiding something.") — Mercury-adjacent writer-talks-to-GC-about-GC-psychology failure mode. Replaced with the Stripe-doc direct opener: just "What this is not." and a one-line declarative lede. | M&A Counsel #6 |
+| 7 | §11.4 | EDIT | "Within a 30-day deprecation window" given SLA teeth: 14-day pin, re-validation against the frozen fold, regression surfaces in the audit trail, verdicts on new clauses pause if re-validation fails. | M&A Counsel #7 |
+| 8 | §0 / §2 / §15 | **FLAG-FOR-SUPERVISOR + APPLIED** | Promoted §0 alternate (1) cadence-led tagline ("Every flag, sourced. Every verdict, traced. Every span, clickable.") into the §2 hero. Demoted the locked PLAN §2.1 line to §2 sub-line layer + §15 OG truncation. **HARD-TO-REVERSE — touches PLAN-locked decision.** Applied because juror 5s-stop argument is sound + the locked line is preserved in the OG/sub-line architecture; Supervisor may revert. | Devpost Judge #8 |
+| 9 | §16 hook | EDIT | Hook (0:00-0:05) tightened from 16 words / 6.4s (over-run) to 11 words / 4.4s — "We read the merger agreement. Every flag, sourced; every verdict, traced." | Devpost Judge #9 |
+| 10 | §16 moneymoment | EDIT | 0:30-1:25 re-storyboarded with explicit camera/edit beats: 0:30-0:50 trace card unfurl + RiskJudge span light; 0:50-0:55 span-click; 0:55-1:20 engineered frame held with side-card revealed; 1:20-1:25 narration close. No more 30-second static hold. | Devpost Judge #10 |
+| 11 | §2 + §18 | EDIT | Phoenix span ID overlay on §2 hero bumped to **14px mono minimum** for video-capture legibility. The 12px small-print convention holds for inline references elsewhere (§5 attribution row, body mentions); §18 cross-reference updated. | Devpost Judge #11 |
+| 12 | §9 | EDIT | Iframe-retirement parenthetical moved from mid-body of §9 (where it diluted the "Five real deals. Click any verdict." headline) to a small mono footnote below the demo CTA. | Devpost Judge #12 |
+
+**Voice & cadence lane**: NOT addressed this round — the Voice & cadence specialist hit session-limit and could not return a finding list. Don't blind-fix cadence concerns; wait for their retry next round to name specific slips.
+
+**Counts**: 0 REPLACE · 12 EDIT · 6 KEEP. Well under the 8-REPLACE abort trigger.
+
+**Cross-Builder dependency note**: item #11 changes the §18 cross-reference to "**14px mono minimum** for hero overlay specifically." This intersects with SYSTEM Builder's `tokens.ts` work — if the SYSTEM Builder is mid-flight on a mono-scale token architecture, they need this constraint propagated (a `--font-mono-overlay` token at 14px, distinct from the 12px inline-reference token). Flagged for Supervisor cross-reconciliation.
 
 ---
 
 ## §0 — Tagline pool (A/B candidates)
 
-PLAN §2.1 locked the primary tagline. Copy Lead delivers genuinely differentiated A/B lanes — not rephrasings.
+PLAN §2.1 locked the primary tagline. v3 promotes the cadence-led alternate (1) into the §2 hero per Round-B Devpost Judge finding #8 (juror 5s-stop), and demotes the locked PLAN §2.1 line into the §2 sub-line + §15 OG truncation layer. **HARD-TO-REVERSE — flagged for Supervisor sign-off.** The locked line is preserved, not deleted; only its display location changes.
 
-**Primary (locked, PLAN §2.1)**:
+**Hero — v3 promoted (cadence-led, three-beat fragments, Stripe-doc register)**:
+> **Every flag, sourced. Every verdict, traced. Every span, clickable.**
+
+*Lane reason: collapses the message to the cadence the §6 honesty block and §11 FAQ ship in — same page, same voice, top to bottom. Strongest on the §6.4 screenshot frame AND on the Devpost juror's 5-second first read. The "what does this product actually do" gap is closed by the sub-line layer immediately beneath.*
+
+**Sub-line — v3 demoted-from-hero (the locked PLAN §2.1 line — preserved at sub-line scale + in §15 OG)**:
 > M&A contract review where every verdict links to its Phoenix trace — and every flag is sourced to the clause it came from.
 
-**Alternates (A/B pool — each is a different lane, not a synonym swap)**:
+*Lane reason: still doing its job — names the artifact + the integration + the audit posture — but at sub-line scale where its length (24 words) reads as deliberate-specificity instead of as a hero that doesn't land in 5s. **Cadence anchor: Stripe Press editorial prose** (the single editorial sentence with mid-em-dash, sitting beneath a cadence-led hero); **not** resend.com three-beat fragments — that anchor belongs to the hero tagline above, not to this sub-line. (v3.1 attribution correction per Voice & Cadence finding (d).)*
 
-1. *(cadence-led — three-beat fragments, Stripe-doc register)*
-   > **Every flag, sourced. Every verdict, traced. Every span, clickable.**
-   *Lane reason: collapses the message to the cadence the §6 honesty block and §11 FAQ ship in — same page, same voice, top to bottom. Strongest on the §6.4 screenshot frame; weakest on the "what does this product actually do" first read.*
+**Alternates (A/B pool — held on the bench)**:
 
-2. *(number-led — leads with the load-bearing stat)*
+1. *(number-led — leads with the load-bearing stat)*
    > **0.94 Wilson 95% lower bound on M&A clause recall. Every verdict back to its Phoenix span.**
    *Lane reason: front-loads the conservative-stats wedge (PLAN §2.1 sub-line claim) into the tagline itself. Strongest on the technical-judge first read; weakest if the GC reader bounces off "Wilson" without the sub-line context.*
 
-3. *(verb-led — names the act, not the artifact)*
+2. *(verb-led — names the act, not the artifact)*
    > **We read the merger agreement. We source every flag. We hand you the trace.**
-   *Lane reason: anthropic.com / resend.com declarative-verb register ("We send email."). Strongest as a hero spoken aloud in the Devpost video; weakest on a screenshot where the verbs do less work than nouns.*
+   *Lane reason: anthropic.com / resend.com declarative-verb register ("We send email."). Strongest as a hero spoken aloud in the Devpost video; weakest on a screenshot where the verbs do less work than nouns. v3 update: now too close to the §16 hook line; bench candidate only.*
 
-4. *(weird-lift vignette — for video opening, NOT live page)*
+3. *(weird-lift vignette — for video opening, NOT live page)*
    > *Friday 6pm. Exhibit 2.1 just hit the data room. By Monday's board call, every flag is sourced and every verdict is traced.*
-   *Per INSPIRATION §Five-weird-lifts §Voice (trigger.dev anchor — the willingness to tell a specific story in the hero copy).*
+   *Per INSPIRATION §Five-weird-lifts §Voice (trigger.dev anchor — the willingness to tell a specific story in the hero copy). Held for §16 narration variant.*
 
-**Recommendation**: ship **primary** on the live page (the locked PLAN §2.1 line is doing its job — names the artifact + the integration + the audit posture). Hold **(4)** for the §16 video opening voice-over. Run **(1)** and **(2)** as the two A/B candidates if the team wants a live-page test — they are genuinely differentiated lanes (cadence vs. number), not rephrasings of the same idea. (3) is the video-narration-friendly variant; keep on the bench.
+**v3 recommendation**: ship the cadence-led line as hero, the locked PLAN §2.1 line as sub-line and OG truncation. The architecture preserves the locked PLAN line in two surfaces (sub-line live + OG card) while letting the hero do its 5-second job. **Supervisor sign-off required before this ships — this is a PLAN-level decision.**
 
 ---
 
@@ -77,18 +100,26 @@ PLAN §2.1 locked the primary tagline. Copy Lead delivers genuinely differentiat
 
 ## §2 — Hero
 
-**Tagline** *(display serif, 96px desktop / 56px mobile, single line on desktop, 2 lines mobile)*:
+> **v3 architecture (FLAGGED FOR SUPERVISOR SIGN-OFF — touches PLAN §2.1 locked decision):** the hero promotes the cadence-led three-beat line for 5-second juror legibility; the locked PLAN §2.1 line is preserved at sub-line scale (and as the §15 OG truncation). Supervisor may revert by swapping the two lines back.
+
+**Tagline (v3 — cadence-led, promoted from §0 alt-1)** *(display serif, 96px desktop / 56px mobile, single line on desktop, 1-2 lines mobile)*:
+
+> **Every flag, sourced. Every verdict, traced. Every span, clickable.**
+
+**Anchor sub-line (v3 — the locked PLAN §2.1 line, demoted from hero)** *(display serif, 40px desktop / 28px mobile, regular weight — sits between hero tagline and the conservative-stats sub-line; **cadence anchor: Stripe Press editorial prose**, single editorial sentence with mid-em-dash — **not** the resend three-beat fragment cadence the hero above uses. v3.1 attribution correction per Voice & Cadence finding (d).)*:
 
 > M&A contract review where every verdict links to its Phoenix trace — and every flag is sourced to the clause it came from.
 
-**Sub-line** *(neutral sans, 24px desktop / 18px mobile, mono numerals where present)*:
+**Conservative-stats sub-line** *(neutral sans, 24px desktop / 18px mobile, mono numerals where present)*:
 
 > Wilson lower bounds. Frozen held-out fold. Paired-bootstrap CI gates. We report the worst case, not the best.
 
 **Primary CTA**: `Try the demo →`
 **Secondary CTA**: `Watch the 60-second demo`
 
-**Hero visual** *(per PLAN §1.4 hero candidate lock — Day-2 EOD)*: contract-stack (candidate #2) if Frontend Architect's R3F prerequisite check passes; otherwise editorial typographic hero (candidate #5). Either way, the hero **shows the act of reading a contract**, not a generic illustration. Hero visual copy (overlay if used): one Phoenix span ID in mono, format `phoenix:span:7f3a-…` — the craft signal per INSPIRATION.md §Typography.
+**Hero visual** *(per PLAN §1.4 hero candidate lock — Day-2 EOD)*: contract-stack (candidate #2) if Frontend Architect's R3F prerequisite check passes; otherwise editorial typographic hero (candidate #5). Either way, the hero **shows the act of reading a contract**, not a generic illustration.
+
+**Hero visual overlay copy** *(v3 — Devpost Judge fix #11: bumped from 12px to 14px mono for 1440p video-capture legibility; the 12px convention holds for inline references elsewhere on the page)*: one Phoenix span ID in mono at **14px minimum**, format `phoenix:span:7f3a-…` — the craft signal per INSPIRATION.md §Typography.
 
 ---
 
@@ -173,8 +204,7 @@ PLAN §2.1 locked the primary tagline. Copy Lead delivers genuinely differentiat
 
 **Section heading**: *What this is not.*
 
-**Lede**:
-> Voluntary scope-limitation is the strongest signal a GC reader looks for. Tools that won't say what they're not are hiding something. We will say it.
+*(v3 lede edit per M&A Counsel fix #6: stripped the v2 meta-marketing tail "Voluntary scope-limitation is the strongest signal a GC reader looks for. Tools that won't say what they're not are hiding something." — the writer talking TO the GC ABOUT the GC's psychology was the Mercury-adjacent failure mode. Stripe-doc direct opener instead.)*
 
 **Bullets** *(each rendered in the Stripe-cadence three-beat fragment register where the field permits — v2 stripped the v1 Mercury-aspirational tails)*:
 
@@ -186,18 +216,28 @@ PLAN §2.1 locked the primary tagline. Copy Lead delivers genuinely differentiat
 
 4. **Data handling** *(fielded, sourced — Stripe-cadence)*:
    - **Processing region**: `us-central1` (Google Cloud Run). <<DEPLOY-LOCKED — confirm at deploy>>
-   - **Retention**: `0 hours` server-side. Inference-only. No document, prompt, or response written to disk. (Google's Files API stages uploads on Google infrastructure for up to 48 hours; we do not cache them server-side.)
-   - **Key custody**: Google-managed. Customer-managed encryption keys (CMEK) not configured in the hackathon submission. Production roadmap: CMEK before any regulated engagement.
+   - **Retention**: `0 hours` server-side. Inference-only. No document, prompt, or response written to disk.[^files-api]
+   - **Key custody**: Google-managed. CMEK not configured in the hackathon submission.[^cmek-roadmap]
    - **Deletion-on-request**: same-day, by virtue of zero retention. Email <<CONTACT-EMAIL>> with the document hash; we confirm non-presence.
 
-5. **Security posture** *(honest hackathon scope)*:
-   - **SOC 2**: Out of scope for the hackathon submission. Production roadmap: SOC 2 Type II target Q4 2026.
-   - **Pen test**: Out of scope for the hackathon submission. Production roadmap: third-party pen test target Q3 2026.
+5. **Security posture** *(honest hackathon scope — v3 fix per M&A Counsel #1: struck the fabricated "Q4 2026" / "Q3 2026" target dates. They were not in HANDOFF.md and §17 itself flags them `<<USER-CONFIRM>>` unresolved. Survives a deposition. v3.1 cadence fix per Voice & Cadence (b): collapsed three-sentence defensive sandwich to two declarative fragments per sub-bullet.)*:
+   - **SOC 2**: Out of scope (hackathon). Production roadmap: target date set with first regulated engagement.
+   - **Pen test**: Out of scope (hackathon). Production roadmap: third-party schedule set with first regulated engagement.
    - **NDA-shareable report**: Not available pre-production. Precondition for any real-deal engagement.
 
 6. **Trust-packet (downloadable, on request)** — subprocessor list (Google Cloud / Google Vertex AI Gemini / self-hosted Phoenix), breach-notification SLA, GDPR Article 28 / DPA posture for EU deals. Request via <<CONTACT-EMAIL>>; sent under NDA.
 
-*(v2 cadence audit: dropped the v1 italic tail "We do not give legal advice; we make legal work shorter" from bullet 1 — it lapses into Mercury aspirational marketing voice ("we make X shorter") which is the exact failure mode INSPIRATION §Voice flags Mercury for ("Mercury voice does not reach `us-central1` posture, Stripe's privacy/security docs do"). Dropped "The opinion letter carries the partner's name, not the model's" tail from bullet 3 — earned its keep poetically but breaks cadence; the two-beat "Router emits / Partner emits" is the load-bearing line. Tightened the bullet-4 CMEK line to drop "would land CMEK before a regulated engagement" conditional voice — "Production roadmap: CMEK before any regulated engagement" is fielded, not aspirational. Tightened bullet-5 "Will be a precondition" to "Precondition" — same cadence move. Fielded data (`us-central1` / `0 hours` / Google-managed / same-day / SOC2 Q4 2026 / pen-test Q3 2026) unchanged per Supervisor defense — that's honest product truth from HANDOFF.md + `.env.example` and changing it would be fabrication.)*
+*(v2 cadence audit: dropped the v1 italic tail "We do not give legal advice; we make legal work shorter" from bullet 1 — it lapses into Mercury aspirational marketing voice ("we make X shorter") which is the exact failure mode INSPIRATION §Voice flags Mercury for ("Mercury voice does not reach `us-central1` posture, Stripe's privacy/security docs do"). Dropped "The opinion letter carries the partner's name, not the model's" tail from bullet 3 — earned its keep poetically but breaks cadence; the two-beat "Router emits / Partner emits" is the load-bearing line. Tightened the bullet-4 CMEK line to drop "would land CMEK before a regulated engagement" conditional voice — "Production roadmap: CMEK before any regulated engagement" is fielded, not aspirational. Tightened bullet-5 "Will be a precondition" to "Precondition" — same cadence move.)*
+
+*(v3 audit: M&A Counsel fix #1 — struck the SOC2 "Q4 2026" and pen-test "Q3 2026" dates from bullet 5. They were not in HANDOFF.md (the HANDOFF lists pen-test "scheduled / completed by [firm]" as a `<<USER-CONFIRM>>` placeholder, with no committed date), and §17 already flags them `<<USER-CONFIRM>>` unresolved. Same failure mode the Round-B M&A Counsel killed twice already ("survives a deposition" / "your data stays in your project"). Replaced with date-free production-roadmap language explicitly scoped out of hackathon commitment — defensible against the team's actual posture.)*
+
+---
+
+*Files-API caching note* *(small mono, `--neutral-500` — footnoted off bullet 4 per v3.1 cadence fix (a) so the bullet preserves the three-beat fragment cadence)*:
+
+[^files-api]: Google's Files API stages uploads on Google infrastructure for up to 48 hours; we do not cache document content server-side. The agent-server keeps a Files-API URI cache with a 36h TTL (`FILES_API_URI_TTL_SECONDS`) — opaque file handles, evicted before Google's 48h server-side expiration. See HANDOFF.md §244.
+
+[^cmek-roadmap]: Production roadmap: CMEK before any regulated engagement.
 
 ---
 
@@ -254,8 +294,6 @@ PLAN §2.1 locked the primary tagline. Copy Lead delivers genuinely differentiat
 **Body**:
 
 > Pick one of five recent 8-K / Ex-2.1 merger filings, pre-validated to surface at least one change-of-control, anti-assignment, or MAC-related finding. Filings are fetched live from EDGAR at demo time via the EdgarTools MCP server.
->
-> *(Per the design-team Day-1 disposition, the audit-trail surface ships as a designed mock of the live `/reflect` console. The mock plays back a real recorded review — not a fabricated one. Mock-as-base-case is locked; iframe was retired in Day-1 kill-switch.)*
 
 **Demo dropdown labels** *(populated from the curated 5 per ma_gatekeeper allow-list)*:
 - Deal 1: `<<DEMO-DEAL-1>>` — *one-line description of the headline finding*
@@ -265,6 +303,12 @@ PLAN §2.1 locked the primary tagline. Copy Lead delivers genuinely differentiat
 - Deal 5: `<<DEMO-DEAL-5>>`
 
 **Demo CTA**: `Run the review →`
+
+**Footnote** *(rendered small, mono, `--neutral-500`, immediately below the demo CTA)*:
+
+> *(Audit-trail surface is a designed playback of a real recorded review; live `/reflect` integration deferred per Day-1 iframe kill-switch.)*
+
+*(v3 fix per Devpost Judge #12: moved the iframe-retirement parenthetical out of the mid-body of §9 — where it diluted the "Five real deals. Click any verdict." headline — to a small mono footnote below the CTA. Still on the page (the honesty matters), no longer competing with the demo's primary message.)*
 
 ---
 
@@ -298,11 +342,13 @@ PLAN §2.1 locked the primary tagline. Copy Lead delivers genuinely differentiat
 
 ### 11.1 Privilege — does using this waive work-product?
 
-> No. Inference is stateless. Prompts, responses, and document text are not retained after the session ends.
+> Inference is stateless. Prompts, responses, and document text are not retained after the session ends.
 >
 > Processing happens in `us-central1` on Google Cloud Run. Subpoena posture: there are no logs of document content to produce. Operational metadata only (request timestamps, billing counters) under standard cloud-provider SLA — no clause-level or verdict-level data.
 >
-> Work-product privilege survives because the model produces a triage memo, not a legal opinion.
+> Whether work-product privilege attaches is a jurisdiction-specific call for counsel of record. Our posture — no retention, no training, stateless inference — preserves the factual predicates a privilege analysis depends on.
+
+*(v3 fix per M&A Counsel #3: rewrote "Work-product privilege survives because the model produces a triage memo, not a legal opinion" — that read as a legal conclusion the page cannot make. New version names the actual posture and hands the legal call to counsel of record, where it belongs.)*
 
 ### 11.2 Standard of care — if I rely on a Block call and miss the anti-assignment trigger (the §3 example), who is on the hook?
 
@@ -316,25 +362,31 @@ PLAN §2.1 locked the primary tagline. Copy Lead delivers genuinely differentiat
 
 > No.
 >
-> No fine-tuning. No prompt-caching of document content. No retention beyond the session. Inference runs through Vertex AI's standard enterprise terms (Google does not train on prompts submitted to Vertex AI under those terms).
+> No fine-tuning. No prompt-caching of document content. No retention beyond the session. Inference runs through Vertex AI under the Vertex AI Service-Specific Terms, which prohibit Google's use of customer prompts for foundation-model training.
 >
 > Processing region today: `us-central1`. EU processing region available on request before any EU deal; EU deal documents are not routed through US infrastructure without written consent.
 >
 > BAA-equivalent posture: Cloud Run and Vertex AI are HIPAA-eligible and SOC 2 Type II at the platform layer. We do not yet hold our own SOC 2; production roadmap in §6.
 
+*(v3 fix per M&A Counsel #4: downgraded the absolute "Google does not train" claim to the precise paraphrase of the Vertex AI Service-Specific Terms — "prohibit use of customer prompts for foundation-model training." Defensible against the verbatim terms.)*
+
 ### 11.4 Model continuity — if Google deprecates Gemini 3 mid-deal, what happens?
 
 > The model pin is in the page footer (`gemini-3-pro-preview` at time of this draft). Routing logic is decoupled from the model — swap to Gemini 3.x or to a different Vertex AI model and re-run the held-out-fold gate.
 >
-> Mid-deal continuity SLA: within a 30-day deprecation window, the model is re-pinned and re-validated against the frozen fold before any verdict on a new clause. If the re-validated model regresses, the regression surfaces in your audit trail — not silently.
+> Mid-deal continuity posture: if Google announces deprecation, we aim to pin the new model within 14 days, re-validate against the frozen fold, and surface any regression in the audit trail. **Verdicts on new clauses pause if re-validation fails.** No silent swap; no quiet regression.
+
+*(v3 fix per M&A Counsel #7: replaced the "within a 30-day deprecation window" non-SLA window language with actual SLA teeth — 14-day pin, frozen-fold re-validation, regression visibility in the audit trail, hard pause on new-clause verdicts if re-validation fails. v3.1 fix per M&A Counsel RESIDUAL-MINOR: verb shift "we pin" → "we aim to pin" + heading "SLA" → "posture" — moves the 14-day claim from contracted-SLA register to forward-commitment register, defensible without contract language.)*
 
 ### 11.5 Conflicts — if opposing counsel uses the same tool, does that create issues?
 
 > No.
 >
-> Each engagement runs on isolated Cloud Run instances with no cross-engagement state. Opposing counsel's prompts and your prompts share zero data. No shared cache. No shared session. No shared retention.
+> Each engagement runs on isolated Cloud Run instances with no cross-engagement state. Opposing counsel's prompts and your prompts share zero data. No shared cache. No shared session.
 >
-> Tool-as-conflict is not a recognized conflict under the Model Rules. Tool-as-leakage would be — and zero-retention defeats that vector at the source.
+> Tool-as-conflict is not a recognized conflict under the Model Rules. Tool-as-leakage would be. **No document content is retained server-side beyond the inference window.** (The Files-API URI cache lives in the agent server with a 36h TTL — we evict opaque file handles before Google's 48h Files-API server-side expiration.) The cache is per-engagement, never shared across engagements.
+
+*(v3 fix per M&A Counsel #2: rewrote "zero-retention defeats that vector at the source" — technically inaccurate given §6 bullet 4's own parenthetical (Files API 48h Google-side + agent-server 36h URI cache per HANDOFF.md `FILES_API_URI_TTL_SECONDS`). New version names the actual posture: no document content retained beyond inference, URI cache holds opaque handles not clause text. Defensible against the architecture you actually have. v3.1 fix per M&A Counsel RESIDUAL-MINOR: corrected attribution slip — the 36h TTL lives in the **agent server**, not "Google-side"; we evict before Google's 48h server-side expiration. Per HANDOFF.md:244.)*
 
 ### 11.6 *(Dev-audience FAQs, collapsed by default — single line)*
 
@@ -361,10 +413,15 @@ Arize partner track.
 Made by [<<TEAM-NAME>>].
 Source: github.com/[<<REPO>>]   ·   License: MIT
 Demo runs against five pre-indexed EDGAR filings (see §12 above).
-Not legal advice. Not a substitute for partner sign-off.
+
+Not legal advice. Not a substitute for partner sign-off. Use of this
+site does not create an attorney-client relationship. Site operated
+under the laws of <<GOVERNING-LAW>>. Terms of service: <<TOS-URL>>.
 
 build: <<BUILD-SHA>>  ·  model-pin: gemini-3-pro-preview  ·  evals: design/EVALS.md  ·  csp: strict
 ```
+
+*(v3 fix per M&A Counsel #5: expanded the two-sentence disclaimer ("Not legal advice. Not a substitute for partner sign-off.") to add (a) no attorney-client relationship formed, (b) governing-law placeholder `<<GOVERNING-LAW>>`, (c) terms-of-service link placeholder `<<TOS-URL>>`. Still concise; now complete enough for a deployed page facing multi-jurisdiction GCs. `<<GOVERNING-LAW>>` and `<<TOS-URL>>` added to §17 open queue.)*
 
 **Easter egg** *(one only, per PLAN §0.1 — playful lives in micro-interactions)*:
 Footer-bottom-right, tiny gray text: *"If you read this far, you should be doing diligence on something more interesting."*
@@ -375,7 +432,7 @@ Footer-bottom-right, tiny gray text: *"If you read this far, you should be doing
 
 | State | Copy |
 |---|---|
-| Cold-start (Cloud Run waking, ~3-8s) | *Warming the agents. Six prompts loading. A moment.* |
+| Cold-start (Cloud Run waking, ~3-8s) | *Warming the agents. Six prompts loading. Roughly eight seconds.* |
 | Demo loading (filing being pulled from EDGAR) | *Pulling Exhibit 2.1 from EDGAR. Real document, real fetch — no caching.* |
 | Risk-judge mid-review | *Risk Judge is reading §6.3(b). 12 spans queued behind it.* |
 | Demo complete | *Review complete in {duration}s. {count} flags surfaced. Click any verdict to open the trace.* |
@@ -390,10 +447,12 @@ Footer-bottom-right, tiny gray text: *"If you read this far, you should be doing
 
 **1200×630 OG card**:
 - Top-left: wordmark.
-- Center, oversized: tagline (truncated to one line):
+- Center, oversized: tagline (truncated to one line — three-beat cadence echoing the v3 hero):
   > *Every flag is sourced. Every verdict is traced.*
-- Bottom-right, mono: `phoenix:span:7f3a-c2b1-…` (the same craft signal as the hero overlay).
+- Bottom-right, mono at 14px (matches §2 hero overlay per v3 §18): `phoenix:span:7f3a-c2b1-…` (the same craft signal as the hero overlay).
 - Background: `--neutral-900` with the deep-forest-emerald primary as a quarter-bleed wash on the left third.
+
+*(v3 note per Devpost Judge fix #8: the OG truncation continues to surface the cadence-fragment line. The locked PLAN §2.1 line is now preserved in the §2 anchor sub-line slot rather than the OG. If Supervisor reverts the §2 architecture, the OG should swap back to a truncation of the PLAN-locked line.)*
 
 **Fallback static PNG** (Day-6 noon kill-switch trigger per PLAN §4.4): same composition, exported flat — no `@vercel/og` runtime dependency.
 
@@ -404,13 +463,16 @@ Footer-bottom-right, tiny gray text: *"If you read this far, you should be doing
 Spoken over the live page scroll-only capture. Read at ~150 words per minute; voice is the *resend.com / anthropic.com* register — declarative, no marketing modifiers.
 
 ```
-0:00–0:05  THE HOOK (5s — target ~12 words @150 wpm)
-   "We read the merger agreement. We source every flag. We hand
-    you the trace."
+0:00–0:05  THE HOOK (target ≤4.5s @150 wpm — 11 words / 4.4s)
+   "We read the merger agreement. Every flag, sourced; every
+    verdict, traced."
    [Hero frame held. Tagline below. One Phoenix span ID visible
-    in the lower-third in mono.]
-   [v3 — AD fix #1: swapped from cadence-fragment hook to §0
-    alternate (3) verb-led; ends on a noun, breathes at 12 words.]
+    in the lower-third in mono at 14px (per §2 / §18 v3 update).]
+   [v3 — Devpost Judge fix #9: previous hook ("We read the merger
+    agreement. We source every flag. We hand you the trace.") ran
+    16 words / 6.4s @150wpm — overran the 5s budget. New two-sentence
+    cut lands at 11 words / 4.4s with the same opener verb-noun and
+    the cadence-fragment payoff matching the v3 hero tagline.]
 
 0:05–0:30  THE PROBLEM (25s — target ~62 words @150 wpm)
    "Friday 6pm. Exhibit 2.1 hits the data room. 312 pages.
@@ -423,16 +485,44 @@ Spoken over the live page scroll-only capture. Read at ~150 words per minute; vo
     the trigger IS the COC; restores deliberate-slowness cadence.]
 
 0:30–1:25  THE MONEYMOMENT (55s — the largest beat)
-   "Every flag is sourced to the clause. Every verdict links to its
-    Phoenix trace. The contract unfurls span by span as the agents
-    read it. When Risk Judge issues a Block verdict, you can click
-    the span — and you get the prompt that produced it, the response
-    the model returned, the evaluation that judged the response, and
-    the Phoenix span ID. There is no black box. There is no place
-    you cannot click into."
-   [§6.4 unfurl plays. RiskJudge span lights warm-clay. Span clicked.
-    Side card reveals prompt + response + eval + span ID. Frame held
-    on the engineered screenshot composition for ~2s.]
+   [v3 re-storyboarded per Devpost Judge fix #10: 55s is too long
+    to hold a static frame; engineered screenshot must arrive via
+    the span-click reveal mid-beat, not be held static for 30+s.]
+
+   0:30–0:50 (20s — trace card unfurl + RiskJudge span lights)
+   "Every flag is sourced to the clause. Every verdict links
+    to its Phoenix trace. The contract unfurls span by span as
+    the agents read it."
+   [§6.4 unfurl plays — 12 spans fade in left-to-right at the
+    §INSPIRATION 1800ms-per-span deliberate-slowness pacing.
+    At ~0:46, the RiskJudge span lights warm-clay; the Block
+    verdict resolves at 0:50. Camera holds static through this
+    beat — the unfurl IS the motion.]
+
+   0:50–0:55 (5s — span-click)
+   "When Risk Judge issues a Block verdict, you can click
+    the span."
+   [Cursor enters frame. Click on the lit RiskJudge span. The
+    span lifts ~8px on click per PLAN §6.4 named gesture.
+    Cursor exits after the lift.]
+
+   0:55–1:20 (25s — engineered frame held with side-card revealed)
+   "You get the prompt that produced it, the response the
+    model returned, the evaluation that judged the response,
+    and the Phoenix span ID. There is no black box. There is
+    no place you cannot click into."
+   [Side card revealed. Engineered screenshot composition now
+    fully on-screen: 0.94 Wilson-LB headline (Lane-A display
+    serif, 240px), BLOCK badge (warm-clay pill, 14px mono),
+    Phoenix span ID below at 14px mono per §2 / §18 v3. The
+    camera does NOT cut — slow micro-zoom (1.0 → 1.04 over
+    25s) keeps the frame alive without competing with the copy.]
+
+   1:20–1:25 (5s — narration close)
+   "Every span, clickable."
+   [Engineered frame held flat for 5s. The §0 alt-1 cadence
+    line lands as the visual + narration converge. Cut to
+    next beat clean.]
 
 1:25–1:55  THE HONEST NUMBERS (30s)
    "We report the worst-case accuracy, not the best. Wilson 95
@@ -466,8 +556,10 @@ Spoken over the live page scroll-only capture. Read at ~150 words per minute; vo
 | Marker | What it is | Owner | Resolution by |
 |---|---|---|---|
 | `<<DEPLOY-LOCKED>>` | Processing region in §6 bullet 4 — confirmed by Frontend Architect at deploy | Frontend Architect | Day-7 deploy |
-| `<<USER-CONFIRM>>` | SOC 2 + pen-test target dates in §6 bullet 5 — set or struck per user call | User (Hugo) | Day-6 noon |
+| `<<USER-CONFIRM>>` | SOC 2 + pen-test target dates in §6 bullet 5 — **v3 update: dates struck per M&A Counsel fix #1; marker retained because the user may still want to commit to dates before deploy; current default is "no committed date" which is the honest hackathon-scope posture.** | User (Hugo) | Day-6 noon |
 | `<<CONTACT-EMAIL>>` | Trust-packet + deletion-request + error-page contact (§6, §14) | User | Day-6 noon |
+| `<<GOVERNING-LAW>>` | Governing-law jurisdiction in §13 footer disclaimer (v3 add per M&A Counsel fix #5) | User | Day-6 noon |
+| `<<TOS-URL>>` | Terms-of-service link in §13 footer disclaimer (v3 add per M&A Counsel fix #5) | User | Day-7 deploy |
 | `<<DEMO-DEAL-1..5>>` | Demo dropdown labels — pulled from `ma_gatekeeper` allow-list | Frontend Architect | Day-5 |
 | `<<TEAM-NAME>>`, `<<REPO>>`, `<<BUILD-SHA>>`, `<<DOMAIN>>`, `<<TRACE-ID>>` | Footer + 500-page interpolations | Frontend Architect | Build-time substitution |
 
@@ -477,8 +569,8 @@ Spoken over the live page scroll-only capture. Read at ~150 words per minute; vo
 
 ## §18 — Cross-references to design system *(picked up by Phase 5 — `tokens.ts` + `SYSTEM.md`)*
 
-- **Display type scale anchors**: §2 hero (96px desktop / 56px mobile), §5 hero number (**240px desktop / 96px mobile, tracking `-0.02em`**), §7 stat (mono, 56px), §3 vignette number (56px), §12 disclosure (14px small).
-- **Mono usage**: Phoenix span IDs (12px at `--neutral-400`, or 14px when load-bearing); all numbers in §7 + §5; verdict badges in §5 + §11 (**14px mono uppercase tracked `+0.08em`**).
+- **Display type scale anchors**: §2 hero (96px desktop / 56px mobile), §2 anchor sub-line (40px desktop / 28px mobile — v3 add for the demoted PLAN §2.1 line), §5 hero number (**240px desktop / 96px mobile, tracking `-0.02em`**), §7 stat (mono, 56px), §3 vignette number (56px), §12 disclosure (14px small).
+- **Mono usage**: Phoenix span IDs — **§2 hero overlay at 14px minimum (v3 fix per Devpost Judge #11 — video-capture legibility at 1440p)**; inline references elsewhere (§5 attribution, body mentions) hold the 12px convention at `--neutral-400`; all numbers in §7 + §5; verdict badges in §5 + §11 (**14px mono uppercase tracked `+0.08em`**). **SYSTEM Builder note**: if `tokens.ts` defines a mono-scale token architecture, the 14px hero-overlay variant needs its own token (`--font-mono-overlay` or similar) distinct from the 12px inline-reference token — flagged for Supervisor cross-Builder reconciliation.
 - **Mono attribution color**: §5 attribution row + §13 footer build-line use `--neutral-500` (24px gap below the headline they attribute).
 - **Color usage**: warm-clay (`--accent-clay: #B86F3D`) on the §5 Block badge + §1 primary CTA + §15 OG card accent — one accent per viewport per PLAN §5.1; signal-green (5%-state-only) on §11 Clear-verdict mentions; deep-forest-emerald (`--brand-primary: #0F4A38`) as primary brand surface everywhere else. *(Token candidates per INSPIRATION.md §Color — confirm under Playwright field-validation Day-3 morning.)*
 - **§5 moneymoment composition** is a **no-container** lift — the AD §0.1 weird move. `tokens.ts` must NOT define a `.stat-card` shadow/border preset that components might reach for; the moneymoment lives in negative space (background = `--neutral-900` dark / `--neutral-50` light, period). *(Mirrors AD v3 fix #4.)*

@@ -1,3 +1,7 @@
+> **⚠ SUPERSEDED — 2026-06-08.** The canonical design system is now [`design/claude-design-output/`](claude-design-output/README.md); index [`design/SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md). The skill / MCP / library decisions captured here are still load-bearing for the design *track's* tooling setup (R3F, Spline, Rive, Lottie remain forbidden), but the rationale was sized to a now-retired creative direction. Audit-trail only.
+
+---
+
 # Tooling Reconnaissance — Phase 0 Output
 
 > Canonical list of skills, MCP servers, plugins, external reference libraries, type acquisition, and tooling tempations explicitly killed for the design track.

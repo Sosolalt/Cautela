@@ -1,0 +1,277 @@
+/* =============================================================
+   M&A Gatekeeper — colors_and_type.css
+   Documentary Brutalism. Locked tokens from source/design.md.
+   ============================================================= */
+
+/* Google Fonts — substitutes for the commercial families locked in the brief.
+   Display    : Instrument Serif (PP Editorial New sub) + Newsreader (200 + 800)
+   Body / UI  : Space Grotesk (PP Neue Montreal sub) + Inter Tight (Söhne sub)
+   Mono       : Geist Mono + IBM Plex Mono (Berkeley Mono sub)
+   ------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Newsreader:opsz,wght@6..72,200;6..72,400;6..72,800&family=Space+Grotesk:wght@300;400;500;600;700&family=Inter+Tight:wght@300;400;500;600;700&family=Geist+Mono:wght@300;400;500;600;800&family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* ---------- SURFACE ---------- */
+  --surface:        #0B0B0C;   /* near-black, slightly warm. NEVER #000000 */
+  --surface-alt:    #F4F2EC;   /* warm paper — one variant maximum */
+
+  /* ---------- INK ---------- */
+  --ink:            #ECECEA;   /* high-contrast text on dark */
+  --ink-muted:      #8A8A86;   /* secondary, line numbers */
+  --ink-faint:      #54534F;   /* rules, borders, document chrome */
+  --ink-dim:        #2A2A28;   /* deepest non-surface tone */
+
+  /* ink for use on --surface-alt (warm paper) */
+  --ink-paper:        #1A1916;
+  --ink-paper-muted:  #6C6A63;
+  --ink-paper-faint:  #B6B2A6;
+
+  /* ---------- ACCENTS — pick ONE per surface, max 3 placements ---------- */
+  /* M&A LUXURY palette — refined for slick high-end SaaS register */
+  --accent-champagne:      #C9A961;   /* polished brass / gold leaf — primary luxury accent */
+  --accent-champagne-deep: #9C7E3F;   /* aged brass — shadow/secondary */
+  --accent-champagne-soft: #E0CB94;   /* champagne highlight */
+  --accent-oxblood:        #8B2635;   /* refined red — replaces vermillion */
+  --accent-ivory:          #E8DDC4;   /* warm contrast tone */
+
+  /* Legacy Documentary-Brutalism accents (kept for back-compat) */
+  --accent-vermillion:  #E63D2F;
+  --accent-highlighter: #F0E040;
+  --accent-ochre:       #C28A2C;
+  --accent-cyan-ink:    #2BD4D9;
+
+  /* ---------- TYPE FAMILIES ---------- */
+  --font-display:        'Instrument Serif', 'Newsreader', Georgia, serif;
+  --font-display-news:   'Newsreader', 'Instrument Serif', Georgia, serif;
+  --font-body:           'Space Grotesk', 'Inter Tight', sans-serif;
+  --font-body-alt:       'Inter Tight', 'Space Grotesk', sans-serif;
+  --font-mono:           'Geist Mono', 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* ---------- SCALE — desktop ---------- */
+  --size-display-xxl: 216px;     /* maximum-commitment display */
+  --size-display-xl:  144px;     /* honest display */
+  --size-display-lg:  112px;
+  --size-display-md:   88px;     /* DISPLAY FLOOR. below this = under-commit */
+  --size-display-sm:   64px;     /* sub-display only */
+
+  --size-body-lg:      18px;
+  --size-body:         16px;
+  --size-body-sm:      14px;
+
+  --size-mono-arch:    32px;     /* span ID treated as architecture */
+  --size-mono-arch-sm: 24px;
+  --size-mono:         14px;
+  --size-mono-foot:    11px;     /* line numbers, doc IDs */
+
+  /* ---------- WEIGHT ---------- */
+  --w-display-light:   200;      /* Newsreader 200 paired with 800 = extreme contrast */
+  --w-display-reg:     400;
+  --w-display-bold:    800;
+  --w-body-light:      300;
+  --w-body-reg:        400;
+  --w-body-med:        500;
+  --w-body-semi:       600;
+  --w-mono-light:      300;
+  --w-mono-reg:        400;
+  --w-mono-heavy:      800;
+
+  /* ---------- SPACING — 8px baseline grid ---------- */
+  --s-1:   8px;
+  --s-2:  16px;
+  --s-3:  24px;
+  --s-4:  32px;
+  --s-5:  40px;
+  --s-6:  48px;
+  --s-8:  64px;
+  --s-10: 80px;
+  --s-12: 96px;       /* generous edge margin */
+  --s-16: 128px;
+  --s-20: 160px;
+
+  --edge-flush:    0px;
+  --edge-generous: 96px;
+  --edge-mobile:   20px;
+
+  /* ---------- BORDERS / RULES ---------- */
+  --rule-hairline:    1px solid var(--ink-faint);
+  --rule-margin:      1px solid var(--ink-faint);   /* court-margin vertical rule */
+  --rule-accent:      1px solid currentColor;
+
+  /* RADII — locked at 0 */
+  --radius: 0;
+
+  /* ---------- MOTION — locked ---------- */
+  --ease:     cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-hover: 200ms;
+  --dur-entry: 800ms;
+}
+
+/* =============================================================
+   Global base — apply on top of :root tokens
+   ============================================================= */
+* {
+  border-radius: var(--radius) !important;
+  box-shadow: none;
+}
+
+html, body {
+  background: var(--surface);
+  color: var(--ink);
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--size-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--accent-vermillion); color: var(--surface); }
+
+/* =============================================================
+   Semantic type — use these classes directly
+   ============================================================= */
+
+.display-xxl, .display-xl, .display-lg, .display-md, .display-sm,
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: var(--w-display-reg);
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  margin: 0;
+}
+
+.display-xxl { font-size: var(--size-display-xxl); line-height: 0.88; letter-spacing: -0.035em; }
+.display-xl  { font-size: var(--size-display-xl);  line-height: 0.92; letter-spacing: -0.03em;  }
+.display-lg  { font-size: var(--size-display-lg);  line-height: 0.94; }
+.display-md  { font-size: var(--size-display-md);  line-height: 0.96; }
+.display-sm  { font-size: var(--size-display-sm);  line-height: 1.0;  }
+
+h1 { font-size: var(--size-display-xl); }
+h2 { font-size: var(--size-display-md); }
+h3 { font-size: var(--size-display-sm); font-weight: var(--w-display-bold); font-family: var(--font-display-news); }
+
+/* Newsreader extreme-weight pairing */
+.news-200 { font-family: var(--font-display-news); font-weight: 200; font-style: normal; }
+.news-800 { font-family: var(--font-display-news); font-weight: 800; }
+
+p, .body, .body-lg, .body-sm {
+  font-family: var(--font-body);
+  font-weight: var(--w-body-reg);
+  line-height: 1.5;
+  margin: 0;
+}
+.body-lg { font-size: var(--size-body-lg); line-height: 1.45; }
+.body    { font-size: var(--size-body);    }
+.body-sm { font-size: var(--size-body-sm); line-height: 1.45; }
+
+.mono, code, kbd, pre, samp {
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-weight: var(--w-mono-reg);
+  font-size: var(--size-mono);
+  letter-spacing: 0;
+}
+
+.mono-arch    { font-size: var(--size-mono-arch);    line-height: 1.1; letter-spacing: -0.01em; }
+.mono-arch-sm { font-size: var(--size-mono-arch-sm); line-height: 1.1; }
+.mono-foot    { font-size: var(--size-mono-foot);    color: var(--ink-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.mono-light   { font-weight: var(--w-mono-light); }
+.mono-heavy   { font-weight: var(--w-mono-heavy); }
+
+/* ---------- Footnote marker ---------- */
+.footnote-marker {
+  font-family: var(--font-body);
+  font-size: 0.5em;
+  vertical-align: super;
+  line-height: 0;
+  font-weight: var(--w-body-med);
+  color: currentColor;
+  margin-left: 0.05em;
+  transition: transform var(--dur-hover) var(--ease);
+}
+*:hover > .footnote-marker { transform: rotate(-6deg); }
+
+/* ---------- CTA — primary as type, not a button ---------- */
+.cta-primary {
+  font-family: var(--font-body);
+  font-size: var(--size-body-lg);
+  font-weight: var(--w-body-med);
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink);
+  padding: 0 0 var(--s-1) 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4em;
+  cursor: pointer;
+  background: none;
+  border-left: 0; border-right: 0; border-top: 0;
+  transition: border-color var(--dur-hover) var(--ease);
+}
+.cta-primary .arrow {
+  display: inline-block;
+  transition: transform var(--dur-hover) var(--ease);
+}
+.cta-primary:hover .arrow { transform: translateX(6px); }
+.cta-primary:hover { border-bottom-color: var(--accent-vermillion); }
+
+.cta-secondary {
+  font-family: var(--font-body);
+  font-size: var(--size-body-sm);
+  font-weight: var(--w-body-reg);
+  color: var(--ink-muted);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition: color var(--dur-hover) var(--ease), text-decoration-thickness var(--dur-hover) var(--ease);
+  cursor: pointer;
+}
+.cta-secondary:hover { color: var(--ink); text-decoration-thickness: 2px; }
+
+/* ---------- Document chrome ---------- */
+.doc-id {
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-size: var(--size-mono-foot);
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.line-numbers {
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-size: var(--size-mono-foot);
+  color: var(--ink-faint);
+  line-height: 1.7;
+  user-select: none;
+}
+.court-margin {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: var(--ink-faint);
+}
+
+/* =============================================================
+   Reduced motion — honor system preference
+   ============================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* =============================================================
+   Mobile — 375px viewport
+   ============================================================= */
+@media (max-width: 768px) {
+  :root {
+    --size-display-xxl: 88px;
+    --size-display-xl:  72px;
+    --size-display-lg:  64px;
+    --size-display-md:  56px;
+    --size-display-sm:  44px;
+    --edge-generous:    20px;
+  }
+}

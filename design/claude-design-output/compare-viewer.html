@@ -1,0 +1,15 @@
+<!doctype html><html><head><meta charset="utf8">
+<style>
+  html,body{margin:0;background:#0B0B0C;font-family:monospace;color:#888}
+  .wrap{display:flex;flex-direction:row}
+  .row{position:relative;width:50%}
+  .row img{display:block;width:100%}
+  .lbl{position:absolute;top:6px;left:8px;background:#000a;padding:2px 6px;font-size:12px;color:#bbb;z-index:2}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="row"><span class="lbl">TARGET</span><img src="uploads/Screenshot 2026-05-29 at 1.27.48 AM.png"></div>
+  <div class="row"><span class="lbl">MINE</span><img id="v"></div>
+</div>
+<script>document.getElementById('v').src=localStorage.getItem('__capture')||'';</script>
+</body></html>

@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf8">
+<style>
+  html,body{margin:0;background:#0B0B0C;font-family:ui-sans-serif,system-ui,sans-serif;color:#cfcabd}
+  .head{padding:14px 20px 4px;font-size:14px;color:#9b958a}
+  .wrap{display:flex;flex-direction:column;gap:10px;padding:10px 14px 22px}
+  .stage{position:relative;width:100%;aspect-ratio:1440/900;background:#000;outline:1px solid #ffffff22}
+  .stage img{position:absolute;inset:0;width:100%;height:100%}
+  .zone{position:absolute;border:1.5px dashed rgba(230,61,47,.9);background:rgba(230,61,47,.10)}
+  .lbl{position:absolute;top:8px;left:10px;background:#000a;padding:3px 8px;font-size:12px;z-index:3;border:1px solid #ffffff22}
+</style></head>
+<body>
+  <div class="head">Macro layout check — red dashed = live headline/text zones (must stay clear of paper)</div>
+  <div class="wrap">
+    <div class="stage" id="s1"><span class="lbl">AT REST</span><img id="i1"></div>
+    <div class="stage" id="s2"><span class="lbl">FLIP p=0.30 (rearing, breaking top)</span><img id="i2"></div>
+  </div>
+<script>
+  const W=1440,H=900;
+  // live text rectangles in canvas coords [x,y,w,h]
+  const zones=[
+    [96,169,442,191],   // white "Every flag, sourced."
+    [96,371,875,170],   // gray italic "Every verdict, traced."
+    [96,505,554,160],   // subhead + buttons
+    [96,790,460,78],    // footer left
+    [914,840,130,28],   // Clause 4.2(c)
+  ];
+  function paint(stageId,key){
+    const st=document.getElementById(stageId);
+    document.getElementById(stageId==='s1'?'i1':'i2').src=localStorage.getItem(key)||'';
+    zones.forEach(z=>{const d=document.createElement('div');d.className='zone';
+      d.style.left=(z[0]/W*100)+'%';d.style.top=(z[1]/H*100)+'%';d.style.width=(z[2]/W*100)+'%';d.style.height=(z[3]/H*100)+'%';st.appendChild(d);});
+  }
+  paint('s1','__r0'); paint('s2','__r30');
+</script>
+</body></html>

@@ -1,3 +1,7 @@
+> **⚠ SUPERSEDED — 2026-06-08.** The canonical brand now lives in [`design/claude-design-output/`](claude-design-output/README.md); see [`design/SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md). The aesthetic register has shifted to **Documentary Brutalism** (court-filing + editorial brutalism + telemetry surfaces); references collected here (Mercury, Stripe Press, anthropic.com, etc.) are no longer load-bearing. Audit-trail only.
+
+---
+
 # Inspiration Board
 
 > Phase 1 deliverable per `design/PLAN.md` §1.

@@ -1,0 +1,199 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "ui_kits/marketing/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Instrument Serif|Newsreader|Space Grotesk|Inter Tight|Geist Mono|IBM Plex Mono))/i]",
+        "message": "Font not provided by the design system. Available: Instrument Serif, Newsreader, Space Grotesk, Inter Tight, Geist Mono, IBM Plex Mono."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {},
+    "tokens": [
+      "--accent-champagne",
+      "--accent-champagne-deep",
+      "--accent-champagne-soft",
+      "--accent-cyan-ink",
+      "--accent-highlighter",
+      "--accent-ivory",
+      "--accent-ochre",
+      "--accent-oxblood",
+      "--accent-vermillion",
+      "--dur-entry",
+      "--dur-hover",
+      "--ease",
+      "--edge-flush",
+      "--edge-generous",
+      "--edge-mobile",
+      "--font-body",
+      "--font-body-alt",
+      "--font-display",
+      "--font-display-news",
+      "--font-mono",
+      "--ink",
+      "--ink-dim",
+      "--ink-faint",
+      "--ink-muted",
+      "--ink-paper",
+      "--ink-paper-faint",
+      "--ink-paper-muted",
+      "--radius",
+      "--rule-accent",
+      "--rule-hairline",
+      "--rule-margin",
+      "--s-1",
+      "--s-10",
+      "--s-12",
+      "--s-16",
+      "--s-2",
+      "--s-20",
+      "--s-3",
+      "--s-4",
+      "--s-5",
+      "--s-6",
+      "--s-8",
+      "--size-body",
+      "--size-body-lg",
+      "--size-body-sm",
+      "--size-display-lg",
+      "--size-display-md",
+      "--size-display-sm",
+      "--size-display-xl",
+      "--size-display-xxl",
+      "--size-mono",
+      "--size-mono-arch",
+      "--size-mono-arch-sm",
+      "--size-mono-foot",
+      "--surface",
+      "--surface-alt",
+      "--w-body-light",
+      "--w-body-med",
+      "--w-body-reg",
+      "--w-body-semi",
+      "--w-display-bold",
+      "--w-display-light",
+      "--w-display-reg",
+      "--w-mono-heavy",
+      "--w-mono-light",
+      "--w-mono-reg"
+    ],
+    "tokenKinds": {
+      "--surface": "color",
+      "--surface-alt": "color",
+      "--ink": "color",
+      "--ink-muted": "color",
+      "--ink-faint": "color",
+      "--ink-dim": "color",
+      "--ink-paper": "color",
+      "--ink-paper-muted": "color",
+      "--ink-paper-faint": "color",
+      "--accent-champagne": "color",
+      "--accent-champagne-deep": "color",
+      "--accent-champagne-soft": "color",
+      "--accent-oxblood": "color",
+      "--accent-ivory": "color",
+      "--accent-vermillion": "color",
+      "--accent-highlighter": "color",
+      "--accent-ochre": "color",
+      "--accent-cyan-ink": "color",
+      "--font-display": "font",
+      "--font-display-news": "font",
+      "--font-body": "font",
+      "--font-body-alt": "font",
+      "--font-mono": "font",
+      "--size-display-xxl": "spacing",
+      "--size-display-xl": "spacing",
+      "--size-display-lg": "spacing",
+      "--size-display-md": "spacing",
+      "--size-display-sm": "spacing",
+      "--size-body-lg": "spacing",
+      "--size-body": "spacing",
+      "--size-body-sm": "spacing",
+      "--size-mono-arch": "spacing",
+      "--size-mono-arch-sm": "spacing",
+      "--size-mono": "spacing",
+      "--size-mono-foot": "spacing",
+      "--w-display-light": "other",
+      "--w-display-reg": "other",
+      "--w-display-bold": "other",
+      "--w-body-light": "other",
+      "--w-body-reg": "other",
+      "--w-body-med": "other",
+      "--w-body-semi": "other",
+      "--w-mono-light": "other",
+      "--w-mono-reg": "other",
+      "--w-mono-heavy": "other",
+      "--s-1": "spacing",
+      "--s-2": "spacing",
+      "--s-3": "spacing",
+      "--s-4": "spacing",
+      "--s-5": "spacing",
+      "--s-6": "spacing",
+      "--s-8": "spacing",
+      "--s-10": "spacing",
+      "--s-12": "spacing",
+      "--s-16": "spacing",
+      "--s-20": "spacing",
+      "--edge-flush": "spacing",
+      "--edge-generous": "spacing",
+      "--edge-mobile": "spacing",
+      "--rule-hairline": "color",
+      "--rule-margin": "spacing",
+      "--rule-accent": "other",
+      "--radius": "radius",
+      "--ease": "other",
+      "--dur-hover": "other",
+      "--dur-entry": "other"
+    },
+    "fontFamilies": [
+      "Geist Mono",
+      "IBM Plex Mono",
+      "Instrument Serif",
+      "Inter Tight",
+      "Newsreader",
+      "Space Grotesk"
+    ]
+  }
+}
