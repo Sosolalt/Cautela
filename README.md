@@ -34,7 +34,7 @@ Vertical legal-AI tools already exist (Harvey, Kira, Luminance). What they don't
 
 The Router is the safety promise — **deterministic Python, never an LLM**. The Risk Judge fires two independent evaluators (hallucination + faithfulness), and a verdict only auto-clears if both pass. The nightly self-improvement loop has to beat a **frozen held-out fold** under a **paired-bootstrap CI gate** before any prompt edit ships.
 
-We publish the worst-case number (Wilson 95% lower bound), not the best.
+We publish the worst-case number (cluster-bootstrap 95% lower bound, treating contracts as the IID unit), not the best. The Wilson 95% LB remains as an exploratory per-finding-IID cross-check.
 
 ---
 
@@ -88,20 +88,20 @@ Seven Arize Phoenix hooks (OpenInference tracing, inline LLM-as-judge, programma
 
 When the Risk Judge returns **Block**, you click the span and the audit trail unfurls — prompt, response, evaluator score, Phoenix span ID. Nothing is hidden behind a slogan.
 
-<!-- The frontend lands at D15 (see HANDOFF.md). Drop final screenshot into design/screenshots/moneymoment.png and the placeholder block below will be replaced. -->
+<!-- Two screenshot slots. Slot 1: per-contract moneymoment (Block-tier finding + cmd+click trace). Slot 2: Portfolio Analyst cluster grid (Fix 7 — one Gemini 3 Pro call, 30 contracts, four MAE-carveout clusters + Akorn-pattern outlier). Slot 2 currently renders the deterministic mock at `ma_gatekeeper/tests/fixtures/portfolio_expected_output.json`; the live capture lands when the operator wires `PORTFOLIO_LIVE=1` on D9. -->
 
 ![moneymoment placeholder — replace with design/screenshots/moneymoment.png on frontend land](https://img.shields.io/badge/screenshot-pending%20D15%20frontend-lightgrey?style=for-the-badge)
+![portfolio cluster grid — Fix 7 / Gemini 3 Pro 1M-context — mock, live capture replaces D9](https://img.shields.io/badge/portfolio--cluster--grid-mock%20%E2%80%94%20live%20capture%20replaces%20D9-champagne?style=for-the-badge)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
 │  0.94          BLOCK                                        │
 │                phoenix:span:7f3a-c2b1-9d04                  │
-│  Wilson 95%                                                 │
-│  lower bound   ─────────────────────────────────────────    │
-│  recall, n=24  Span 7 — Risk Judge                          │
-│  contracts     Prompt:    Classify §6.3(b) under MAC        │
-│                           carve-outs. Return verdict.       │
+│  cluster-boot  ─────────────────────────────────────────    │
+│  95% LB        Span 7 — Risk Judge                          │
+│  recall, n=24  Prompt:    Classify §6.3(b) under MAC        │
+│  contracts                carve-outs. Return verdict.       │
 │                Response:  Block. MAC carve-out for          │
 │                           pandemic events excludes          │
 │                           'targeted shutdowns by govt       │
@@ -119,7 +119,8 @@ We report the worst case, not the best.
 
 | Metric | Value | Notes |
 |---|---|---|
-| **Block-recall Wilson 95% LB** | `0.94` *(target)* | Frozen held-out fold. **n=24 contracts** with ~24–40 Block findings across folds 1–4. Point estimate `0.97`. |
+| **Block-recall cluster-bootstrap 95% LB** | `0.94` *(target)* | Headline. Frozen held-out fold. **n=24 contracts** with ~24–40 Block findings across folds 1–4. Cluster bootstrap over contracts (1000 resamples) — findings within a contract are correlated, so contracts are the IID unit. Point estimate `0.97`. |
+| Block-recall Wilson 95% LB (exploratory, per-finding IID) | `0.94` *(target)* | Exploratory cross-check — assumes findings are IID Bernoulli trials (which they are not). Over-tight as a cluster-corrected estimate; the cluster-bootstrap row above is the headline. |
 | **Adversarial discriminator AUC** | `< 0.6` to ship | 5-fold CV TF-IDF + LogReg over 5 regex perturbations. Honest ML, not LLM-paraphrase. |
 | **Calibration slope / intercept** | `~0.93 / ~0.03` | Under-confident on the Block lane — the right side to be wrong on. |
 | **Promotion gate** | Paired-bootstrap CI LB > 0 **and** non-regression on frozen fold 5 | Both gates, or no merge. |

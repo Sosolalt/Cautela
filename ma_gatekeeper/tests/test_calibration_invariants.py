@@ -104,9 +104,12 @@ def test_wilson_constant_is_one_sided_95():
 
 
 def test_wilson_lb_perfect_recall_below_one():
-    """The hackathon headline pin: k=n=24 must stay strictly below 1.0,
-    and at the documented 0.8986847 value. A bug that clamps LB to k/n
-    would silently push the headline to 1.000.
+    """Wilson exploratory-IID pin: k=n=24 must stay strictly below 1.0,
+    and at the documented 0.8986847 value. Per Fix 10 the Wilson LB is
+    now the exploratory per-finding-IID statistic (not the headline —
+    cluster bootstrap is); the numeric pin remains byte-stable because
+    `wilson_lb_one_sided`'s signature/math is unchanged. A bug that
+    clamps LB to k/n would silently push the value to 1.000.
     """
     lb = wilson_lb_one_sided(24, 24)
     assert lb < 1.0
@@ -592,3 +595,40 @@ def test_summary_carries_disclosure_fields_when_main_succeeds(tmp_path):
     n_per_fold = len(summary["per_fold"])
     n_dropped = len(summary["dropped_headline_folds"])
     assert n_per_fold + n_dropped == len(HEADLINE_FOLDS)
+
+
+def test_summary_carries_headline_statistic_field(tmp_path):
+    """Fix 10: the summary JSON must carry an explicit `headline_statistic`
+    field naming the cluster-bootstrap key, so downstream tooling has a
+    single source of truth rather than guessing which LB is load-bearing.
+    Also pins that the Wilson key was renamed to the exploratory-IID name
+    while the cluster bootstrap key stays byte-stable.
+    """
+    df = _internal30_with_poison(poisoned_fold=None)
+    csv_path = tmp_path / "ok.csv"
+    df.drop(columns=["fold"]).to_csv(csv_path, index=False)
+    out_path = tmp_path / "thresholds.json"
+    repo_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "-m", "scripts.calibrate",
+         "--input", str(csv_path),
+         "--out", str(out_path),
+         "--reliability-h", str(tmp_path / "h.png"),
+         "--reliability-f", str(tmp_path / "f.png")],
+        cwd=repo_root,
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, (
+        f"main() failed unexpectedly: "
+        f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
+    summary = json.loads(out_path.read_text())
+    assert summary.get("headline_statistic") == (
+        "cluster_bootstrap_one_sided_95_lb_block_recall"
+    )
+    # The renamed Wilson key is present; the legacy key name is GONE.
+    assert "wilson_one_sided_95_lb_block_recall_exploratory_iid" in summary
+    assert "wilson_one_sided_95_lb_block_recall" not in summary
+    # Cluster bootstrap key remains byte-stable (referenced by
+    # build_readme_table.py and external tooling).
+    assert "cluster_bootstrap_one_sided_95_lb_block_recall" in summary

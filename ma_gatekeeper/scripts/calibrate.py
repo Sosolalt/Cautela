@@ -286,6 +286,11 @@ def main() -> None:
                          "Lower require_recall and re-run with disclosure.")
 
     # Aggregate with cluster bootstrap + one-sided Wilson.
+    # The cluster bootstrap above treats CONTRACTS as the IID unit (findings
+    # within a contract are correlated) and is therefore the headline
+    # statistic. The Wilson LB below is computed under the per-finding IID
+    # assumption (`total_findings` as n) and is retained as an EXPLORATORY
+    # cross-check only — it is over-tight as a cluster-corrected estimate.
     per_fold_hits = [r.pop("block_hit_vector") for r in per_fold_results]
     per_fold_contracts = [r.pop("contract_ids") for r in per_fold_results]
     point, boot_lb = cluster_bootstrap_recall_ci(per_fold_hits, per_fold_contracts)
@@ -325,8 +330,13 @@ def main() -> None:
         ),
         "per_fold": per_fold_results,
         "point_block_recall": point,
-        "wilson_one_sided_95_lb_block_recall": wilson_lb,
+        # Exploratory per-finding-IID approximation; not the headline.
+        "wilson_one_sided_95_lb_block_recall_exploratory_iid": wilson_lb,
+        # Headline statistic: cluster bootstrap respects per-contract
+        # correlation. Downstream tooling should consult `headline_statistic`
+        # rather than guessing which key is load-bearing.
         "cluster_bootstrap_one_sided_95_lb_block_recall": boot_lb,
+        "headline_statistic": "cluster_bootstrap_one_sided_95_lb_block_recall",
         "deployed_tau_h": deployed_tau_h,
         "deployed_tau_f": deployed_tau_f,
         # router.Thresholds.from_json reads these:
