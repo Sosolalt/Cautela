@@ -112,6 +112,27 @@ class LinkerProposal(BaseModel):
     model_confidence: float = Field(..., ge=0.0, le=1.0)
 
 
+class GoverningLaw(BaseModel):
+    """Per-CONTRACT governing-law capture (GROUNDTRUTH_PLAN T1.2).
+
+    One per contract, NOT per finding (RiskFinding has no jurisdiction field).
+    The cross_reference agent may surface the verbatim governing-law clause; the
+    server normalises `verbatim_clause`/`jurisdiction` via
+    `citation_linker.normalize_jurisdiction` into the map's five canonical
+    jurisdiction values to hint `lookup_citation`. Unknown/ambiguous text leaves
+    `jurisdiction` None and the server renders a visible canonical-default label
+    rather than silently serving Delaware.
+    """
+
+    verbatim_clause: str | None = Field(
+        default=None, description="Transcribed governing-law sentence, if found"
+    )
+    jurisdiction: str | None = Field(
+        default=None,
+        description="Free text (e.g. 'State of New York'); normalised server-side",
+    )
+
+
 # Module-level constant — referenced by the RiskFinding.model_dump override
 # below AND by the SSE wire test for symbol parity.
 _EVAL_ONLY_FIELDS: frozenset[str] = frozenset(

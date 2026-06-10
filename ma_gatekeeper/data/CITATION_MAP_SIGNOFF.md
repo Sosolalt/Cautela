@@ -40,7 +40,7 @@ map are staged for review and not yet committed. Replace with the real SHA at co
 | tag | citation | primary_source_url | verified_date | signer_id | commit_sha |
 |-----|----------|--------------------|---------------|-----------|------------|
 | mac | Akorn, Inc. v. Fresenius Kabi AG, 2018 WL 4719347 (Del. Ch. Oct. 1, 2018), aff'd, 198 A.3d 724 (Del. 2018) | https://courts.delaware.gov/Opinions/Download.aspx?id=279250 | 2026-06-09 | ma-counsel-persona | staged-uncommitted |
-| mac | AB Stable VIII LLC v. MAPS Hotels & Resorts One LLC, 2020 WL 7024929 (Del. Ch. Nov. 30, 2020), aff'd, 268 A.3d 198 (Del. 2021) | https://delawarechancery.foxrothschild.com/mergers-and-acquisitions/del-supreme-court-affirms-court-of-chancerys-decision-in-ab-stable/ | 2026-06-09 | ma-counsel-persona | staged-uncommitted |
+| mac | AB Stable VIII LLC v. MAPS Hotels & Resorts One LLC, 2020 WL 7024929 (Del. Ch. Nov. 30, 2020), aff'd, 268 A.3d 198 (Del. 2021) | https://law.justia.com/cases/delaware/court-of-chancery/2020/c-a-no-2020-0310-jtl.html (**secondary**) | 2026-06-09 | ma-counsel-persona | staged-uncommitted |
 | exclusivity | Revlon, Inc. v. MacAndrews & Forbes Holdings, Inc., 506 A.2d 173 (Del. 1986) | https://www.law.upenn.edu/live/news/7004-revlon-inc-v-macandrews-forbes-holdings-inc | 2026-06-09 | ma-counsel-persona | staged-uncommitted |
 | change_of_control | In re Trados Inc. S'holder Litig., 73 A.3d 17 (Del. Ch. 2013) | https://courts.delaware.gov/opinions/download.aspx?ID=193520 | 2026-06-09 | ma-counsel-persona | staged-uncommitted |
 
@@ -65,11 +65,18 @@ map are staged for review and not yet committed. Replace with the real SHA at co
   Trados: Consol. C.A. No. 1512-VCL, decided Aug. 16, 2013, Laster, V.C.). **True primary source.**
 - **Revlon:** fetched the Penn Carey Law (UPenn) Delaware Corporation Law Resource Center page,
   which states the citation verbatim as "506 A.2d 173 (Del. 1986)" / "(Del. S.Ct. 1986)".
-- **AB Stable:** fetched the Fox Rothschild *Delaware Chancery Law* blog, which confirmed the
-  case name, both courts, the Chancery C.A. No. 2020-0310, and both decision dates
-  (Del. Ch. Nov. 30, 2020; Del. Dec. 8, 2021). The reporter citations (2020 WL 7024929;
-  268 A.3d 198) were cross-corroborated by the Justia docket title, a verbatim Lexis Advance
-  document record, and ≥6 Am Law-100 client memos surfaced in search.
+- **AB Stable:** `primary_source` is honestly labelled **`law.justia.com (secondary)`** — NOT a
+  true primary source. The `uri` resolves to the Justia copy of the *Court of Chancery* 2020
+  opinion (2020 WL 7024929); the affirmance reporter (268 A.3d 198 (Del. 2021)) is recorded in the
+  citation string but the Delaware Supreme Court opinion PDF was **not separately fetched** from
+  `courts.delaware.gov`. The earlier verifying fetch was the Fox Rothschild *Delaware Chancery
+  Law* blog (also secondary), which confirmed the case name, both courts, the Chancery
+  C.A. No. 2020-0310, and both decision dates (Del. Ch. Nov. 30, 2020; Del. Dec. 8, 2021); reporter
+  citations were cross-corroborated by the Justia docket title and ≥6 Am Law-100 client memos.
+  **Reconciliation (GROUNDTRUTH_PLAN data-integrity fix):** the prior `primary_source` claim of
+  `courts.delaware.gov` was inconsistent with a Justia `uri`; relabelled to `law.justia.com
+  (secondary)` rather than overclaiming a primary fetch. Pointing `uri` at the real
+  courts.delaware.gov Supreme Court PDF is a clean follow-up once the download id is confirmed.
 
 ## Dropped / deferred (NOT shipped — correctness-first per § 4.4 failure path)
 

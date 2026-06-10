@@ -1,0 +1,58 @@
+{
+  "run_mode": "mock",
+  "n_total": 45,
+  "n_evaluated": 45,
+  "n_in_map": 40,
+  "n_off_map": 5,
+  "map_recall": 0.7,
+  "map_coverage": 1.0,
+  "n_in_map_hit": 24,
+  "n_form_mismatch": 4,
+  "n_in_map_recall_miss_covered": 12,
+  "n_in_map_true_miss": 0,
+  "n_off_map_correctly_missed": 5,
+  "n_off_map_false_hit": 0,
+  "proposer_recall": 0.7,
+  "proposer_recall_wilson_lb": 0.5712915121456548,
+  "proposer_vs_map_agreement": 1.0,
+  "per_tag": {
+    "anti_assignment": {
+      "n": 6,
+      "map": 0.6666666666666666,
+      "proposer": 0.6666666666666666
+    },
+    "change_of_control": {
+      "n": 11,
+      "map": 0.8181818181818182,
+      "proposer": 0.8181818181818182
+    },
+    "exclusivity": {
+      "n": 5,
+      "map": 1.0,
+      "proposer": 1.0
+    },
+    "ip_assignment": {
+      "n": 8,
+      "map": 0.375,
+      "proposer": 0.375
+    },
+    "mac": {
+      "n": 7,
+      "map": 0.5714285714285714,
+      "proposer": 0.5714285714285714
+    },
+    "non_compete": {
+      "n": 3,
+      "map": 1.0,
+      "proposer": 1.0
+    }
+  },
+  "gold_provenance": {
+    "dataset": "citation-gold-v1",
+    "path": "data/citation_gold_v1.jsonl",
+    "signoff": "data/CITATION_GOLD_SIGNOFF.md",
+    "jurisdiction_hint": "gold-provided (metadata.jurisdiction), NOT agent-extracted",
+    "map_score_is": "coverage by construction (map_coverage); map_recall is recall@1, not accuracy",
+    "agreement_is_not_accuracy": true
+  }
+}

@@ -206,3 +206,133 @@ def test_sync_fallback_used_when_flush_incomplete(monkeypatch):
     assert captured[0]["sync"] is True
     assert captured[0]["annotation_name"] == "citation_linker_agreement"
     assert captured[0]["label"] == "linker_failed"
+
+
+# ---------------------------------------------------------------------------
+# T1.2 — case-law normalisation (caption-keyed).
+# ---------------------------------------------------------------------------
+
+def test_case_law_long_vs_short_form_match():
+    long = ("Akorn, Inc. v. Fresenius Kabi AG, 2018 WL 4719347 "
+            "(Del. Ch. Oct. 1, 2018), aff'd, 198 A.3d 724 (Del. 2018)")
+    short = "Akorn, Inc. v. Fresenius Kabi AG, 2018 WL 4719347 (Del. Ch. 2018)"
+    assert cl.citations_match(long, short)
+    assert cl.citations_match_kind(long, short) == "case_form"
+    # AB Stable: map leads with the Chancery WL cite, gold with the Supreme
+    # Court reporter — caption keying matches them regardless.
+    ab_long = ("AB Stable VIII LLC v. MAPS Hotels & Resorts One LLC, "
+               "2020 WL 7024929 (Del. Ch. Nov. 30, 2020), aff'd, 268 A.3d 198 (Del. 2021)")
+    ab_short = "AB Stable VIII LLC v. MAPS Hotels & Resorts One LLC, 268 A.3d 198 (Del. 2021)"
+    assert cl.citations_match(ab_long, ab_short)
+
+
+def test_case_law_different_parties_do_not_match():
+    a = "Akorn, Inc. v. Fresenius Kabi AG, 2018 WL 4719347 (Del. Ch. 2018)"
+    b = "Revlon, Inc. v. MacAndrews & Forbes Holdings, Inc., 506 A.2d 173 (Del. 1986)"
+    assert not cl.citations_match(a, b)
+    assert cl.citations_match_kind(a, b) == "miss"
+
+
+def test_statute_vs_case_never_match():
+    assert not cl.citations_match("8 Del. C. § 251",
+                                  "Revlon, Inc. v. MacAndrews & Forbes Holdings, Inc.")
+
+
+# ---------------------------------------------------------------------------
+# T1.2 — fail-closed jurisdiction lookup.
+# ---------------------------------------------------------------------------
+
+def test_lookup_fail_closed_returns_none_for_unmatched_jurisdiction():
+    # non_compete exists ONLY for California; a New York hint must NOT fall
+    # through to Cal. § 16600.
+    assert cl.lookup_citation("non_compete", jurisdiction_hint="New York") is None
+    # anti_assignment exists only under the UCC; a Delaware hint fails closed.
+    assert cl.lookup_citation("anti_assignment", jurisdiction_hint="Delaware") is None
+
+
+def test_lookup_california_required_for_section_16600():
+    assert cl.lookup_citation("non_compete", jurisdiction_hint="California").citation \
+        == "Cal. Bus. & Prof. Code § 16600"
+
+
+def test_lookup_no_hint_returns_canonical_default():
+    # No hint -> canonical (Delaware default) entry, NOT a fail-closed None.
+    ref = cl.lookup_citation("change_of_control")
+    assert ref is not None and ref.citation == "8 Del. C. § 251"
+
+
+def test_lookup_ny_hint_selects_902_not_delaware():
+    ref = cl.lookup_citation("change_of_control", jurisdiction_hint="New York")
+    assert ref is not None
+    assert ref.citation == "N.Y. Bus. Corp. Law § 902"
+    assert ref.jurisdiction == "New York"
+
+
+def test_map_contains_authority_for_tag():
+    # § 271 is in the map for change_of_control (just not recall@1).
+    assert cl.map_contains_authority_for_tag("change_of_control", "8 Del. C. § 271")
+    # § 262 (appraisal) is NOT in the map for that tag.
+    assert not cl.map_contains_authority_for_tag("change_of_control", "8 Del. C. § 262")
+
+
+# ---------------------------------------------------------------------------
+# T1.2 — normalize_jurisdiction pinned table.
+# ---------------------------------------------------------------------------
+
+def test_normalize_jurisdiction_table():
+    assert cl.normalize_jurisdiction("governed by the laws of the State of New York") == "New York"
+    assert cl.normalize_jurisdiction("the State of Delaware") == "Delaware"
+    assert cl.normalize_jurisdiction("State of California") == "California"
+    assert cl.normalize_jurisdiction("the Uniform Commercial Code") == "Uniform Commercial Code"
+    assert cl.normalize_jurisdiction("federal law of the United States") == "Federal"
+    # Unknown / ambiguous / empty -> None (caller must NOT silently default).
+    assert cl.normalize_jurisdiction("the laws of England and Wales") is None
+    assert cl.normalize_jurisdiction("") is None
+    assert cl.normalize_jurisdiction(None) is None
+
+
+def test_normalize_jurisdiction_only_returns_map_values():
+    for text in ("Delaware", "New York", "California", "U.C.C.", "United States"):
+        out = cl.normalize_jurisdiction(text)
+        assert out is None or out in cl.MAP_JURISDICTIONS
+
+
+# ---------------------------------------------------------------------------
+# T1.2 — severity-gated case-law.
+# ---------------------------------------------------------------------------
+
+def test_severity_gate_block_keeps_case_law():
+    akorn = cl.lookup_citation("mac")  # canonical mac entry is Akorn (case_law)
+    assert akorn.citation_kind == "case_law"
+    out = cl.severity_gated_citation(akorn, tag="mac", severity="block")
+    assert out is akorn  # block findings keep the full case-law artillery
+
+
+def test_severity_gate_watch_keeps_case_when_no_statute_fallback():
+    # mac and exclusivity have ONLY case-law entries — a watch finding must KEEP
+    # the case, NOT blank it to "no controlling statute".
+    akorn = cl.lookup_citation("mac")
+    out = cl.severity_gated_citation(akorn, tag="mac", severity="watch")
+    assert out is not None and out.citation_kind == "case_law"
+    revlon = cl.lookup_citation("exclusivity")
+    out2 = cl.severity_gated_citation(revlon, tag="exclusivity", severity="info")
+    assert out2 is not None and out2.citation_kind == "case_law"
+
+
+def test_severity_gate_watch_drops_to_statute_when_one_exists():
+    # change_of_control has a Delaware CASE (Trados) AND statutes (§ 251). If a
+    # watch finding somehow resolved to the case, the gate drops to the statute.
+    from agent.schemas import CitationRef
+    from datetime import date
+    trados = CitationRef(
+        citation="In re Trados Inc. S'holder Litig., 73 A.3d 17 (Del. Ch. 2013)",
+        citation_kind="case_law", jurisdiction="Delaware", rationale="x",
+        verified_date=date(2026, 6, 9), primary_source="courts.delaware.gov",
+    )
+    out = cl.severity_gated_citation(trados, tag="change_of_control", severity="watch")
+    assert out is not None and out.citation_kind == "statute"
+    assert out.citation == "8 Del. C. § 251"
+
+
+def test_severity_gate_none_passthrough():
+    assert cl.severity_gated_citation(None, tag="mac", severity="watch") is None

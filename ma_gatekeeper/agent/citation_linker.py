@@ -48,7 +48,7 @@ _MAP_PATH = Path(__file__).resolve().parent.parent / "data" / "citation_map.json
 # than introducing a new CITATION_LINKER_MODEL var — keeps the env-documentation
 # CI gate green and respects the .env-edit prohibition. A cheaper Flash model
 # can be swapped in via GEMINI_MODEL.
-CITATION_LINKER_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
+CITATION_LINKER_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview")
 
 _ANNOTATION_NAME = "citation_linker_agreement"
 
@@ -75,16 +75,29 @@ def lookup_citation(tag: str, jurisdiction_hint: str | None = None) -> CitationR
     """Deterministic clause-tag -> controlling-authority lookup.
 
     Entries are ordered in the map so the canonical authority for each tag is
-    first; with no jurisdiction_hint we return that canonical entry. A hint
-    prefers an exact (then substring) jurisdiction match. Returns None when the
-    tag has no map entry — the graceful, expected outcome for contract-anchored
-    clause types.
+    first. Two distinct modes (GROUNDTRUTH_PLAN T1.2 fail-closed contract):
+
+      * jurisdiction_hint is None
+          -> return the canonical (candidates[0]) entry. This is the
+             "governing law not detected -> Delaware/canonical default" path;
+             the SERVER is responsible for rendering the visible default label.
+
+      * jurisdiction_hint is given
+          -> prefer an EXACT then a substring jurisdiction match WITHIN that
+             hint. If no same-jurisdiction entry exists for the tag, FAIL
+             CLOSED and return None (escalate). We NEVER fall through to a
+             different jurisdiction's authority — surfacing a Delaware *case*
+             on a New York hint, or Cal. § 16600 without a California hint, is
+             a wrong-authority error a fail-open lookup would manufacture.
+
+    Returns None when the tag has no map entry at all — the graceful, expected
+    outcome for contract-anchored clause types (e.g. accelerated_vesting).
     """
     candidates = [e for e in _load_entries() if e.get("tag") == tag]
     if not candidates:
         return None
 
-    chosen: dict | None = None
+    chosen: dict | None
     if jurisdiction_hint:
         hint = jurisdiction_hint.strip().lower()
         chosen = next(
@@ -93,12 +106,19 @@ def lookup_citation(tag: str, jurisdiction_hint: str | None = None) -> CitationR
             None,
         )
         if chosen is None:
+            # Substring is allowed only WITHIN the hint's jurisdiction family
+            # (e.g. "new york" in "New York"); it can never reach a different
+            # jurisdiction because the predicate keys on the hint itself.
             chosen = next(
                 (e for e in candidates
                  if hint in str(e.get("jurisdiction", "")).lower()),
                 None,
             )
-    if chosen is None:
+        if chosen is None:
+            # Fail-closed: a hinted jurisdiction with no same-jurisdiction
+            # entry escalates rather than serving another jurisdiction's law.
+            return None
+    else:
         chosen = candidates[0]
 
     try:
@@ -109,6 +129,23 @@ def lookup_citation(tag: str, jurisdiction_hint: str | None = None) -> CitationR
         return None
 
 
+def map_contains_authority_for_tag(tag: str, gold_citation: str) -> bool:
+    """Does ANY map entry for `tag` (any jurisdiction) carry `gold_citation`?
+
+    This is the "map-contains-the-authority-anywhere-for-this-tag" probe the
+    citation-gold eval reports ALONGSIDE recall@1. The gap between the two is
+    the honest `candidates[0]` story: an authority (e.g. § 271, § 2-210) the map
+    *has* for the tag but does not surface as its single best lookup answer.
+    Uses the same form-aware comparator as the live rail.
+    """
+    for e in _load_entries():
+        if e.get("tag") != tag:
+            continue
+        if citations_match(str(e.get("citation", "")), gold_citation):
+            return True
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Section-citation normaliser (used by the comparator + the exact-match rail).
 # ---------------------------------------------------------------------------
@@ -116,6 +153,16 @@ def lookup_citation(tag: str, jurisdiction_hint: str | None = None) -> CitationR
 _SECTION_WORD_RE = re.compile(r"\b(section|sec\.?)\b", re.IGNORECASE)
 _SECTION_SPACE_RE = re.compile(r"§\s*")
 _WS_RE = re.compile(r"\s+")
+
+# Case-law caption detector: "Party v. Party". The reporter/year/docket tail
+# that follows the caption is the part that drifts between long (parallel-cite)
+# and short forms, so we key case-law equality on the CAPTION only.
+_CASE_CAPTION_RE = re.compile(r"\bv\.?\s", re.IGNORECASE)
+# Split the caption off the citation tail at the first comma that precedes a
+# digit run (the reporter volume / docket year). Party names in this corpus
+# carry no Arabic digits ("AB Stable VIII" uses roman numerals), so this cleanly
+# isolates "Akorn, Inc. v. Fresenius Kabi AG" from ", 2018 WL 4719347 (...)".
+_CASE_TAIL_SPLIT_RE = re.compile(r",\s*(?=\d)")
 
 
 def _normalise(citation: str) -> str:
@@ -130,9 +177,156 @@ def _normalise(citation: str) -> str:
     return s
 
 
+def _is_case_law(citation: str) -> bool:
+    """Heuristic: a citation is case-law iff it carries a 'X v. Y' caption."""
+    return bool(_CASE_CAPTION_RE.search(citation or ""))
+
+
+def normalise_case_citation(citation: str) -> str:
+    """Canonical case-law key = the lowercased, whitespace-collapsed CAPTION
+    (party names), with the reporter/year/docket tail stripped.
+
+    This is what makes the gold short form `Akorn, Inc. v. Fresenius Kabi AG,
+    2018 WL 4719347 (Del. Ch. 2018)` compare EQUAL to the map's parallel-cite
+    long form `... (Del. Ch. Oct. 1, 2018), aff'd, 198 A.3d 724 (Del. 2018)` —
+    both reduce to `akorn, inc. v. fresenius kabi ag`. Keying on the caption
+    (not "first reporter cite") also survives AB Stable, where the map leads
+    with the Chancery WL cite and the gold leads with the Supreme-Court reporter.
+    """
+    s = (citation or "").strip()
+    caption = _CASE_TAIL_SPLIT_RE.split(s, maxsplit=1)[0]
+    return _WS_RE.sub(" ", caption.lower()).strip().rstrip(",")
+
+
 def citations_match(a: str, b: str) -> bool:
-    """Deterministic exact/normalised citation equality."""
+    """Form-aware citation equality used by BOTH the live comparator and the
+    offline gold eval.
+
+      * statute vs statute  -> section-punctuation normalised equality.
+      * case-law vs case-law -> caption (party-name) equality, so long-vs-short
+        parallel-cite forms of the SAME case are not manufactured into a
+        disagreement.
+      * statute vs case-law -> never equal.
+    """
+    a_case, b_case = _is_case_law(a), _is_case_law(b)
+    if a_case and b_case:
+        return normalise_case_citation(a) == normalise_case_citation(b)
+    if a_case != b_case:
+        return False
     return _normalise(a) == _normalise(b)
+
+
+def citations_match_kind(a: str, b: str) -> str:
+    """Classify HOW two citations match, for the gold eval's honesty buckets.
+
+    Returns one of:
+      * "exact"            — byte-identical (after strip).
+      * "section_normalised" — equal only after § / "Section" punctuation
+                               canonicalisation (statutes).
+      * "case_form"        — same case under caption-only comparison, but the
+                             verbatim strings differ (long-vs-short parallel
+                             cites). This is the `citation_form_mismatch` bucket.
+      * "miss"             — not the same authority.
+    """
+    a_s, b_s = (a or "").strip(), (b or "").strip()
+    if a_s and b_s and a_s == b_s:
+        return "exact"
+    if _is_case_law(a_s) and _is_case_law(b_s):
+        if normalise_case_citation(a_s) == normalise_case_citation(b_s):
+            return "case_form"
+        return "miss"
+    if _is_case_law(a_s) != _is_case_law(b_s):
+        return "miss"
+    if _normalise(a_s) == _normalise(b_s):
+        return "section_normalised"
+    return "miss"
+
+
+# ---------------------------------------------------------------------------
+# Governing-law -> jurisdiction normalisation (GROUNDTRUTH_PLAN T1.2).
+# ---------------------------------------------------------------------------
+# A PINNED keyword table maps contract governing-law language to the map's
+# EXACT five jurisdiction values. Unknown / ambiguous text -> None (the server
+# then renders a visible "governing law not detected — canonical default"
+# rationale rather than guessing). Order matters: the first matching phrase
+# wins, and more specific phrases are listed before broader ones.
+
+# The five canonical map jurisdictions — the ONLY strings lookup_citation hints.
+MAP_JURISDICTIONS: tuple[str, ...] = (
+    "Delaware", "Federal", "New York", "California", "Uniform Commercial Code",
+)
+
+_JURISDICTION_KEYWORDS: tuple[tuple[str, str], ...] = (
+    ("state of delaware", "Delaware"),
+    ("laws of delaware", "Delaware"),
+    ("delaware", "Delaware"),
+    ("state of new york", "New York"),
+    ("laws of the state of new york", "New York"),
+    ("new york", "New York"),
+    ("state of california", "California"),
+    ("california", "California"),
+    ("uniform commercial code", "Uniform Commercial Code"),
+    ("u.c.c.", "Uniform Commercial Code"),
+    ("federal law", "Federal"),
+    ("united states", "Federal"),
+)
+
+
+def normalize_jurisdiction(text: str | None) -> str | None:
+    """Map free contract governing-law language onto one of MAP_JURISDICTIONS.
+
+    Pinned keyword table; first match wins. Returns None for unknown/ambiguous
+    input (including None/empty) — callers MUST treat None as "not detected"
+    and fail-closed / render a visible default, never as a silent Delaware.
+    """
+    if not text:
+        return None
+    hay = text.strip().lower()
+    for needle, canonical in _JURISDICTION_KEYWORDS:
+        if needle in hay:
+            return canonical
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Severity-gated case-law (GROUNDTRUTH_PLAN T1.2).
+# ---------------------------------------------------------------------------
+
+
+def _statute_entry_for(tag: str, jurisdiction: str) -> CitationRef | None:
+    """First statute-kind map entry for (tag, jurisdiction), or None."""
+    for e in _load_entries():
+        if e.get("tag") != tag:
+            continue
+        if str(e.get("jurisdiction", "")) != jurisdiction:
+            continue
+        if e.get("citation_kind") == "statute":
+            try:
+                return CitationRef.model_validate(e)
+            except ValidationError:  # pragma: no cover - defensive
+                return None
+    return None
+
+
+def severity_gated_citation(
+    ref: CitationRef | None, *, tag: str, severity: str
+) -> CitationRef | None:
+    """Apply the severity gate to a *rendered* citation (server-side only).
+
+    Rule: case-law authority is heavy artillery. For a non-`block` (watch/info)
+    finding, prefer the statute entry for the SAME tag+jurisdiction IF ONE
+    EXISTS; otherwise KEEP the case-law (do NOT blank it). `mac` and
+    `exclusivity` have ONLY case-law entries (Akorn/AB Stable; Revlon) — a
+    watch-tier finding there keeps the case rather than collapsing to
+    "no controlling statute".
+
+    The offline gold eval grades the RAW map (pre-gate); this gate runs only at
+    render time, so the script and the Phoenix rail still agree on the raw map.
+    """
+    if ref is None or ref.citation_kind != "case_law" or severity == "block":
+        return ref
+    statute = _statute_entry_for(tag, ref.jurisdiction)
+    return statute if statute is not None else ref
 
 
 # ---------------------------------------------------------------------------
