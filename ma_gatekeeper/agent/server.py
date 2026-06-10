@@ -668,7 +668,14 @@ async def oidc_dep(authorization: str | None = Header(default=None)) -> None:
 
 
 @app.get("/healthz")
+@app.get("/health")
+@app.get("/livez")
 async def healthz() -> dict:
+    # NOTE: the bare path `/healthz` is intercepted at the Google edge on this
+    # Cloud Run service (returns a GFE HTML 404 that never reaches the
+    # container; novel paths reach the app fine). `/health` and `/livez` are
+    # un-poisoned aliases so external smoke-tests / liveness probes have a
+    # path that actually returns 200. See manual_steps §11.3.
     return {"ok": True}
 
 
@@ -690,6 +697,36 @@ async def allow_list(include_uncurated: bool = False) -> dict:
 
 def _sse(payload: dict) -> bytes:
     return f"data: {json.dumps(payload)}\n\n".encode()
+
+
+def _governing_law_hint_from_event(text: str) -> str | None:
+    """Pure helper (GROUNDTRUTH_PLAN T1.2): derive a normalised jurisdiction
+    hint from a cross_reference event payload.
+
+    Tolerant by design — returns None for the CURRENT output (a bare findings
+    list) and only extracts a hint from a future envelope shaped
+    `{"governing_law": {"verbatim_clause": ..., "jurisdiction": ...}, "findings": [...]}`.
+    The returned value is one of the map's five canonical jurisdictions, or None
+    when undetected/ambiguous (the caller then renders the canonical default).
+    Unit-tested in tests/test_citation_linker.py without the live pipeline.
+    """
+    from .citation_linker import normalize_jurisdiction
+    from .schemas import GoverningLaw
+
+    try:
+        obj = json.loads(text)
+    except Exception:
+        return None
+    if not isinstance(obj, dict):
+        return None
+    gl_raw = obj.get("governing_law")
+    if not isinstance(gl_raw, dict):
+        return None
+    try:
+        gl = GoverningLaw.model_validate(gl_raw)
+    except Exception:
+        return None
+    return normalize_jurisdiction(gl.jurisdiction or gl.verbatim_clause)
 
 
 async def _stream_findings(
@@ -749,6 +786,12 @@ async def _stream_findings(
     from .schemas import Clause as _Clause
     clauses_by_id: dict[str, _Clause] = {}
 
+    # Per-contract governing-law hint (GROUNDTRUTH_PLAN T1.2). Captured ONCE
+    # from the cross_reference event (mirror of clauses_by_id). None until
+    # detected; None means lookup_citation renders the canonical/Delaware
+    # default with a visible "governing law not detected" label downstream.
+    governing_law_hint: str | None = None
+
     n_emitted = 0
     try:
         async for event in runner.run_async(
@@ -791,6 +834,15 @@ async def _stream_findings(
                         # one but keep the rest of the lookup usable.
                         continue
                     clauses_by_id[c.id] = c
+
+            # Governing-law capture (GROUNDTRUTH_PLAN T1.2). Best-effort, once
+            # per contract. Tolerant of BOTH the current cross_reference output
+            # (a bare findings list -> hint stays None) and a future envelope
+            # `{governing_law: {...}, findings: [...]}`. Non-breaking: when no
+            # governing_law is present the hint stays None and lookup_citation
+            # renders the canonical default exactly as before.
+            if author == "cross_reference" and text and governing_law_hint is None:
+                governing_law_hint = _governing_law_hint_from_event(text)
 
             # When the risk_judge emits findings, route each and stream
             # the lane decision. In production we wire ADK's
@@ -925,14 +977,28 @@ async def _stream_findings(
                     # ----- Citation-linkage layer (design/STATUTE_LAYER.md §2.1) -----
                     # Synchronous cold path: deterministic map lookup ONLY. This
                     # is the sole citation rendered to users; the LLM proposer
-                    # below never reaches user-facing output. The finding's tag
-                    # keys the map (RiskFinding carries no jurisdiction field, so
-                    # the map's canonical authority for the tag is returned).
+                    # below never reaches user-facing output.
+                    #
+                    # GROUNDTRUTH_PLAN T1.2: the rendered citation now depends on
+                    # (a) the per-contract governing-law hint — fail-closed, so a
+                    # NY-governed clause never gets a Delaware case — and (b) the
+                    # finding's severity — case-law (heavy artillery) is gated to
+                    # the statute for the same tag/jurisdiction on watch/info
+                    # findings when a statute exists, else the case is KEPT (not
+                    # blanked). The OFFLINE eval grades the RAW map (pre-gate); the
+                    # gate is render-only, so the script and the Phoenix rail stay
+                    # consistent on the raw map.
                     from .citation_linker import (
                         _run_llm_proposer_and_annotate,
                         lookup_citation,
+                        severity_gated_citation,
                     )
-                    static_ref = lookup_citation(finding.tag)
+                    static_ref = lookup_citation(
+                        finding.tag, jurisdiction_hint=governing_law_hint
+                    )
+                    static_ref = severity_gated_citation(
+                        static_ref, tag=finding.tag, severity=finding.severity
+                    )
                     finding = finding.model_copy(
                         update={"citation_ref": static_ref}
                     )
@@ -1133,12 +1199,45 @@ async def filing(
     )
 
 
-async def _fetch_filing_pdf(cik: str) -> bytes:
-    """Fetch the latest 8-K Exhibit 2.1 for the given CIK via edgartools.
+async def _fetch_ex21_url(url: str) -> bytes:
+    """GET a pinned EX-2.1 artifact from the SEC archives.
 
-    EdgarTools attachment.download(path) writes to disk and returns a
-    path. We pass a temp path and read the bytes back.
+    SEC requires a descriptive User-Agent and throttles at 10 req/s; the
+    per-CIK cache + lock in `_get_artifact_cached` keep us far under that.
+    `follow_redirects` because EDGAR occasionally 301s archive paths.
     """
+    import httpx
+
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        resp = await client.get(
+            url,
+            headers={"User-Agent": SEC_USER_AGENT},
+            timeout=_PDF_FETCH_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        return resp.content
+
+
+async def _fetch_filing_pdf(cik: str) -> bytes:
+    """Fetch the merger-agreement Exhibit 2.1 for the given CIK.
+
+    Curated demo deals carry a pinned `ex21_url` (the exact SEC-archive URL
+    of the merger 8-K's EX-2.1). We GET it directly — deterministic, and
+    immune to two failure modes of latest-filing navigation observed live
+    against EDGAR for cik 718877: (1) a CLOSED merger's most recent 8-K is a
+    post-close filing with NO EX-2.1 (so `get_filings("8-K")[0]` is wrong),
+    and (2) EdgarTools' `attachment.exhibit_number` does not reliably equal
+    "2.1" even on the correct filing. Both produced the demo's 502.
+
+    Uncurated entries (no `ex21_url`) fall back to the legacy EdgarTools
+    latest-8-K search via `attachment.download`.
+    """
+    entry = next(
+        (e for e in ALLOW_LIST if e.cik == cik and e.ex21_url), None
+    )
+    if entry is not None:
+        return await _fetch_ex21_url(entry.ex21_url)
+
     loop = asyncio.get_running_loop()
 
     def _sync() -> bytes:

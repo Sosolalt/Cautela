@@ -200,7 +200,7 @@ def _generate_candidate_prompt_for_loop(
     or a BootstrapFewShot-style optimizer post-POC.
 
     On the live path this would invoke an `LlmAgent` on
-    `gemini-3-pro-preview`. On the offline / test path we return a
+    `gemini-3.1-pro-preview`. On the offline / test path we return a
     deterministic synthetic candidate so the loop is exercisable
     without a model dependency.
     """
@@ -224,7 +224,7 @@ def _generate_candidate_prompt_for_loop(
             "Output ONLY the revised prompt."
         )
         resp = client.models.generate_content(
-            model=os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview"),
+            model=os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview"),
             contents=meta,
         )
         return (resp.text or CROSS_REFERENCE_PROMPT).strip()

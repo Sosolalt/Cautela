@@ -442,9 +442,9 @@ def test_cited_line_numbers_resolve_to_named_functions():
     drift.
     """
     expected = {
-        "paired_bootstrap_ci_lb": 461,
-        "epsilon_fold5": 503,
-        "should_promote": 508,
+        "paired_bootstrap_ci_lb": 463,
+        "epsilon_fold5": 505,
+        "should_promote": 510,
     }
     for name, expected_line in expected.items():
         func = getattr(reflector, name)

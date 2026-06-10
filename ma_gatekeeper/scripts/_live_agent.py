@@ -17,12 +17,37 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 import os
+import random
+import time
 import uuid
 from typing import Any
 
+_LOG = logging.getLogger(__name__)
+
 _APP_NAME = "ma-gatekeeper-eval"
 _USER_ID = "eval-user"
+
+# Resilience knobs for live eval runs against Vertex's (preview-model) quota.
+# A batch eval — chunked extraction most of all — easily exceeds the
+# tokens/requests-per-minute limit; one transient 429 should not kill the run.
+# All env-overridable so the operator can tune without code changes.
+_MAX_RETRIES = int(os.environ.get("EVAL_MAX_RETRIES", "6"))
+_RETRY_BASE_SEC = float(os.environ.get("EVAL_RETRY_BASE_SEC", "10"))
+_RETRY_CAP_SEC = float(os.environ.get("EVAL_RETRY_CAP_SEC", "120"))
+# Fixed delay AFTER each successful call, to pace under a tokens/min quota.
+_REQUEST_DELAY_SEC = float(os.environ.get("EVAL_REQUEST_DELAY_SEC", "0"))
+
+
+def _is_rate_limited(exc: BaseException) -> bool:
+    """True if the exception looks like a Vertex 429 / resource-exhausted error.
+
+    Matches both the status token `RESOURCE_EXHAUSTED` and the human message
+    `Resource exhausted` (space vs underscore), plus the bare `429` code.
+    """
+    s = str(exc).upper()
+    return "429" in s or "EXHAUSTED" in s
 
 
 async def _run_agent_async(agent: Any, user_text: str, *, app_name: str) -> str:
@@ -67,8 +92,35 @@ async def _run_agent_async(agent: Any, user_text: str, *, app_name: str) -> str:
 
 
 def run_agent(agent: Any, user_text: str, *, app_name: str = _APP_NAME) -> str:
-    """Synchronous wrapper around `_run_agent_async` for an already-built agent."""
-    return asyncio.run(_run_agent_async(agent, user_text, app_name=app_name))
+    """Synchronous wrapper around `_run_agent_async`, with 429 backoff.
+
+    On a Vertex 429 / RESOURCE_EXHAUSTED we retry with exponential backoff +
+    jitter (capped at `_RETRY_CAP_SEC`) so one transient quota hit does not
+    abort the whole batch eval. Non-rate-limit errors propagate immediately.
+    `EVAL_REQUEST_DELAY_SEC` paces successful calls to stay under a tokens/min
+    quota. Tune via EVAL_MAX_RETRIES / EVAL_RETRY_BASE_SEC / EVAL_RETRY_CAP_SEC.
+    """
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            result = asyncio.run(
+                _run_agent_async(agent, user_text, app_name=app_name)
+            )
+            if _REQUEST_DELAY_SEC > 0:
+                time.sleep(_REQUEST_DELAY_SEC)
+            return result
+        except Exception as exc:  # noqa: BLE001 — re-raised unless rate-limited
+            if not _is_rate_limited(exc) or attempt >= _MAX_RETRIES:
+                raise
+            delay = min(_RETRY_CAP_SEC, _RETRY_BASE_SEC * (2**attempt))
+            delay += random.uniform(0, min(3.0, delay * 0.25))
+            _LOG.warning(
+                "Vertex rate-limited (attempt %d/%d) — backing off %.1fs",
+                attempt + 1,
+                _MAX_RETRIES,
+                delay,
+            )
+            time.sleep(delay)
+    raise RuntimeError("unreachable: retry loop exhausted")  # pragma: no cover
 
 
 def run_single_agent(
@@ -78,14 +130,29 @@ def run_single_agent(
     model: str | None = None,
     agent_name: str = "eval_agent",
     app_name: str = _APP_NAME,
+    max_output_tokens: int | None = None,
 ) -> str:
     """Build a single-purpose `LlmAgent` from `instruction` and run it once.
 
-    `model` defaults to $GEMINI_MODEL (falling back to gemini-3-pro-preview),
+    `model` defaults to $GEMINI_MODEL (falling back to gemini-3.1-pro-preview),
     matching the rest of the agent code's model-resolution convention.
+
+    `max_output_tokens`, when set, raises the generation output cap so a long
+    structured response (e.g. a big span list) is not silently truncated — a
+    cheap recall lever for the CUAD span eval. Default None preserves the SDK
+    default for callers (e.g. the MAUD MCQ path) that emit short answers.
     """
     from google.adk.agents import LlmAgent
 
-    model = model or os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
-    agent = LlmAgent(name=agent_name, model=model, instruction=instruction)
+    model = model or os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview")
+    kwargs: dict[str, Any] = {}
+    if max_output_tokens is not None:
+        from google.genai import types as gtypes
+
+        kwargs["generate_content_config"] = gtypes.GenerateContentConfig(
+            max_output_tokens=max_output_tokens
+        )
+    agent = LlmAgent(
+        name=agent_name, model=model, instruction=instruction, **kwargs
+    )
     return run_agent(agent, user_text, app_name=app_name)

@@ -8,15 +8,17 @@ Single ADK agent process that holds:
   - phoenix.client.Client() for deterministic SDK steps (datasets,
     experiments, prompts).
 
-Verified Phoenix client API (Arize-reviewer + live docs):
-  - client.datasets.get_dataset(name=...) returns a Dataset object.
-  - client.datasets.append_examples(dataset=Dataset, examples=...)
+Verified Phoenix client API (installed SDK — re-checked 2026-06-10):
+  - client.datasets.get_dataset(dataset=...) returns a Dataset object
+    (the kwarg is `dataset=`, NOT `name=`).
+  - client.datasets.add_examples_to_dataset(dataset=Dataset, examples=...)
+    (renamed from the old `append_examples`).
   - client.prompts.get(prompt_identifier=, tag=)
-  - client.prompts.create(name=, version=...)  (NOT upsert)
+  - client.prompts.create(name=, version=PromptVersion([msgs], model_name=...))
+    — PromptVersion takes a message list + model_name, NOT a `template=` kwarg.
   - client.prompts.tags.create(prompt_version_id=, name=, description=)
-                                                    (NOT add_version_tag)
-  - client.experiments.run_experiment(dataset, task, evaluators=None, ...)
-    where `dataset` is a Dataset object.
+  - client.experiments.run_experiment(dataset=Dataset, task=, evaluators=None, ...)
+    (keyword-only; `dataset` is a Dataset object).
 
 Promotion rule:
   1. paired_bootstrap_ci_lower_bound(regression_deltas, 1000) > 0
@@ -345,7 +347,7 @@ def build_introspection_agent():
         return None
     return LlmAgent(
         name="reflector_introspector",
-        model=os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview"),
+        model=os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview"),
         instruction=(
             "You are inspecting the M&A Gatekeeper's own traces. Use the "
             "phoenix-mcp tools to: (1) list_traces from project 'ma-gatekeeper' "
@@ -608,8 +610,8 @@ def _append_to_dataset(client, dataset_name: str, examples: Sequence[dict]) -> N
     if not examples:
         return
     try:
-        ds = client.datasets.get_dataset(name=dataset_name)
-        client.datasets.append_examples(dataset=ds, examples=list(examples))
+        ds = client.datasets.get_dataset(dataset=dataset_name)
+        client.datasets.add_examples_to_dataset(dataset=ds, examples=list(examples))
     except Exception as exc:
         _LOG.warning("append_to_dataset failed: %s", exc)
 
@@ -634,7 +636,7 @@ def _generate_candidate_prompt(failing_examples: Sequence[dict]) -> str:
         "FAILURES (truncated):\n" + str(failing_examples[:5])
     )
     resp = client.models.generate_content(
-        model=os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview"),
+        model=os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview"),
         contents=meta,
     )
     return resp.text or CROSS_REFERENCE_PROMPT
@@ -643,26 +645,24 @@ def _generate_candidate_prompt(failing_examples: Sequence[dict]) -> str:
 def _upsert_prompt(client, *, name: str, template: str, tag: str) -> str | None:
     """Create a new prompt version under `name`; tag it `tag`. Returns version id.
 
-    Phoenix client API (verified): `client.prompts.create(...)` takes a
-    `version` argument that is a `PromptVersion` payload, NOT a top-level
-    `template=` kwarg. We build the PromptVersion with the helper, fall
-    back to passing the template directly if the SDK version accepts the
-    simpler form.
+    Phoenix client API (verified against the installed SDK): `client.prompts.create`
+    takes a `version=PromptVersion(...)` payload whose constructor is
+    `PromptVersion(prompt=[messages], *, model_name=..., model_provider=...,
+    template_format=...)` — NOT a top-level `template=` kwarg (that raises
+    `unexpected keyword argument 'template'`). We wrap the raw instruction text
+    as a single user message and store it verbatim (`template_format="NONE"`)
+    so braces in the prompt aren't parsed as Mustache/f-string slots.
     """
     try:
-        version_payload = None
-        try:
-            from phoenix.client.types import PromptVersion
-            version_payload = PromptVersion(template=template,
-                                            description=f"auto-{tag}")
-        except Exception:
-            pass
-        if version_payload is not None:
-            version = client.prompts.create(name=name, version=version_payload)
-        else:
-            # Older SDK accepted the flatter form; try as a fallback.
-            version = client.prompts.create(name=name, template=template,
-                                            prompt_description=f"auto-{tag}")
+        from phoenix.client.types import PromptVersion
+        version_payload = PromptVersion(
+            [{"role": "user", "content": template}],
+            model_name=os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview"),
+            model_provider="GOOGLE",
+            description=f"auto-{tag}",
+            template_format="NONE",
+        )
+        version = client.prompts.create(name=name, version=version_payload)
         version_id = (
             getattr(version, "id", None)
             or getattr(version, "version_id", None)
@@ -706,7 +706,7 @@ def _evaluate_one_example(client, example, prompt_template: str) -> float:
     contents = f"{prompt_template}\n\nCLAUSE:\n{clause_text}"
     try:
         resp = genai_client.models.generate_content(
-            model=os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview"),
+            model=os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview"),
             contents=contents,
         )
         output = (resp.text or "").strip()
@@ -740,7 +740,7 @@ def _run_experiment_pairwise(
     faithfulness-evaluator score per example into a numpy array.
     """
     try:
-        ds = client.datasets.get_dataset(name=dataset_name)
+        ds = client.datasets.get_dataset(dataset=dataset_name)
     except Exception as exc:
         _LOG.warning("Could not fetch dataset %s: %s", dataset_name, exc)
         return np.array([]), np.array([])

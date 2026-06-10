@@ -18,7 +18,7 @@ the other is a forward merger under Sixth Circuit precedent
 constitute assignment by operation of law, so the clause DOES trigger).
 
 V3 (FIX_PLAN_NOTES.md) confirmed `agents.py:100-105` instantiates
-CrossReference as a real `gemini-3-pro-preview` LlmAgent with
+CrossReference as a real `gemini-3.1-pro-preview` LlmAgent with
 `output_key="findings"` and a definition->operative resolution prompt
 (`prompts.py:CROSS_REFERENCE_PROMPT`). Whether the agent ACTUALLY produces
 structure-conditional verdicts on these paired fixtures is empirically
@@ -281,7 +281,7 @@ def make_mock_cross_reference() -> _CrossReferenceFn:
 
 
 def make_live_cross_reference() -> _CrossReferenceFn:
-    """Wrap the real ADK CrossReference agent on `gemini-3-pro-preview`.
+    """Wrap the real ADK CrossReference agent on `gemini-3.1-pro-preview`.
 
     Implementation note (mirrors `eval_maud_mcq.py:make_live_agent`,
     PROJECT_LOG Phase 6.6): CrossReference is a sub-agent inside the

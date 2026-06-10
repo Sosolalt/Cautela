@@ -597,3 +597,55 @@ def test_stream_findings_yields_join_error_when_clause_id_missing(monkeypatch):
     f = findings[0]["finding"]
     assert f["page"] is None, "LLM-hallucinated page must be wiped"
     assert f["pdf_bbox"] is None, "LLM-hallucinated bbox must be wiped"
+
+
+# ---------------------------------------------------------------------------
+# GROUNDTRUTH_PLAN T1.2 — governing-law capture helper (pure, no live pipeline)
+# ---------------------------------------------------------------------------
+
+
+def test_governing_law_hint_from_bare_findings_list_is_none():
+    """Current cross_reference output (a bare findings list) yields no hint —
+    the wiring is non-breaking: lookup then renders the canonical default."""
+    from agent.server import _governing_law_hint_from_event
+    text = json.dumps([{"clause_id": "c1", "tag": "mac"}])
+    assert _governing_law_hint_from_event(text) is None
+
+
+def test_governing_law_hint_from_envelope_new_york():
+    from agent.server import _governing_law_hint_from_event
+    text = json.dumps({
+        "governing_law": {
+            "verbatim_clause": "This Agreement shall be governed by the laws of the State of New York.",
+            "jurisdiction": "State of New York",
+        },
+        "findings": [],
+    })
+    assert _governing_law_hint_from_event(text) == "New York"
+
+
+def test_governing_law_hint_falls_back_to_verbatim_clause():
+    from agent.server import _governing_law_hint_from_event
+    text = json.dumps({
+        "governing_law": {
+            "verbatim_clause": "Governed by the laws of the State of Delaware.",
+            "jurisdiction": None,
+        },
+        "findings": [],
+    })
+    assert _governing_law_hint_from_event(text) == "Delaware"
+
+
+def test_governing_law_hint_unknown_jurisdiction_is_none():
+    from agent.server import _governing_law_hint_from_event
+    text = json.dumps({
+        "governing_law": {"verbatim_clause": "laws of England and Wales", "jurisdiction": "England"},
+        "findings": [],
+    })
+    assert _governing_law_hint_from_event(text) is None
+
+
+def test_governing_law_hint_handles_garbage():
+    from agent.server import _governing_law_hint_from_event
+    assert _governing_law_hint_from_event("not json {{{") is None
+    assert _governing_law_hint_from_event(json.dumps({"findings": []})) is None

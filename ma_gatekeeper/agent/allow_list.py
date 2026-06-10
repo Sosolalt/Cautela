@@ -33,7 +33,7 @@ not a stale claim about "current" deals.
 """
 from __future__ import annotations
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class AllowListEntry(BaseModel):
@@ -44,6 +44,16 @@ class AllowListEntry(BaseModel):
     name: str
     filing: str
     cik: str
+    # Pinned SEC-archive URL of this deal's merger-agreement EX-2.1
+    # (mirrors data/edgar/manifest.json `source_url`). The fetch path GETs
+    # this directly. Navigating to the company's *latest* 8-K does not work
+    # for a closed merger — its most recent 8-K is a post-close filing with
+    # no EX-2.1 — and EdgarTools' attachment.exhibit_number is not a reliable
+    # "2.1" match; both were confirmed against live EDGAR for cik 718877.
+    # Empty => fall back to the legacy latest-8-K EdgarTools search.
+    # `exclude=True`: internal fetch detail — never serialized into the
+    # /allow-list response (the frontend `Deal` type is {id,name,filing,cik}).
+    ex21_url: str = Field(default="", exclude=True)
 
     @field_validator("cik")
     @classmethod
@@ -76,29 +86,34 @@ ALLOW_LIST: list[AllowListEntry] = [
         name="Microsoft / Activision Blizzard (2023)",
         filing="8-K/Ex 2.1",
         cik="0000718877",  # Activision Blizzard, Inc. (target filer)
+        ex21_url="https://www.sec.gov/Archives/edgar/data/718877/000110465922005154/tm223212d3_ex2-1.htm",
     ),
     AllowListEntry(
         id="pfizer_seagen",
         name="Pfizer / Seagen (2023)",
         filing="8-K/Ex 2.1",
         cik="0001060736",  # Seagen Inc. (f/k/a Seattle Genetics)
+        ex21_url="https://www.sec.gov/Archives/edgar/data/1060736/000119312523068474/d467472dex21.htm",
     ),
     AllowListEntry(
         id="cisco_splunk",
         name="Cisco / Splunk (2024)",
         filing="8-K/Ex 2.1",
         cik="0001353283",  # Splunk Inc.
+        ex21_url="https://www.sec.gov/Archives/edgar/data/1353283/000110465923102594/tm2326347d1_ex2-1.htm",
     ),
     AllowListEntry(
         id="exxon_pioneer",
         name="ExxonMobil / Pioneer Natural Resources (2024)",
         filing="8-K/Ex 2.1",
         cik="0001038357",  # Pioneer Natural Resources Co.
+        ex21_url="https://www.sec.gov/Archives/edgar/data/1038357/000119312523253935/d417986dex21.htm",
     ),
     AllowListEntry(
         id="hpe_juniper",
         name="HPE / Juniper Networks (2025)",
         filing="8-K/Ex 2.1",
         cik="0001043604",  # Juniper Networks, Inc.
+        ex21_url="https://www.sec.gov/Archives/edgar/data/1043604/000119312524005659/d107225dex21.htm",
     ),
 ]

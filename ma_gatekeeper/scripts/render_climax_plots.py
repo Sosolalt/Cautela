@@ -4,7 +4,7 @@ Renders the picture-in-picture PNG that docks next to the live Phoenix
 Experiments view during the climax beat of the demo (see
 [demo_script.md L157](../docs/demo_script.md#L157)). Visualizes the
 paired-bootstrap CI promotion gate emitted by `agent.reflector.should_promote`
-([reflector.py:508](../agent/reflector.py#L508)).
+([reflector.py:510](../agent/reflector.py#L510)).
 
 Two panels, one figure:
   - Panel A: paired-bootstrap CI on regression set (gate threshold = LB > 0).
@@ -410,8 +410,8 @@ def _git_sha_short() -> str:
 def _footer_template(source: str) -> str:
     """Compose the single mono-attribution footer line (spec §8.3).
 
-    The line cites `reflector.py:461 paired_bootstrap_ci_lb`,
-    `:503 epsilon_fold5`, `:508 should_promote`, then a commit SHA,
+    The line cites `reflector.py:463 paired_bootstrap_ci_lb`,
+    `:505 epsilon_fold5`, `:510 should_promote`, then a commit SHA,
     input source, and the live kwarg defaults of the imported reflector
     functions. Single mid-dot separator with single spaces (the spec
     §8.3 example uses a double-space-mid-dot-double-space; at 2560×1440
@@ -426,9 +426,9 @@ def _footer_template(source: str) -> str:
     floor = _kwarg_default(epsilon_fold5, "floor")
     sha = _git_sha_short()
     return (
-        "reflector.py:461 paired_bootstrap_ci_lb | "
-        ":503 epsilon_fold5 | "
-        ":508 should_promote · "
+        "reflector.py:463 paired_bootstrap_ci_lb | "
+        ":505 epsilon_fold5 | "
+        ":510 should_promote · "
         f"commit {sha} · "
         f"input {source} · "
         f"n_resamples={n_resamples}, alpha={alpha}, floor={floor}"
