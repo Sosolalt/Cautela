@@ -146,9 +146,15 @@ class MaudEvalSummary:
     # Paper metric: degenerate AUPR (see module docstring for caveat).
     aupr_degenerate: float = 0.0
     comparison_baselines: dict[str, Any] | None = None
+    # Run-mode honesty (GROUNDTRUTH_PLAN T1.1): the MAUD eval previously carried
+    # NO run-mode field, so a deterministic-mock accuracy was indistinguishable
+    # from a live-model accuracy in the JSON. "mock"|"live" is now always
+    # serialized so the README renderer can tag a mock number.
+    run_mode: str = "mock"
 
     def to_json(self) -> dict[str, Any]:
         return {
+            "run_mode": self.run_mode,
             "n_total_examples": self.n_total_examples,
             "n_evaluated": self.n_evaluated,
             "n_correct": self.n_correct,
@@ -595,6 +601,7 @@ def aggregate_results(
     n_skipped_with_reason: dict[str, int],
     comparison_baselines: dict[str, Any] | None = None,
     examples_by_id: dict[str, MaudExample] | None = None,
+    run_mode: str = "mock",
 ) -> MaudEvalSummary:
     """Aggregate per-example results into the headline summary.
 
@@ -656,6 +663,7 @@ def aggregate_results(
         per_category=per_category,
         aupr_degenerate=aupr_overall,
         comparison_baselines=comparison_baselines,
+        run_mode=run_mode,
     )
 
 
@@ -666,6 +674,7 @@ def run_eval(
     n_total_examples: int | None = None,
     n_skipped_with_reason: dict[str, int] | None = None,
     comparison_baselines: dict[str, Any] | None = None,
+    run_mode: str = "mock",
 ) -> MaudEvalSummary:
     """Convenience wrapper: evaluate each example, then aggregate.
 
@@ -685,6 +694,7 @@ def run_eval(
         n_skipped_with_reason=n_skipped_with_reason,
         comparison_baselines=comparison_baselines,
         examples_by_id=examples_by_id,
+        run_mode=run_mode,
     )
 
 
@@ -802,6 +812,7 @@ def main(argv: list[str] | None = None) -> int:
         n_total_examples=n_total,
         n_skipped_with_reason=skipped,
         comparison_baselines=baselines,
+        run_mode="live" if args.live else "mock",
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(summary.to_json(), indent=2), encoding="utf-8")

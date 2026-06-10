@@ -81,6 +81,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import logging
 import statistics
@@ -876,6 +877,32 @@ def make_mock_agent(seed: int = 42) -> _AgentFn:
     return _agent
 
 
+# Length-preserving Unicode fold for span grounding (Fix #3). EVERY entry MUST
+# be a single code point -> single code point so that char offsets are IDENTICAL
+# between the original text and the folded text. Do NOT add multi-char mappings
+# (e.g. "…"->"...", ligature "ﬁ"->"fi", or whitespace-run collapse): they shift
+# offsets and could ground a span at the wrong position. Tested by
+# test_norm_for_match_is_length_preserving.
+_MATCH_FOLD: dict[int, str] = {
+    0x00A0: " ",  # non-breaking space
+    0x2018: "'", 0x2019: "'", 0x201A: "'", 0x201B: "'",  # single quotes
+    0x201C: '"', 0x201D: '"', 0x201E: '"', 0x201F: '"',  # double quotes
+    0x2012: "-", 0x2013: "-", 0x2014: "-", 0x2015: "-",  # figure/en/em/horiz dashes
+}
+_MATCH_TABLE = str.maketrans(_MATCH_FOLD)
+
+
+def _norm_for_match(s: str) -> str:
+    """1-codepoint->1-codepoint fold (see `_MATCH_FOLD`); `len()` is invariant.
+
+    Used only to RECOVER a span's char offset when the model emitted a
+    typographically-cleaned variant (curly quote / nbsp / dash) of text that
+    is genuinely present in the contract. The grounded span text is always the
+    ORIGINAL contract substring, never this folded form.
+    """
+    return s.translate(_MATCH_TABLE)
+
+
 def _parse_live_spans(
     raw: str, contract_text: str
 ) -> list[tuple[str, int, int, float]]:
@@ -886,14 +913,16 @@ def _parse_live_spans(
 
     No-fabrication policy:
       - Markdown code fences (```json ... ```) are stripped before parsing.
-      - A span whose `text` cannot be located verbatim in `contract_text`
-        is DROPPED, not assigned a guessed offset — the eval scores against
-        gold char spans, so a fabricated offset would be worse than a miss.
-      - Malformed JSON or a non-list payload yields `[]` (the eval then
-        reports zero predictions for that example, which is honest).
-    Offsets use the FIRST verbatim occurrence (`str.find`); CUAD scoring is
-    Jaccard-over-char-ranges, for which first-occurrence is the standard
-    grounding choice.
+      - A span is grounded by an exact `str.find`; if that misses, by a
+        length-preserving Unicode fold (`_norm_for_match`) that recovers spans
+        the model "cleaned" (curly quotes / nbsp / dashes -> ASCII). A span
+        located by neither is DROPPED (counted, never assigned a guessed
+        offset) — a fabricated offset would be worse than a miss.
+      - The grounded span text is the ORIGINAL contract substring at the found
+        offset, so `contract_text[start:end] == text` holds for the caller.
+      - Malformed JSON or a non-list payload yields `[]`.
+    Offsets use the FIRST occurrence after folding; CUAD scoring is
+    Jaccard-over-char-ranges, for which first-occurrence is the standard choice.
     """
     import json
     import re
@@ -910,6 +939,8 @@ def _parse_live_spans(
     if not isinstance(data, list):
         return []
 
+    folded_contract: str | None = None  # lazily folded; only if a fast-path miss
+    n_dropped = 0
     out: list[tuple[str, int, int, float]] = []
     for item in data:
         if not isinstance(item, dict):
@@ -923,47 +954,242 @@ def _parse_live_spans(
             confidence = 0.5
         start = contract_text.find(span_text)
         if start < 0:
-            # Model paraphrased instead of copying verbatim — cannot ground
-            # a char offset, so drop rather than invent a position.
+            # Fast path missed — try the length-preserving fold so a model that
+            # cleaned a curly quote / nbsp / dash still grounds correctly.
+            if folded_contract is None:
+                folded_contract = _norm_for_match(contract_text)
+            start = folded_contract.find(_norm_for_match(span_text))
+        # The fold is 1:1, so the matched region width == len(span_text).
+        end = start + len(span_text)
+        if start < 0 or end > len(contract_text):
+            n_dropped += 1
             continue
-        out.append((span_text, start, start + len(span_text), confidence))
+        # Store the ORIGINAL contract substring (not the model's cleaned text)
+        # so the char-offset invariant holds downstream.
+        out.append((contract_text[start:end], start, end, confidence))
+    if n_dropped:
+        _LOG.debug("_parse_live_spans dropped %d ungrounded span(s)", n_dropped)
     return out
 
 
-def make_live_agent() -> _AgentFn:
+_CLAUSE_DEFINITIONS_PATH = (
+    Path(__file__).resolve().parent.parent / "data" / "cuad_clause_definitions.json"
+)
+
+
+@functools.lru_cache(maxsize=1)
+def _load_clause_definitions() -> dict[str, str]:
+    """Load the dataset-derived CUAD `Details:` clause definitions (Fix #1).
+
+    These are the verbatim `Details:` strings from the CUAD-QA question field —
+    the canonical CUAD input the published baselines are queried with — pinned
+    in `data/cuad_clause_definitions.json` and regenerated by
+    `scripts/refresh_cuad_definitions.py`. A missing/unreadable file yields {}
+    so the eval degrades to the bare-label prompt rather than crashing.
+    """
+    try:
+        payload = json.loads(_CLAUSE_DEFINITIONS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    defs = payload.get("definitions", {})
+    return {str(k): str(v) for k, v in defs.items()} if isinstance(defs, dict) else {}
+
+
+# Multi-pass / chunked extraction tunables (Fixes #2 + #4).
+_LIVE_MAX_OUTPUT_TOKENS = 8192  # avoid truncating long span lists (cheap recall lever)
+_DEDUP_IOU = 0.5  # NMS overlap threshold for de-duplicating predictions
+_SWEEP_CONF_DISCOUNT = 0.9  # recall-sweep spans ranked strictly below pass-1
+
+
+def _build_extract_instruction(clause_type: str, definition: str) -> str:
+    """Pass-1 / per-chunk extraction instruction (shared by every pass)."""
+    def_block = (
+        f"\nThe CUAD definition of this clause type is: {definition}\n"
+        if definition
+        else "\n"
+    )
+    return (
+        "You are an expert M&A attorney extracting clauses from a "
+        "commercial contract. Extract every span of text that is an "
+        f"instance of the clause type '{clause_type}'."
+        f"{def_block}"
+        "Favor RECALL: return EVERY distinct span that plausibly matches — "
+        "all occurrences, definitions, and related sub-clauses — even if "
+        "similar; a human reviewer prunes false positives downstream.\n"
+        "Return ONLY a JSON array. Each element must be an object: "
+        '{"text": "<the span copied EXACTLY, character-for-character, '
+        'from the contract>", "confidence": <float between 0 and 1>}.\n'
+        "Copy each span verbatim so it can be located in the source "
+        "text. If no such clause exists, return an empty array []."
+    )
+
+
+def _build_sweep_instruction(
+    clause_type: str, definition: str, found: list[str]
+) -> str:
+    """Fix #4 recall-sweep instruction — coverage, not echo.
+
+    Lists what pass-1 already found and asks ONLY for spans not already
+    covered (and not substrings of them), focusing on later/un-quoted
+    sections, so the model does genuine coverage work rather than re-emitting.
+    """
+    def_block = f" (CUAD definition: {definition})" if definition else ""
+    already = "\n".join(f"- {t}" for t in found) if found else "(none)"
+    return (
+        "You are an expert M&A attorney doing a SECOND-PASS recall check on a "
+        f"contract for the clause type '{clause_type}'{def_block}.\n"
+        "These spans were already found in the first pass:\n"
+        f"{already}\n"
+        "Find ADDITIONAL spans that were MISSED — especially in later sections "
+        "of the contract. A new span must NOT duplicate or be a substring of an "
+        "already-found span. If there are none, return [].\n"
+        "Return ONLY a JSON array of "
+        '{"text": "<verbatim span>", "confidence": <0..1>} objects.'
+    )
+
+
+def _chunk_text(text: str, window: int, overlap: int) -> list[str]:
+    """Slice `text` into overlapping windows of `window` chars (Fix #2).
+
+    Returns the whole text as a single chunk when it fits. Raises ValueError on
+    a non-advancing config (`overlap >= window`), which would otherwise loop
+    forever. The last window reaches the final character exactly once (no
+    duplicate trailing chunk).
+    """
+    if window <= 0:
+        raise ValueError(f"window must be positive (got {window})")
+    if overlap >= window:
+        raise ValueError(f"overlap ({overlap}) must be < window ({window})")
+    if not text:
+        return []
+    if len(text) <= window:
+        return [text]
+    stride = window - overlap
+    chunks: list[str] = []
+    start = 0
+    while start < len(text):
+        chunks.append(text[start : start + window])
+        if start + window >= len(text):
+            break
+        start += stride
+    return chunks
+
+
+def _char_iou(a: tuple[int, int], b: tuple[int, int]) -> float:
+    """Intersection-over-union of two [start, end) char intervals."""
+    inter = max(0, min(a[1], b[1]) - max(a[0], b[0]))
+    if inter == 0:
+        return 0.0
+    union = (a[1] - a[0]) + (b[1] - b[0]) - inter
+    return inter / union if union else 0.0
+
+
+def _dedup_spans(
+    spans: list[tuple[str, int, int, float]],
+) -> list[tuple[str, int, int, float]]:
+    """Non-max suppression over predicted spans (Fixes #2 + #4).
+
+    Sorts by confidence desc and greedily keeps a span unless it overlaps an
+    already-kept span by char-IoU > `_DEDUP_IOU`. The kept span is the original
+    higher-confidence one VERBATIM — we never merge/union boundaries (that would
+    fabricate a span neither model nor gold emitted and could flip the 0.5
+    Jaccard match). This collapses chunk-overlap and sweep duplicates so they
+    don't erode precision as a stride artifact; the greedy 1:1 `match_spans`
+    already prevents duplicates from inflating recall.
+    """
+    kept: list[tuple[str, int, int, float]] = []
+    # Sort by confidence desc, then by (start, end) for a deterministic winner
+    # among equal-confidence overlaps (no reliance on input iteration order).
+    for span in sorted(spans, key=lambda s: (-s[3], s[1], s[2])):
+        rng = (span[1], span[2])
+        if any(_char_iou(rng, (k[1], k[2])) > _DEDUP_IOU for k in kept):
+            continue
+        kept.append(span)
+    return kept
+
+
+def make_live_agent(
+    *,
+    chunk_size: int | None = None,
+    chunk_overlap: int = 4000,
+    recall_sweep: bool = False,
+) -> _AgentFn:
     """Live CUAD span-extraction agent backed by a Vertex `LlmAgent`.
 
-    A single LlmAgent is asked to extract every verbatim span of the given
-    `clause_type` and emit them as JSON; `_parse_live_spans` grounds each
-    returned span back to a char offset in the source contract (dropping any
-    span the model failed to copy verbatim, rather than fabricating offsets).
+    Extraction passes — all OFF by default (each multiplies Vertex calls, and
+    the published baselines are single-pass, so multi-pass numbers are NOT
+    apples-to-apples and must be disclosed in the README):
+      - Fix #1: the canonical CUAD `Details:` definition + a high-recall prompt.
+      - Fix #2 (`chunk_size`): split long contracts into overlapping windows and
+        extract per window, so the model attends to every section instead of
+        losing recall mid-document. Spans ground against the FULL contract.
+      - Fix #4 (`recall_sweep`): a second "what was missed" pass whose spans are
+        ranked strictly below pass-1 (so the P@R curve stays honest).
+    All passes merge through `_dedup_spans` (NMS — no boundary fabrication).
 
-    Construction is cheap and ADK-free: the google-adk import lives inside
-    the returned closure (via `scripts._live_agent.run_single_agent`), so
-    importing this module — and constructing the live agent in tests — does
-    not require google-adk or Vertex credentials. `--use-mock` stays the
-    default, so CI never reaches this path.
+    Construction is cheap and ADK-free (google-adk imports live in the closure),
+    so importing this module / constructing the agent in tests needs no Vertex.
     """
+
+    definitions = _load_clause_definitions()
+
+    def _extract(
+        contract_text: str, view_text: str, instruction: str
+    ) -> list[tuple[str, int, int, float]]:
+        # Lazy import keeps module import + test construction ADK-free.
+        from scripts._live_agent import run_single_agent
+
+        raw = run_single_agent(
+            instruction,
+            f"=== CONTRACT ===\n{view_text}",
+            agent_name="cuad_spans",
+            max_output_tokens=_LIVE_MAX_OUTPUT_TOKENS,
+        )
+        # Ground every span against the FULL contract, never the window.
+        return _parse_live_spans(raw, contract_text)
 
     def _agent(
         contract_text: str, clause_type: str
     ) -> list[tuple[str, int, int, float]]:
-        # Lazy import: keeps module import (and test construction) ADK-free.
-        from scripts._live_agent import run_single_agent
+        definition = definitions.get(clause_type, "")
+        extract_instruction = _build_extract_instruction(clause_type, definition)
 
-        instruction = (
-            "You are an expert M&A attorney extracting clauses from a "
-            "commercial contract. Extract every span of text that is an "
-            f"instance of the clause type '{clause_type}'.\n"
-            "Return ONLY a JSON array. Each element must be an object: "
-            '{"text": "<the span copied EXACTLY, character-for-character, '
-            'from the contract>", "confidence": <float between 0 and 1>}.\n'
-            "Copy each span verbatim so it can be located in the source "
-            "text. If no such clause exists, return an empty array []."
-        )
-        user_text = f"=== CONTRACT ===\n{contract_text}"
-        raw = run_single_agent(instruction, user_text, agent_name="cuad_spans")
-        return _parse_live_spans(raw, contract_text)
+        # --- Pass 1: single call, or per-chunk for long contracts (Fix #2) ---
+        if chunk_size and len(contract_text) > chunk_size:
+            spans: list[tuple[str, int, int, float]] = []
+            for chunk in _chunk_text(contract_text, chunk_size, chunk_overlap):
+                spans.extend(_extract(contract_text, chunk, extract_instruction))
+        else:
+            spans = _extract(contract_text, contract_text, extract_instruction)
+        spans = _dedup_spans(spans)
+
+        # --- Pass 2: recall sweep (Fix #4), ranked strictly below pass-1 -----
+        if recall_sweep:
+            found_texts = [s[0] for s in spans]
+            sweep_instruction = _build_sweep_instruction(
+                clause_type, definition, found_texts
+            )
+            sweep = _extract(contract_text, contract_text, sweep_instruction)
+            # Echo guard: drop sweep spans that are substrings of a pass-1 span.
+            # Conservative echo guard: drop a sweep span contained in a pass-1
+            # span (costs a little recall, never precision — sweep spans are
+            # low-value by design).
+            sweep = [s for s in sweep if not any(s[0] in f for f in found_texts)]
+            # Rank sweep spans strictly below EVERY pass-1 span, so they can only
+            # raise the achieved-recall ceiling, never game P@R. Scale each into
+            # [0, floor) via floor * discount; when floor == 0 (a pass-1 span the
+            # model marked 0-confidence) there is no room below, so sweep spans
+            # sit at 0 — tied at the very bottom of the ranking, which cannot
+            # inflate precision at any higher-recall threshold.
+            floor = min((s[3] for s in spans), default=0.5)
+            scale = floor * _SWEEP_CONF_DISCOUNT  # in [0, floor)
+            sweep = [
+                (t, a, b, max(0.0, min(c, 1.0)) * scale)
+                for (t, a, b, c) in sweep
+            ]
+            spans = _dedup_spans(spans + sweep)
+
+        return spans
 
     return _agent
 
@@ -1002,6 +1228,7 @@ def load_cuad_examples(
     *,
     clause_types: tuple[str, ...] = DEFAULT_CLAUSE_TYPES,
     limit: int | None = None,
+    split: str | None = "test",
 ) -> list[CuadExample]:
     """Load CUAD examples from a HuggingFace `save_to_disk` dir OR JSONL.
 
@@ -1018,7 +1245,7 @@ def load_cuad_examples(
     """
     path = Path(dataset_path)
     if path.is_dir():
-        records = list(_iter_hf_cuad(path))
+        records = list(_iter_hf_cuad(path, split=split))
     elif path.suffix == ".jsonl":
         records = list(_iter_jsonl_cuad(path))
     else:
@@ -1117,24 +1344,53 @@ def _extract_clause_phrase_from_question(question: str) -> str | None:
     return None
 
 
-def _iter_hf_cuad(path: Path) -> Iterator[dict[str, Any]]:
+def _extract_definition_from_question(question: str) -> str:
+    """Return the CUAD `Details:` clause definition from a question, else "".
+
+    CUAD-QA questions are templated `Highlight ... related to "<label>" that
+    should be reviewed by a lawyer. Details: <definition>`. The definition is
+    constant per clause type. Returns the text after the first `Details:`
+    marker, stripped; "" if the marker is absent (e.g. JSONL fixtures).
+    """
+    marker = "Details:"
+    idx = question.find(marker)
+    if idx < 0:
+        return ""
+    return question[idx + len(marker):].strip()
+
+
+def _iter_hf_cuad(path: Path, split: str | None = "test") -> Iterator[dict[str, Any]]:
     """Lazy-import `datasets`; bypassed in tests via JSONL fixtures.
 
-    The HF `theatticusproject/cuad-qa` dataset is in SQuAD format. We
-    reconstruct project-shaped records (one per contract) here so the
-    rest of `load_cuad_examples` can stay schema-stable.
+    The HF `theatticusproject/cuad-qa` dataset is in SQuAD format with `train`
+    and `test` splits. We evaluate the **`test` split ONLY** by default —
+    pooling train+test (the prior behavior) silently contaminated the eval with
+    training contracts. `split=None` restores the pooled behavior for callers
+    that explicitly want it.
     """
     from datasets import load_from_disk  # type: ignore
 
     ds = load_from_disk(str(path))
     if hasattr(ds, "items"):
-        iters: list[Iterable[dict]] = [split for _, split in ds.items()]
+        if split is None:
+            chosen: dict[str, Iterable[dict]] = dict(ds.items())
+        elif split in ds:
+            chosen = {split: ds[split]}
+        else:
+            _LOG.warning(
+                "CUAD split %r not found (have %s); falling back to all splits.",
+                split,
+                list(ds.keys()),
+            )
+            chosen = dict(ds.items())
     else:
-        iters = [ds]
+        chosen = {"_single": ds}
     squad_rows: list[dict[str, Any]] = []
-    for split in iters:
-        for rec in split:
-            squad_rows.append(dict(rec))
+    for name, sp in chosen.items():
+        for rec in sp:
+            row = dict(rec)
+            row["_split"] = name
+            squad_rows.append(row)
     yield from _squad_rows_to_project_records(squad_rows)
 
 
@@ -1263,6 +1519,42 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--split",
+        type=str,
+        default="test",
+        help=(
+            "HF dataset split to evaluate (default: test). Pooling train+test "
+            "contaminates the eval; pass 'all' only deliberately."
+        ),
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=None,
+        help=(
+            "Fix #2: extract over overlapping windows of this many chars for "
+            "contracts longer than it (recall lever for long docs). OFF by "
+            "default. WARNING: multiplies Vertex calls per contract."
+        ),
+    )
+    parser.add_argument(
+        "--chunk-overlap",
+        type=int,
+        default=4000,
+        help="Fix #2: overlap (chars) between windows. SHOULD exceed the longest "
+        "gold span so boundary-spanning clauses stay reachable (not enforced; "
+        "spans ground against the full contract). Default 4000.",
+    )
+    parser.add_argument(
+        "--recall-sweep",
+        action="store_true",
+        default=False,
+        help=(
+            "Fix #4: add a second 'what was missed' pass per example (recall "
+            "lever). OFF by default. WARNING: ~2x Vertex calls."
+        ),
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--use-mock", action="store_true", default=True)
     group.add_argument("--live", action="store_true", default=False)
@@ -1274,16 +1566,26 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
     )
     args = _build_parser().parse_args(argv)
+    # "all" is the explicit opt-in to the (contaminating) pooled behavior.
+    split_arg = None if args.split == "all" else args.split
     examples = load_cuad_examples(
         args.dataset,
         clause_types=tuple(args.clause_types),
         limit=args.limit,
+        split=split_arg,
     )
     if not examples:
         _LOG.error("No CUAD examples loaded from %s; aborting.", args.dataset)
         return 2
 
-    agent = make_live_agent() if args.live else make_mock_agent(seed=args.seed)
+    if args.live:
+        agent = make_live_agent(
+            chunk_size=args.chunk_size,
+            chunk_overlap=args.chunk_overlap,
+            recall_sweep=args.recall_sweep,
+        )
+    else:
+        agent = make_mock_agent(seed=args.seed)
     predictions = predictions_from_agent(examples, agent)
     baselines = load_baselines(args.baselines)
     summary = run_eval(
@@ -1293,7 +1595,32 @@ def main(argv: list[str] | None = None) -> int:
         comparison_baselines=baselines,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(summary.to_json(), indent=2), encoding="utf-8")
+    summary_json = summary.to_json()
+    # Stamp the run config so the number is auditable (split, sample, model path).
+    multipass = bool(args.live and (args.chunk_size or args.recall_sweep))
+    summary_json["eval_config"] = {
+        "split": args.split,
+        "limit": args.limit,
+        "seed": args.seed,
+        "live": args.live,
+        "clause_types": list(args.clause_types),
+        "definitions_injected": bool(_load_clause_definitions()),
+        "chunk_size": args.chunk_size,
+        "chunk_overlap": args.chunk_overlap,
+        "recall_sweep": args.recall_sweep,
+    }
+    if multipass:
+        # Honesty gate: multi-pass / chunked extraction is NOT single-pass, so
+        # these numbers are not apples-to-apples with the single-pass published
+        # CUAD baselines. Carry the disclosure in the artifact itself.
+        summary_json["eval_config"]["protocol_note"] = (
+            "Multi-pass extraction (chunked windows and/or a second recall "
+            "sweep), NOT single-pass. Numbers reflect a higher inference budget "
+            "than the single-pass fine-tuned CUAD baselines and are not "
+            "apples-to-apples; report alongside the single-pass number and "
+            "disclose in the README."
+        )
+    args.out.write_text(json.dumps(summary_json, indent=2), encoding="utf-8")
     _LOG.info(
         "CUAD-Spans: macro_f1=%.4f micro_f1=%.4f P@R=0.8=%s (flag=%s); wrote %s",
         summary.macro_f1,

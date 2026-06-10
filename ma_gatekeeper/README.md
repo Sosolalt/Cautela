@@ -1,4 +1,4 @@
-# M&A Due Diligence Gatekeeper
+# Cautela — M&A Due Diligence
 
 An auditable AI agent for M&A contract review, built for the Google Cloud
 Rapid Agent Hackathon — Arize partner track. Submission deadline:
@@ -52,7 +52,7 @@ Reflector (separate Cloud Scheduler cron):
 5. Auto-growing regression dataset via MCP `add-dataset-examples`.
 6. Prompt versioning + experiment-gated promotion (paired bootstrap CI + frozen fold non-regression).
 7. Hook 7: scheduled batch `run_evals` collapsed into the Reflector nightly cron — equivalent batch coverage to Arize AX Online Eval Tasks (which are SaaS-only).
-8. Non-circular citation eval via an independently-sourced gold set (`citation-gold-v1`, curated from Cornell LII + the Atticus CUAD clause taxonomy, a different annotator and source set than the citation map); gold-vs-map agreement logged as dataset metadata.
+8. Citation eval against a **deliberately-divergent** gold set (`citation-gold-v1`): two SEPARATELY-reported numbers — the deterministic map's *coverage, by construction* (recall@1 + a contains-anywhere coverage number, whose gap is the honest single-best-answer `candidates[0]` story) and the LLM proposer's *graded* recall — plus their agreement, which is **not** accuracy and is **not** summed. The gold is LLM-counsel-curated (the same M&A-counsel persona as the map, **not** a second human annotator); its independence comes from off-map rows whose controlling authority sits outside the map's tag/jurisdiction universe, so the map can **miss for a real reason**. Run mode (`mock`/`live`) is stamped in the eval JSON; mock proposer numbers render with a literal "MOCK" tag. Audit trail: `data/CITATION_GOLD_SIGNOFF.md`.
 9. Per-call `citation_linker_agreement` span annotation written post-hoc from the fire-and-forget proposer — a genuine streaming-eval signal (not batch-collapsed).
 10. Deterministic regex comparator (`citation_exact_match`) surfaced as a Phoenix `create_classifier` rail for grader uniformity — NOT an LLM judge.
 
@@ -260,7 +260,62 @@ used for the headline number.
 > per-evaluator thresholds (τ_h, τ_f), 4-fold CV on Internal-30.
 
 <!-- BEGIN_RESULTS_TABLE -->
+| Track | Metric | Value | Notes |
+|---|---|---|---|
+| Internal-30 | Block recall (point estimate) | — | Pooled across 0 headline fold(s); frozen fold ? excluded. |
+| Internal-30 | Block recall (cluster bootstrap 95% LB, one-sided) | — | Load-bearing number per plan §0 + §5.4 v3 — published unmodified. Cluster bootstrap over contracts (1000 resamples) — findings within a contract are correlated, so contracts are the IID unit. |
+| Internal-30 | Block recall (Wilson 95% LB — exploratory, per-finding IID) | — | Exploratory cross-check only — assumes findings are IID Bernoulli trials, which they are not (findings within a contract are correlated). Over-tight as a cluster-corrected estimate; the cluster bootstrap row above is the headline. |
+| Internal-30 | Effective N (contracts) | — | Per plan §5.2 v3 — fold 5 (Reflector frozen set) excluded. |
+| Internal-30 | Deployed thresholds | — | Median across headline folds; written to router config. |
+| MAUD-MCQ | Exact-match accuracy (macro) | 99.8% | Per-category mean (plan §5.2). |
+| MAUD-MCQ | Exact-match accuracy (micro) | 99.7% | Pooled over all evaluated questions. |
+| MAUD-MCQ | Degenerate per-question AUPR (paper-comparable, see caveat) | 0.562 | degenerate (single confidence, not per-choice probs) |
+| MAUD-MCQ | N evaluated / N total | 300 / 624 | Skipped rows tallied in `n_skipped_with_reason`. |
+| CUAD-Spans | Token-F1 (project, macro, strict >0.5) | 0.380 | Plan §5.2 strict-Jaccard variant; CoC + Anti-Assignment only. |
+| CUAD-Spans | Token-F1 (paper-comparable, macro, ≥0.5 + punct-strip) | 0.413 | CUAD §3 paper variant (≥0.5 Jaccard, punctuation-stripped). |
+| CUAD-Spans | AUPR (overall) | 0.654 | CUAD paper primary metric (§3). |
+| CUAD-Spans | P@R=0.8 | — | **FALLBACK** — flag=`recall_0.8_unachieved` (max achieved recall = 0.374). Number shown is NOT the achieved precision at target recall. |
+| CUAD-Spans | P@R=0.9 | — | **FALLBACK** — flag=`recall_0.9_unachieved` (max achieved recall = 0.374). Number shown is NOT the achieved precision at target recall. |
+| Citation-Gold | Map coverage (by construction) | 100.0% (40/40) | coverage, by construction — primary-source-verified, not earned accuracy |
+| Citation-Gold | Map recall@1 (single best answer) | 70.0% (28/40) | single-best-answer (recall@1). 12 in-map row(s) where the gold authority IS in the map for the tag but is not the canonical first entry (e.g. § 271 asset-sale vs § 251 merger) — the candidates[0] gap, reported not hidden. 4 case-law row(s) matched via caption-only normalisation. |
+| Citation-Gold | LLM-proposer recall (graded) | 70.0% (Wilson 95% LB 0.571) | MOCK — deterministic stub, not the live model. Mirrors the map by construction, so this is a reproducibility stub — only `--live` yields a real proposer signal. |
+| Citation-Gold | Proposer-vs-map agreement | 100.0% | map = coverage (recall@1); proposer = accuracy; agreement ≠ accuracy — not summed |
+| Citation-Gold | Off-map rows correctly missed (de-circularization) | 5/5 | Rows whose controlling authority is outside the map's universe by construction; the map returns None or a different authority — proof the map can MISS for a real reason. |
+| Citation-Gold | Run mode | mock | `mock` = deterministic stub (zero quota); `live` = real Vertex proposer. The JSON always carries this field. |
+
+_Pre-commitment (plan §0 + §5.4 v3): the cluster-bootstrap 95% LB on Block recall is the load-bearing headline number and is published unmodified regardless of whether it clears 0.95. With ~6–10 Block findings per fold, the 95% CI for a proportion near 1.0 spans roughly ±0.10–0.15; the LB clearing 0.95 is **arithmetically tight, not a guarantee**. The Wilson row is retained as an exploratory per-finding-IID cross-check only._
 <!-- END_RESULTS_TABLE -->
+
+> **Internal-30 gold-set provenance (honest disclosure).** The Internal-30
+> gold labels were **pre-labeled by two independent automated annotation
+> cohorts** (Pass A recall-first, Pass B precision-first — each a fan-out of
+> seven per-clause-family specialist agents plus a reconciler) and reconciled
+> by a third adjudication cohort. The reported **Cohen's κ = 0.8783 measures
+> agreement between the two automated passes** (a reproducibility check), **not
+> human inter-annotator reliability**, and is expected to run high — two strong
+> models agree easily, so it is reported as procedural inoculation, not as
+> evidence of label quality. The gold labels were then **validated in depth by
+> two M&A practitioners — a practicing lawyer and an M&A analyst**, who are the
+> **annotators of record**. Label quality rests on that human validation pass
+> and on the public-benchmark results (MAUD / CUAD), which use independent
+> expert gold — never on κ.
+
+> **CUAD-Spans methodology (honest disclosure).** Scope: **2 of CUAD's 41
+> clause types** (Change-of-Control + Anti-Assignment); **n = 150
+> (contract, clause-type) pairs over 75 contracts**, evaluated on the **`test`
+> split only** (earlier numbers that pooled train+test were contaminated and
+> are not reported). The model is prompted with the **canonical CUAD-QA
+> question including its `Details:` clause definition** — the same input the
+> published baselines receive — so the comparison is faithful, not handicapped.
+> This is a **single-pass** zero-shot LLM over the full contract: we also built
+> and measured chunked-window + recall-sweep extraction, but on a same-sample
+> A/B it did **not** beat single-pass (it traded precision for recall), so
+> single-pass is the reported configuration. These numbers are **CUAD-derived,
+> our protocol** — a zero-shot generative model over whole contracts, not the
+> fine-tuned paragraph-span models of the CUAD paper — so they are not a
+> leaderboard-equivalent comparison. Where P@R=0.8/0.9 is unachievable
+> (max recall ≈ 0.37), we report the `recall_unachieved` flag, never a
+> substituted precision.
 
 **Expected CI width**: with ~6–10 Block findings per fold, the 95%
 Wilson CI for a proportion near 1.0 spans roughly ±0.10–0.15. The LB

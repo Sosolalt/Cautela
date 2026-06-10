@@ -182,9 +182,9 @@ def test_render_only_maud_present(tmp_path: Path) -> None:
 
 
 def test_render_none_present_renders_empty_banner() -> None:
-    table = M.render_table(internal30=None, maud=None, cuad=None)
-    # All three tracks visible as placeholders.
-    assert table.count("Not yet available") == 3
+    table = M.render_table(internal30=None, maud=None, cuad=None, citation=None)
+    # All four tracks visible as placeholders (Citation-Gold is the 4th).
+    assert table.count("Not yet available") == 4
     # Header preserved.
     assert table.startswith("| Track | Metric | Value | Notes |")
 
@@ -773,3 +773,103 @@ def test_legacy_wilson_key_still_consumed() -> None:
     assert len(wilson_rows) == 1
     # Value rendered from the legacy key, not em-dash.
     assert wilson_rows[0][2] == "0.612"
+
+
+# ---------------------------------------------------------------------------
+# Citation-Gold track (GROUNDTRUTH_PLAN T1.1)
+# ---------------------------------------------------------------------------
+
+
+def _citation_payload(run_mode: str = "mock", **over) -> dict:
+    payload = {
+        "run_mode": run_mode,
+        "n_total": 45,
+        "n_evaluated": 45,
+        "n_in_map": 40,
+        "n_off_map": 5,
+        "map_recall": 0.70,
+        "map_coverage": 1.0,
+        "n_in_map_hit": 24,
+        "n_form_mismatch": 4,
+        "n_in_map_recall_miss_covered": 12,
+        "n_in_map_true_miss": 0,
+        "n_off_map_correctly_missed": 5,
+        "n_off_map_false_hit": 0,
+        "proposer_recall": 0.70,
+        "proposer_recall_wilson_lb": 0.571,
+        "proposer_vs_map_agreement": 1.0,
+        "per_tag": {},
+    }
+    payload.update(over)
+    return payload
+
+
+def test_citation_track_placeholder_when_absent() -> None:
+    rows = M._build_citation_rows(None)
+    assert rows and rows[0][0] == "Citation-Gold"
+    assert "_Not yet available_" in rows[0][2]
+    assert "eval_citation_gold.py" in rows[0][3]
+
+
+def test_citation_coverage_row_carries_by_construction_caveat() -> None:
+    rows = M._build_citation_rows(_citation_payload())
+    cov = next(r for r in rows if "coverage" in r[1].lower())
+    assert "40/40" in cov[2]
+    assert "by construction" in cov[3]
+    assert "not earned accuracy" in cov[3]
+
+
+def test_citation_recall_row_surfaces_candidates0_gap() -> None:
+    rows = M._build_citation_rows(_citation_payload())
+    rec = next(r for r in rows if "recall@1" in r[1].lower())
+    assert "28/40" in rec[2]
+    # The candidates[0] gap count is surfaced, not hidden.
+    assert "12" in rec[3]
+    assert "candidates[0]" in rec[3]
+
+
+def test_citation_proposer_row_mock_label_under_mock() -> None:
+    rows = M._build_citation_rows(_citation_payload(run_mode="mock"))
+    prop = next(r for r in rows if "proposer recall" in r[1].lower())
+    assert "MOCK" in prop[3]
+    assert "not the live model" in prop[3]
+
+
+def test_citation_proposer_row_no_mock_label_under_live() -> None:
+    rows = M._build_citation_rows(_citation_payload(run_mode="live"))
+    prop = next(r for r in rows if "proposer recall" in r[1].lower())
+    assert "MOCK" not in prop[3]
+    assert "live model" in prop[3] or "live" in prop[3].lower()
+
+
+def test_citation_agreement_row_says_not_summed() -> None:
+    rows = M._build_citation_rows(_citation_payload())
+    agr = next(r for r in rows if "agreement" in r[1].lower())
+    assert "not summed" in agr[3]
+    assert "agreement ≠ accuracy" in agr[3]
+
+
+def test_citation_offmap_row_present() -> None:
+    rows = M._build_citation_rows(_citation_payload())
+    off = next(r for r in rows if "off-map" in r[1].lower())
+    assert off[2] == "5/5"
+    assert "MISS for a real reason" in off[3]
+
+
+def test_citation_run_mode_row_present() -> None:
+    rows = M._build_citation_rows(_citation_payload(run_mode="mock"))
+    rm = next(r for r in rows if r[1] == "Run mode")
+    assert rm[2] == "mock"
+
+
+def test_citation_track_threaded_through_render_and_load(tmp_path: Path) -> None:
+    cit = _write_json(tmp_path, "cit.json", _citation_payload())
+    loaded = M.load_track_jsons(
+        calibrate_path=None, maud_path=None, cuad_path=None, citation_path=cit,
+    )
+    assert loaded["citation"] is not None
+    table = M.render_table(**loaded)
+    # A row-builder alone renders nothing — confirm the track reaches the table.
+    assert "Citation-Gold" in table
+    assert "by construction" in table
+    assert "MOCK" in table

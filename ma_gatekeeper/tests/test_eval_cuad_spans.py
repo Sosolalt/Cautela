@@ -955,3 +955,288 @@ def test_parse_live_spans_strips_code_fence_and_tolerates_garbage():
     # Malformed JSON / non-list payloads yield [] rather than raising.
     assert M._parse_live_spans("not json at all", contract) == []
     assert M._parse_live_spans('{"text": "x"}', contract) == []
+
+
+# ---------------------------------------------------------------------------
+# Fix #3 — length-preserving Unicode fold + span-grounding recovery
+# ---------------------------------------------------------------------------
+def test_norm_for_match_is_length_preserving():
+    # NBSP, every curly-quote variant, every dash variant.
+    s = "Company’s “Control” — ‘a’ „b‟ ‒–―"
+    assert len(M._norm_for_match(s)) == len(s)
+
+
+def test_norm_for_match_folds_curly_to_ascii():
+    assert M._norm_for_match("don’t") == "don't"
+    assert M._norm_for_match("“x”") == '"x"'
+    assert M._norm_for_match("a–b—c‒d―e") == "a-b-c-d-e"
+    assert M._norm_for_match("x y") == "x y"
+
+
+def test_parse_live_spans_recovers_curly_apostrophe_span():
+    # Contract has a curly apostrophe; model returns the ASCII-cleaned variant.
+    contract = "Upon a Change of Control, the Company’s board shall consent."
+    raw = '[{"text": "Company\'s board", "confidence": 0.9}]'
+    spans = M._parse_live_spans(raw, contract)
+    assert len(spans) == 1
+    text, start, end, _conf = spans[0]
+    # Offsets exact against the ORIGINAL text; stored text is the curly original.
+    assert contract[start:end] == text
+    assert "’" in text
+    assert end - start == len("Company's board")
+
+
+def test_parse_live_spans_fast_path_unchanged_for_ascii():
+    contract = "The Anti-Assignment clause requires consent of the counterparty."
+    raw = '[{"text": "requires consent", "confidence": 0.8}]'
+    spans = M._parse_live_spans(raw, contract)
+    assert len(spans) == 1
+    text, start, end, _ = spans[0]
+    assert contract[start:end] == text == "requires consent"
+
+
+def test_parse_live_spans_still_drops_genuinely_absent():
+    # A span absent even after folding is dropped (no fabricated offset).
+    contract = "Nothing relevant here — only a dash."
+    raw = '[{"text": "a totally different phrase", "confidence": 0.9}]'
+    assert M._parse_live_spans(raw, contract) == []
+
+
+def test_parse_live_spans_uses_first_occurrence():
+    # When a span appears twice, grounding picks the FIRST occurrence and the
+    # stored offsets are exact (regression pin for the fold/fast-path choice).
+    contract = "consent required. Later: consent required again."
+    raw = '[{"text": "consent required", "confidence": 0.7}]'
+    spans = M._parse_live_spans(raw, contract)
+    assert len(spans) == 1
+    text, start, end, _ = spans[0]
+    assert start == 0 and contract[start:end] == text == "consent required"
+
+
+# ---------------------------------------------------------------------------
+# Fix #1 — dataset-derived clause-type definitions
+# ---------------------------------------------------------------------------
+def test_extract_definition_from_question_present_and_absent():
+    q = (
+        'Highlight the parts (if any) of this contract related to '
+        '"Anti-Assignment" that should be reviewed by a lawyer. '
+        "Details: Is consent or notice required of a party?"
+    )
+    assert (
+        M._extract_definition_from_question(q)
+        == "Is consent or notice required of a party?"
+    )
+    assert M._extract_definition_from_question("no marker here") == ""
+
+
+def test_committed_definitions_cover_default_clause_types():
+    defs = M._load_clause_definitions()
+    for ct in M.DEFAULT_CLAUSE_TYPES:
+        assert ct in defs and defs[ct].strip(), f"missing definition for {ct}"
+
+
+def test_make_live_agent_instruction_includes_definition(monkeypatch):
+    captured: dict[str, str] = {}
+
+    def fake_run_single_agent(instruction, user_text, **kwargs):
+        captured["instruction"] = instruction
+        return "[]"
+
+    # make_live_agent's closure does `from scripts._live_agent import
+    # run_single_agent` at call time, so patching the module attr suffices.
+    monkeypatch.setattr(
+        "scripts._live_agent.run_single_agent", fake_run_single_agent
+    )
+    agent = M.make_live_agent()
+    agent("some contract text", "change_of_control")
+    instr = captured["instruction"]
+    coc_def = M._load_clause_definitions()["change_of_control"]
+    assert coc_def[:40] in instr  # the verbatim CUAD Details text is injected
+    assert "Favor RECALL" in instr  # high-recall instruction present
+
+
+# ---------------------------------------------------------------------------
+# Fix #2 — chunking + dedup
+# ---------------------------------------------------------------------------
+def test_chunk_text_shorter_than_window_single_chunk():
+    assert M._chunk_text("hello world", window=100, overlap=10) == ["hello world"]
+
+
+def test_chunk_text_empty_returns_empty():
+    assert M._chunk_text("", window=10, overlap=3) == []
+
+
+def test_chunk_text_overlap_ge_window_raises():
+    with pytest.raises(ValueError):
+        M._chunk_text("x" * 50, window=10, overlap=10)
+    with pytest.raises(ValueError):
+        M._chunk_text("x" * 50, window=10, overlap=20)
+
+
+def test_chunk_text_last_chunk_reaches_end_once():
+    text = "".join(str(i % 10) for i in range(23))  # 23 chars
+    chunks = M._chunk_text(text, window=10, overlap=3)
+    # Last chunk ends at the final char, and is not a duplicate of the prior.
+    assert chunks[-1].endswith(text[-1])
+    assert chunks[-1] != chunks[-2]
+    # Every char index is covered by at least one window.
+    covered = set()
+    start = 0
+    for ch in chunks:
+        covered.update(range(start, start + len(ch)))
+        start += 10 - 3
+    assert covered == set(range(len(text)))
+
+
+def test_char_iou():
+    assert M._char_iou((0, 10), (0, 10)) == pytest.approx(1.0)
+    assert M._char_iou((0, 10), (5, 15)) == pytest.approx(5 / 15)
+    assert M._char_iou((0, 5), (10, 15)) == 0.0
+
+
+def test_dedup_overlap_keeps_max_confidence():
+    spans = [("x", 0, 5, 0.4), ("x", 0, 5, 0.9)]
+    out = M._dedup_spans(spans)
+    assert out == [("x", 0, 5, 0.9)]
+
+
+def test_dedup_distinct_spans_all_kept():
+    spans = [("a", 0, 5, 0.8), ("b", 10, 15, 0.7)]
+    out = M._dedup_spans(spans)
+    assert sorted(out) == sorted(spans)
+
+
+def test_make_live_agent_chunking_off_single_call(monkeypatch):
+    calls = []
+
+    def fake(instruction, user_text, **kwargs):
+        calls.append(user_text)
+        return "[]"
+
+    monkeypatch.setattr("scripts._live_agent.run_single_agent", fake)
+    M.make_live_agent()("a short contract", "change_of_control")
+    assert len(calls) == 1
+
+
+def test_make_live_agent_chunked_calls_per_chunk_and_dedups(monkeypatch):
+    contract = "alpha beta gamma " * 10  # 170 chars; "gamma" recurs verbatim
+    calls = []
+
+    def fake(instruction, user_text, **kwargs):
+        calls.append(user_text)
+        return '[{"text": "gamma", "confidence": 0.8}]'
+
+    monkeypatch.setattr("scripts._live_agent.run_single_agent", fake)
+    agent = M.make_live_agent(chunk_size=60, chunk_overlap=10)
+    spans = agent(contract, "change_of_control")
+    assert len(calls) >= 2  # multiple chunks -> multiple model calls
+    # Every chunk returned "gamma" -> all ground to the SAME first offset ->
+    # dedup collapses to a single span grounded against the FULL contract.
+    assert len(spans) == 1
+    text, start, end, _ = spans[0]
+    assert contract[start:end] == text == "gamma"
+
+
+def test_max_output_tokens_passed_on_live_path(monkeypatch):
+    captured = {}
+
+    def fake(instruction, user_text, **kwargs):
+        captured.update(kwargs)
+        return "[]"
+
+    monkeypatch.setattr("scripts._live_agent.run_single_agent", fake)
+    M.make_live_agent()("contract", "change_of_control")
+    assert captured.get("max_output_tokens") == M._LIVE_MAX_OUTPUT_TOKENS
+
+
+# ---------------------------------------------------------------------------
+# Fix #4 — recall sweep
+# ---------------------------------------------------------------------------
+def test_recall_sweep_off_single_call(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "scripts._live_agent.run_single_agent",
+        lambda i, u, **k: calls.append(1) or "[]",
+    )
+    M.make_live_agent(recall_sweep=False)("contract text", "change_of_control")
+    assert len(calls) == 1
+
+
+def test_recall_sweep_on_merges_and_ranks_below_pass1(monkeypatch):
+    contract = "alpha and beta appear in this contract text"
+    responses = iter(
+        [
+            '[{"text": "alpha", "confidence": 0.9}]',  # pass 1
+            '[{"text": "beta", "confidence": 0.9}]',  # sweep finds new span
+        ]
+    )
+    monkeypatch.setattr(
+        "scripts._live_agent.run_single_agent", lambda i, u, **k: next(responses)
+    )
+    spans = M.make_live_agent(recall_sweep=True)(contract, "change_of_control")
+    by_text = {s[0]: s[3] for s in spans}
+    assert set(by_text) == {"alpha", "beta"}
+    # Sweep span ranked strictly below the pass-1 span (P@R honesty).
+    assert by_text["beta"] < by_text["alpha"]
+
+
+def test_recall_sweep_never_ranks_above_pass1_at_zero_floor(monkeypatch):
+    # Honesty invariant: even when a pass-1 span has confidence 0.0, a sweep
+    # span must NOT rank above it (no P@R inflation).
+    contract = "alpha then later gamma appears here"
+    responses = iter(
+        [
+            '[{"text": "alpha", "confidence": 0.0}]',  # pass 1, zero-confidence
+            '[{"text": "gamma", "confidence": 0.9}]',  # sweep claims high conf
+        ]
+    )
+    monkeypatch.setattr(
+        "scripts._live_agent.run_single_agent", lambda i, u, **k: next(responses)
+    )
+    spans = M.make_live_agent(recall_sweep=True)(contract, "change_of_control")
+    by_text = {s[0]: s[3] for s in spans}
+    assert by_text["alpha"] == 0.0
+    assert by_text["gamma"] <= by_text["alpha"]  # never above the pass-1 floor
+
+
+def test_recall_sweep_reemitted_span_deduped_to_no_gain(monkeypatch):
+    contract = "alpha appears twice maybe alpha"
+    responses = iter(
+        [
+            '[{"text": "alpha", "confidence": 0.9}]',  # pass 1
+            '[{"text": "alpha", "confidence": 0.9}]',  # sweep re-emits (echo)
+        ]
+    )
+    monkeypatch.setattr(
+        "scripts._live_agent.run_single_agent", lambda i, u, **k: next(responses)
+    )
+    spans = M.make_live_agent(recall_sweep=True)(contract, "change_of_control")
+    assert len(spans) == 1 and spans[0][0] == "alpha"
+
+
+def test_eval_config_stamps_chunk_and_sweep_flags(tmp_path):
+    records = [
+        {
+            "contract_id": "c1",
+            "contract_text": "the contract text mentions consent",
+            "gold_spans": [
+                {
+                    "clause_type": "change_of_control",
+                    "text": "the contract",
+                    "char_start": 0,
+                    "char_end": 12,
+                }
+            ],
+        }
+    ]
+    p = _write_cuad_jsonl(tmp_path, records)
+    out = tmp_path / "out.json"
+    rc = M.main(
+        ["--dataset", str(p), "--out", str(out), "--chunk-size", "5000", "--recall-sweep"]
+    )
+    assert rc == 0
+    cfg = json.loads(out.read_text())["eval_config"]
+    assert cfg["chunk_size"] == 5000
+    assert cfg["recall_sweep"] is True
+    # protocol_note only when LIVE multi-pass; mock run must NOT claim it.
+    assert "protocol_note" not in cfg

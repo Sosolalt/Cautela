@@ -1,0 +1,7 @@
+{
+  "_provenance": "Verbatim Details: text from the theatticusproject/cuad-qa question field, extracted from data/cuad (train+test, identical per clause type). Regenerate with scripts/refresh_cuad_definitions.py. Do NOT hand-edit.",
+  "definitions": {
+    "change_of_control": "Does one party have the right to terminate or is consent or notice required of the counterparty if such party undergoes a change of control, such as a merger, stock sale, transfer of all or substantially all of its assets or business, or assignment by operation of law?",
+    "anti_assignment": "Is consent or notice required of a party if the contract is assigned to a third party?"
+  }
+}

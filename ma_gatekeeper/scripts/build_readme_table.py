@@ -1,9 +1,11 @@
 """README results-table generator (plan §5.2, §12; HANDOFF L308).
 
-Produces the canonical three-track results table — **Internal-30**,
-**MAUD-MCQ**, **CUAD-Spans** — from the JSON artifacts written by
-`scripts/calibrate.py`, `scripts/eval_maud_mcq.py`, and
-`scripts/eval_cuad_spans.py`.
+Produces the canonical four-track results table — **Internal-30**,
+**MAUD-MCQ**, **CUAD-Spans**, **Citation-Gold** — from the JSON artifacts
+written by `scripts/calibrate.py`, `scripts/eval_maud_mcq.py`,
+`scripts/eval_cuad_spans.py`, and `scripts/eval_citation_gold.py`
+(GROUNDTRUTH_PLAN T1.1; the citation track fills end-to-end with zero live
+infra under the deterministic MOCK proposer).
 
 Design commitments (per plan §5.2 + PROJECT_LOG L89–96):
   * Each track is reported with its OWN metric. MCQ accuracy and CUAD
@@ -81,8 +83,9 @@ def load_track_jsons(
     calibrate_path: Path | None,
     maud_path: Path | None,
     cuad_path: Path | None,
+    citation_path: Path | None = None,
 ) -> dict[str, dict[str, Any] | None]:
-    """Load the three optional JSON inputs.
+    """Load the four optional JSON inputs.
 
     A `None` value in the returned dict means "track not yet available"
     and will render as a placeholder row. Malformed JSON or a missing
@@ -93,6 +96,7 @@ def load_track_jsons(
         "internal30": None,
         "maud": None,
         "cuad": None,
+        "citation": None,
     }
     if calibrate_path is not None:
         out["internal30"] = _load_one(calibrate_path, "calibrate")
@@ -100,6 +104,8 @@ def load_track_jsons(
         out["maud"] = _load_one(maud_path, "maud")
     if cuad_path is not None:
         out["cuad"] = _load_one(cuad_path, "cuad")
+    if citation_path is not None:
+        out["citation"] = _load_one(citation_path, "citation")
     return out
 
 
@@ -368,6 +374,102 @@ def _build_cuad_rows(data: dict[str, Any] | None) -> list[Row]:
     return rows
 
 
+# Guardrail caveats rendered VERBATIM in the citation track (GROUNDTRUTH_PLAN
+# T1.1). These strings are load-bearing honesty copy — a reader must never read
+# the map number as "earned accuracy" nor a mock proposer number as a real
+# model signal. Tests assert their presence.
+CITATION_MAP_COVERAGE_NOTE = (
+    "coverage, by construction — primary-source-verified, not earned accuracy"
+)
+CITATION_MOCK_NOTE = "MOCK — deterministic stub, not the live model"
+CITATION_NOT_SUMMED_NOTE = (
+    "map = coverage (recall@1); proposer = accuracy; agreement ≠ accuracy "
+    "— not summed"
+)
+
+
+def _build_citation_rows(data: dict[str, Any] | None) -> list[Row]:
+    """Citation-gold track (GROUNDTRUTH_PLAN T1.1) — mirror of `_build_maud_rows`.
+
+    Renders TWO honest map numbers (coverage-by-construction + recall@1, with
+    the gap surfaced as the candidates[0] story), the proposer recall (tagged
+    MOCK when `run_mode == "mock"`), the proposer-vs-map agreement (explicitly
+    NOT accuracy and NOT summed), and the de-circularization off-map line.
+    """
+    track = "Citation-Gold"
+    if data is None:
+        return [(track, "Map coverage + proposer recall", _NOT_AVAILABLE,
+                 "Run `scripts/eval_citation_gold.py` to populate.")]
+
+    run_mode = str(data.get("run_mode", "?"))
+    n_in_map = data.get("n_in_map")
+    n_hit = data.get("n_in_map_hit") or 0
+    n_form = data.get("n_form_mismatch") or 0
+    recall_hits = n_hit + n_form
+
+    rows: list[Row] = []
+
+    # 1) Coverage, by construction — the headline map number.
+    cov_val = _fmt_pct1(data.get("map_coverage"))
+    if n_in_map is not None:
+        cov_val = f"{cov_val} ({n_in_map}/{n_in_map})"
+    rows.append((track, "Map coverage (by construction)", cov_val,
+                 CITATION_MAP_COVERAGE_NOTE))
+
+    # 2) Recall@1 — the single-best-answer number + the candidates[0] gap.
+    rec_val = _fmt_pct1(data.get("map_recall"))
+    if n_in_map:
+        rec_val = f"{rec_val} ({recall_hits}/{n_in_map})"
+    gap = data.get("n_in_map_recall_miss_covered")
+    gap_note = (
+        f"single-best-answer (recall@1). {gap} in-map row(s) where the gold "
+        "authority IS in the map for the tag but is not the canonical first "
+        "entry (e.g. § 271 asset-sale vs § 251 merger) — the "
+        f"candidates[0] gap, reported not hidden. {n_form} case-law row(s) "
+        "matched via caption-only normalisation."
+    )
+    rows.append((track, "Map recall@1 (single best answer)", rec_val, gap_note))
+
+    # 3) Proposer recall — MOCK-labelled under run_mode == "mock".
+    prop_val = _fmt_pct1(data.get("proposer_recall"))
+    lb = data.get("proposer_recall_wilson_lb")
+    if lb is not None:
+        prop_val = f"{prop_val} (Wilson 95% LB {_fmt3(lb)})"
+    if run_mode == "mock":
+        prop_note = (
+            f"{CITATION_MOCK_NOTE}. Mirrors the map by construction, so this is "
+            "a reproducibility stub — only `--live` yields a real proposer "
+            "signal."
+        )
+    else:
+        prop_note = "Graded against the gold (live model); accuracy, not coverage."
+    rows.append((track, "LLM-proposer recall (graded)", prop_val, prop_note))
+
+    # 4) Agreement — explicitly NOT accuracy, NOT summed.
+    agr_val = _fmt_pct1(data.get("proposer_vs_map_agreement"))
+    rows.append((track, "Proposer-vs-map agreement", agr_val,
+                 CITATION_NOT_SUMMED_NOTE))
+
+    # 5) De-circularization off-map line — never hidden.
+    n_off = data.get("n_off_map")
+    n_off_ok = data.get("n_off_map_correctly_missed")
+    if n_off:
+        rows.append((
+            track,
+            "Off-map rows correctly missed (de-circularization)",
+            f"{n_off_ok}/{n_off}",
+            "Rows whose controlling authority is outside the map's universe by "
+            "construction; the map returns None or a different authority — "
+            "proof the map can MISS for a real reason.",
+        ))
+
+    # 6) Run-mode honesty stamp.
+    rows.append((track, "Run mode", run_mode,
+                 "`mock` = deterministic stub (zero quota); `live` = real Vertex "
+                 "proposer. The JSON always carries this field."))
+    return rows
+
+
 # The previous Round-1 implementation defined a `_P_AT_R_OK_FLAGS` set
 # (with values "ACHIEVED" / "ok") which never appears anywhere in
 # scripts/eval_cuad_spans.py. The REAL contract (eval_cuad_spans.py
@@ -446,6 +548,7 @@ def render_table(
     internal30: dict[str, Any] | None,
     maud: dict[str, Any] | None,
     cuad: dict[str, Any] | None,
+    citation: dict[str, Any] | None = None,
 ) -> str:
     """Render the four-column Markdown results table.
 
@@ -457,6 +560,7 @@ def render_table(
     rows.extend(_build_internal30_rows(internal30))
     rows.extend(_build_maud_rows(maud))
     rows.extend(_build_cuad_rows(cuad))
+    rows.extend(_build_citation_rows(citation))
 
     lines: list[str] = []
     lines.append("| Track | Metric | Value | Notes |")
@@ -574,6 +678,8 @@ def _build_argparser() -> argparse.ArgumentParser:
                    help="Path to scripts/eval_maud_mcq.py JSON output.")
     p.add_argument("--cuad", type=Path, default=None,
                    help="Path to scripts/eval_cuad_spans.py JSON output.")
+    p.add_argument("--citation", type=Path, default=None,
+                   help="Path to scripts/eval_citation_gold.py JSON output.")
     p.add_argument("--out", type=Path, default=None,
                    help="Write rendered Markdown to this path (default: stdout).")
     p.add_argument(
@@ -596,11 +702,13 @@ def main(argv: Iterable[str] | None = None) -> int:
             calibrate_path=args.calibrate,
             maud_path=args.maud,
             cuad_path=args.cuad,
+            citation_path=args.citation,
         )
         table_md = render_table(
             internal30=loaded["internal30"],
             maud=loaded["maud"],
             cuad=loaded["cuad"],
+            citation=loaded["citation"],
         )
         if args.update_readme is not None:
             # `splice_into_readme` now returns bytes so the native line-

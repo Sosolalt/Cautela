@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from pathlib import Path
 
 _LOG = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ def download_cuad(out: Path) -> None:
     """
     from datasets import load_dataset  # type: ignore
     out.mkdir(parents=True, exist_ok=True)
-    ds = load_dataset("theatticusproject/cuad-qa")
+    ds = load_dataset("theatticusproject/cuad-qa", trust_remote_code=True)
     ds.save_to_disk(str(out))
     _LOG.info("CUAD saved to %s", out)
 
@@ -38,7 +39,7 @@ def download_maud(out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     try:
         from datasets import load_dataset  # type: ignore
-        ds = load_dataset("theatticusproject/maud")
+        ds = load_dataset("theatticusproject/maud", trust_remote_code=True)
         ds.save_to_disk(str(out))
         _LOG.info("MAUD saved to %s via HuggingFace", out)
         return
@@ -58,8 +59,12 @@ def sample_edgar(out: Path, *, n: int = 10) -> None:
     *demo* deals are a separate curated set (allow-list in server.py).
     """
     from edgar import set_identity, get_filings  # type: ignore
-    set_identity("hugo.majerczyk@proton.me")  # SEC requires a contact email
-    filings = get_filings(form="8-K", date="2025-06-01:2026-04-30")
+    # SEC requires a real contact email in the User-Agent. Read it from
+    # SEC_EDGAR_USER_AGENT (same env var the server + verify_allow_list use)
+    # so it's configurable without editing code.
+    identity = os.environ.get("SEC_EDGAR_USER_AGENT", "hugo.majerczyk@proton.me")
+    set_identity(identity)
+    filings = get_filings(form="8-K", filing_date="2025-06-01:2026-04-30")
     out.mkdir(parents=True, exist_ok=True)
     saved = 0
     for f in filings:
