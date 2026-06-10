@@ -11,9 +11,9 @@ Pattern parity (mirrors `scripts/eval_maud_mcq.py:make_live_agent` and
   - `make_mock_portfolio()` returns the canonical
     `tests/fixtures/portfolio_expected_output.json` deterministically —
     CI-safe, no LLM call, no Vertex quota burn.
-  - `make_live_portfolio(contracts)` raises `NotImplementedError` until
-    the operator wires the ADK Runner against the Files-API path. The
-    docstring on the raise names the exact wiring steps.
+  - `make_live_portfolio(contracts)` runs the real ADK Runner against
+    Vertex (opt-in via `PORTFOLIO_LIVE=1` in `server.py`). The docstring
+    on it names the inline-excerpt vs Files-API wiring steps.
 
 Why NOT in the SequentialAgent at agents.py:114-117:
   - The Portfolio Analyst is a SEPARATE capability, run on demand from
@@ -25,6 +25,7 @@ Why NOT in the SequentialAgent at agents.py:114-117:
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Protocol
 
@@ -45,6 +46,11 @@ _DEFAULT_SAMPLE_PATH = (
     / "portfolio_sample.json"
 )
 
+# Env override wins; fallback is the Vertex `global`-endpoint model this
+# project is allow-listed for (regional locations 404 it). Mirrors
+# agents.py:GEMINI_MODEL.
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview")
+
 
 class ContractInput(Protocol):
     """One contract row sent to the Portfolio Analyst.
@@ -64,7 +70,7 @@ class ContractInput(Protocol):
 def build_portfolio_analyst():
     """Build the standalone Portfolio Analyst LlmAgent.
 
-    Single LlmAgent on `gemini-3-pro-preview` with
+    Single LlmAgent on `$GEMINI_MODEL` (default gemini-3.1-pro-preview) with
     `PORTFOLIO_ANALYST_PROMPT`. NOT registered in the SequentialAgent
     root (see module docstring) — this factory is consumed only by the
     `/portfolio` endpoint live path.
@@ -73,7 +79,7 @@ def build_portfolio_analyst():
 
     return LlmAgent(
         name="portfolio_analyst",
-        model="gemini-3-pro-preview",
+        model=GEMINI_MODEL,
         instruction=PORTFOLIO_ANALYST_PROMPT,
         output_key="portfolio_report",
     )

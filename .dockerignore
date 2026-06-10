@@ -1,0 +1,31 @@
+# Build context for the Cautela frontend image (ma_gatekeeper/frontend/Dockerfile)
+# is the MONOREPO ROOT, because the frontend's tailwind.config.ts imports
+# `../../design/tokens` (= <root>/design/tokens.ts), a sibling of ma_gatekeeper/.
+# The repo is multi-GB (datasets, .venv, python), so this file uses an
+# allowlist: ignore everything, then re-include only the two subtrees the image
+# needs — ma_gatekeeper/frontend/ (sans node_modules/.next) and design/.
+
+# 1) Ignore the entire context by default.
+*
+
+# 2) Re-include the frontend app.
+!ma_gatekeeper
+ma_gatekeeper/*
+!ma_gatekeeper/frontend
+ma_gatekeeper/frontend/node_modules
+ma_gatekeeper/frontend/.next
+ma_gatekeeper/frontend/.env
+ma_gatekeeper/frontend/.env.*
+!ma_gatekeeper/frontend/.env.example
+
+# 3) Re-include the design token source the frontend imports at build time.
+#    (design/ is large — 16MB of assets — but tailwind only needs tokens.ts.
+#    We re-include the whole dir for simplicity; trim here if context size bites.)
+!design
+
+# 4) Never ship VCS / secrets / OS cruft even if re-included above.
+**/.git
+**/.env
+**/.env.local
+**/.DS_Store
+**/*.log

@@ -20,6 +20,7 @@ Reference: https://arize.com/docs/phoenix/prompt-engineering/quickstart-prompts/
 from __future__ import annotations
 
 import logging
+import os
 
 from .prompts import (
     CLASSIFIER_PROMPT,
@@ -33,6 +34,12 @@ from .prompts import (
 from .schemas import CLASSIFIER_TAGS  # noqa: F401  re-export for callers
 
 _LOG = logging.getLogger(__name__)
+
+# Resolved once at import. Env override (set by .venv/bin/activate and the
+# Cloud Run deploy) wins; the fallback is the Vertex `global`-endpoint model
+# this project is allow-listed for. NOTE: gemini-3.1-pro-preview is served
+# ONLY from GOOGLE_CLOUD_LOCATION=global — a regional location 404s.
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview")
 
 
 def _load_prompt(name: str, fallback: str, tag: str = "production") -> str:
@@ -67,7 +74,7 @@ def build_root_agent():
 
     parser = LlmAgent(
         name="parser",
-        model="gemini-3-pro-preview",
+        model=GEMINI_MODEL,
         instruction=_load_prompt("parser", PARSER_PROMPT),
         output_key="clauses",
     )
@@ -100,14 +107,23 @@ def build_root_agent():
 
     cross_reference = LlmAgent(
         name="cross_reference",
-        model="gemini-3-pro-preview",
+        model=GEMINI_MODEL,
         instruction=_load_prompt("cross_reference", CROSS_REFERENCE_PROMPT),
         output_key="findings",
     )
+    # GROUNDTRUTH_PLAN T1.2 (governing-law linkage): the server already consumes
+    # a per-contract governing-law hint defensively from this agent's event
+    # (`server._governing_law_hint_from_event`), tolerating both the current
+    # bare findings-list output AND a future `{governing_law, findings}` envelope.
+    # Emitting that envelope on camera is the OPERATOR-GATED live "money moment"
+    # (it needs a hard-selected DE/NY deal + a live Phoenix `disagree` span) — it
+    # is deliberately NOT forced into this production prompt, so the deterministic
+    # jurisdiction-hint + fail-closed + severity-gate code can ship and be
+    # unit-tested without coupling to a live recording.
 
     risk_judge = LlmAgent(
         name="risk_judge",
-        model="gemini-3-pro-preview",
+        model=GEMINI_MODEL,
         instruction=_load_prompt("risk_judge", RISK_JUDGE_PROMPT),
         output_key="judged_findings",
     )
@@ -121,7 +137,7 @@ def build_root_agent():
 def build_portfolio_analyst():
     """Fix 7 — standalone 1M-context Portfolio Analyst LlmAgent.
 
-    Single `LlmAgent` on `gemini-3-pro-preview` with
+    Single `LlmAgent` on `$GEMINI_MODEL` (default gemini-3.1-pro-preview) with
     `PORTFOLIO_ANALYST_PROMPT`. Deliberately NOT added to the
     SequentialAgent above — the Portfolio Analyst runs as a separate
     `/portfolio` endpoint (`server.py`), one inference call per
@@ -135,7 +151,7 @@ def build_portfolio_analyst():
 
     return LlmAgent(
         name="portfolio_analyst",
-        model="gemini-3-pro-preview",
+        model=GEMINI_MODEL,
         instruction=_load_prompt("portfolio_analyst", PORTFOLIO_ANALYST_PROMPT),
         output_key="portfolio_report",
     )

@@ -1,0 +1,44 @@
+# .gcloudignore for `gcloud run deploy ma-gatekeeper --source .`
+#
+# The backend image (Dockerfile) only copies: requirements.txt, agent/,
+# scripts/, thresholds.json*. The ma_gatekeeper/ dir is ~3.2GB, so without
+# this file gcloud would upload .venv (1.1G), data/ (1.7G) and frontend/
+# (502M) as build context for no reason. Exclude the heavy dirs the image
+# never uses. NOTE: presence of this file means gcloud uses it INSTEAD of
+# auto-deriving one from .gitignore.
+
+# VCS + python caches
+.git/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local virtualenv — never part of the image (deps install from requirements.txt)
+.venv/
+venv/
+
+# Datasets — ~1.7GB, not needed by the image. Exclude data/ CONTENTS but keep
+# the dir traversable so we can re-include the one runtime file below.
+# (`data/` would block re-inclusion; `data/*` excludes contents yet allows it.)
+data/*
+# ...except the 8.8K citation map, which agent/citation_linker.py reads at
+# runtime and the Dockerfile COPYs into the image.
+!data/citation_map.json
+
+# The frontend is a SEPARATE Cloud Run service (cautela-frontend), not this image.
+frontend/
+
+# Phoenix local store, tooling, agent scratch
+.phoenix/
+.claude/
+
+# Secrets / env (never upload)
+.env
+.env.*
+!.env.example
+
+# OS / logs
+.DS_Store
+*.log

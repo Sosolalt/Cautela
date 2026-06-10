@@ -32,7 +32,7 @@ numpy>=1.25.0
 # scripts/calibrate.py (one-sided Wilson + cluster bootstrap helpers).
 scikit-learn>=1.3.0
 pydantic>=2.5.0
-datasets>=2.14.0
+datasets>=2.16,<4.0  # datasets>=4 removed script-dataset support; CUAD/MAUD are script datasets needing trust_remote_code=True (only on <4)
 huggingface-hub>=0.20.0
 
 # PDF parsing (fallback path). The agent feeds artifacts to Gemini via

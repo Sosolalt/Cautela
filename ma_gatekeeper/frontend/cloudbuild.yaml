@@ -1,0 +1,101 @@
+# Cloud Build pipeline for the Cautela Next.js 14 frontend → Cloud Run.
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# Two constraints force a cloudbuild.yaml instead of a bare
+# `gcloud run deploy --source .`:
+#
+#   1. NEXT_PUBLIC_* must be Docker BUILD ARGs (Next inlines them into the
+#      browser bundle at build time). `gcloud run deploy --source` only exposes
+#      `--set-build-env-vars`, which feeds BUILDPACKS, not Dockerfile ARGs, so
+#      it cannot set our build-args. `gcloud builds submit` has no `--build-arg`
+#      flag either — the documented path is a cloudbuild.yaml that runs
+#      `docker build --build-arg ...`, with values supplied as user-defined
+#      substitutions (`_VAR`).  (refs: Cloud Run build-env-vars docs;
+#      simonw/til cloudrun/using-build-args-with-cloud-run)
+#
+#   2. The build context must be the MONOREPO ROOT, because the frontend's
+#      tailwind.config.ts imports `../../design/tokens` (= <root>/design/
+#      tokens.ts, a sibling of ma_gatekeeper/). A frontend-only context can't
+#      see design/ and `next build` fails. So this build runs from the repo
+#      root with `-f ma_gatekeeper/frontend/Dockerfile`.
+#
+# HOW TO RUN  (from the MONOREPO ROOT, not the frontend dir):
+#   gcloud builds submit \
+#     --config=ma_gatekeeper/frontend/cloudbuild.yaml \
+#     --substitutions=\
+# _NEXT_PUBLIC_API_BASE=https://cautela-api-xxxx.us-central1.run.app,\
+# _NEXT_PUBLIC_DEMO_PASSCODE=<passcode>,\
+# _NEXT_PUBLIC_PHOENIX_URL=https://<phoenix-host>,\
+# _NEXT_PUBLIC_PHOENIX_PROJECT=<project>,\
+# _NEXT_PUBLIC_PHOENIX_TRACE_URL=https://<phoenix-host>/projects/<id> \
+#     .
+#
+# The build pushes the image AND deploys it to Cloud Run in the final step.
+
+substitutions:
+  _SERVICE: cautela-frontend
+  _REGION: us-central1
+  _REPO: cautela            # Artifact Registry repo (docker format) in _REGION
+  _TAG: latest              # image tag. SHORT_SHA is empty for local `builds submit`
+                            # (no commit context), so default to a fixed tag.
+  # NEXT_PUBLIC_* build-time values. Override every deploy via --substitutions.
+  # Empty defaults are safe placeholders; _NEXT_PUBLIC_API_BASE should always be
+  # overridden with the real backend URL or the SPA will call localhost.
+  _NEXT_PUBLIC_API_BASE: "http://localhost:8080"
+  _NEXT_PUBLIC_DEMO_PASSCODE: ""
+  _NEXT_PUBLIC_PHOENIX_URL: ""
+  _NEXT_PUBLIC_PHOENIX_PROJECT: ""
+  _NEXT_PUBLIC_PHOENIX_TRACE_URL: ""
+
+# Image lives in Artifact Registry: <region>-docker.pkg.dev/<proj>/<repo>/<svc>
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${_TAG}"
+
+steps:
+  # 1) Build the image from the repo-root context with the frontend Dockerfile,
+  #    promoting the NEXT_PUBLIC_* substitutions to Docker build-args.
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - ma_gatekeeper/frontend/Dockerfile
+      - -t
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${_TAG}"
+      - --build-arg
+      - "NEXT_PUBLIC_API_BASE=${_NEXT_PUBLIC_API_BASE}"
+      - --build-arg
+      - "NEXT_PUBLIC_DEMO_PASSCODE=${_NEXT_PUBLIC_DEMO_PASSCODE}"
+      - --build-arg
+      - "NEXT_PUBLIC_PHOENIX_URL=${_NEXT_PUBLIC_PHOENIX_URL}"
+      - --build-arg
+      - "NEXT_PUBLIC_PHOENIX_PROJECT=${_NEXT_PUBLIC_PHOENIX_PROJECT}"
+      - --build-arg
+      - "NEXT_PUBLIC_PHOENIX_TRACE_URL=${_NEXT_PUBLIC_PHOENIX_TRACE_URL}"
+      - .
+
+  # 2) Push (also covered by `images:` but explicit for ordering before deploy).
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${_TAG}"
+
+  # 3) Deploy the freshly-built image to Cloud Run.
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - "${_SERVICE}"
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${_TAG}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --min-instances=1
+      - --port=8080
+
+options:
+  logging: CLOUD_LOGGING_ONLY
