@@ -410,8 +410,8 @@ def _git_sha_short() -> str:
 def _footer_template(source: str) -> str:
     """Compose the single mono-attribution footer line (spec §8.3).
 
-    The line cites `reflector.py:463 paired_bootstrap_ci_lb`,
-    `:505 epsilon_fold5`, `:510 should_promote`, then a commit SHA,
+    The line cites `reflector.py:465 paired_bootstrap_ci_lb`,
+    `:507 epsilon_fold5`, `:512 should_promote`, then a commit SHA,
     input source, and the live kwarg defaults of the imported reflector
     functions. Single mid-dot separator with single spaces (the spec
     §8.3 example uses a double-space-mid-dot-double-space; at 2560×1440
@@ -426,9 +426,9 @@ def _footer_template(source: str) -> str:
     floor = _kwarg_default(epsilon_fold5, "floor")
     sha = _git_sha_short()
     return (
-        "reflector.py:463 paired_bootstrap_ci_lb | "
-        ":505 epsilon_fold5 | "
-        ":510 should_promote · "
+        "reflector.py:465 paired_bootstrap_ci_lb | "
+        ":507 epsilon_fold5 | "
+        ":512 should_promote · "
         f"commit {sha} · "
         f"input {source} · "
         f"n_resamples={n_resamples}, alpha={alpha}, floor={floor}"
