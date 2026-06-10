@@ -1,0 +1,176 @@
+{
+  "passA": {
+    "n_spans": 512,
+    "per_contract": {
+      "msft_activision": {
+        "grounded": 41,
+        "dropped": 0
+      },
+      "pfizer_seagen": {
+        "grounded": 35,
+        "dropped": 4
+      },
+      "cisco_splunk": {
+        "grounded": 44,
+        "dropped": 0
+      },
+      "exxon_pioneer": {
+        "grounded": 41,
+        "dropped": 0
+      },
+      "hpe_juniper": {
+        "grounded": 35,
+        "dropped": 2
+      },
+      "albertsons_kroger": {
+        "grounded": 35,
+        "dropped": 1
+      },
+      "synopsys_ansys": {
+        "grounded": 40,
+        "dropped": 3
+      },
+      "paramount_skydance": {
+        "grounded": 51,
+        "dropped": 0
+      },
+      "capitalone_discover": {
+        "grounded": 30,
+        "dropped": 1
+      },
+      "mars_kellanova": {
+        "grounded": 37,
+        "dropped": 1
+      },
+      "tapestry_capri": {
+        "grounded": 33,
+        "dropped": 3
+      },
+      "jetblue_spirit": {
+        "grounded": 34,
+        "dropped": 0
+      },
+      "adobe_figma": {
+        "grounded": 33,
+        "dropped": 0
+      },
+      "chevron_hess": {
+        "grounded": 23,
+        "dropped": 5
+      }
+    },
+    "total_dropped": 20,
+    "drop_examples": {
+      "pfizer_seagen": [
+        "Except as provided in this Section 5.2, from the date of thi",
+        "“Company Material Adverse Effect” means any effect, change, ",
+        "For purposes of this Agreement, a “Superior Proposal” is a w"
+      ],
+      "hpe_juniper": [
+        "For purposes of\nclause (i) of the immediately preceding sent",
+        "if the Company receives a bona fide Acquisition Proposal on "
+      ],
+      "albertsons_kroger": [
+        "“Company Material Adverse Effect” means any Effect that, ind"
+      ],
+      "synopsys_ansys": [
+        "During the Pre-Closing Period, the Company shall not, and sh",
+        "If the Company, any other\nAcquired Company or any Representa",
+        "the Company’s\nboard of directors may withdraw or modify the "
+      ],
+      "capitalone_discover": [
+        "As used in this Agreement, the term “Material Adverse Effect"
+      ],
+      "mars_kellanova": [
+        "If (i) (A) Acquiror or the Company terminates this Agreement"
+      ],
+      "tapestry_capri": [
+        "Neither the execution and\ndelivery of this Agreement nor the",
+        "From and after the date hereof until the earlier of the Clos",
+        "Notwithstanding anything in this Section 5.2 to the contrary"
+      ],
+      "chevron_hess": [
+        "the Company will not amend the material terms (including the",
+        "the Company will not, and will not permit any Subsidiary of ",
+        "by the Company, at any time prior to receipt of the Company "
+      ]
+    }
+  },
+  "passB": {
+    "n_spans": 154,
+    "per_contract": {
+      "msft_activision": {
+        "grounded": 21,
+        "dropped": 0
+      },
+      "pfizer_seagen": {
+        "grounded": 12,
+        "dropped": 2
+      },
+      "cisco_splunk": {
+        "grounded": 20,
+        "dropped": 0
+      },
+      "exxon_pioneer": {
+        "grounded": 18,
+        "dropped": 0
+      },
+      "hpe_juniper": {
+        "grounded": 12,
+        "dropped": 1
+      },
+      "albertsons_kroger": {
+        "grounded": 16,
+        "dropped": 1
+      },
+      "synopsys_ansys": {
+        "grounded": 20,
+        "dropped": 0
+      },
+      "paramount_skydance": {
+        "grounded": 19,
+        "dropped": 0
+      },
+      "capitalone_discover": {
+        "grounded": 8,
+        "dropped": 1
+      },
+      "mars_kellanova": {
+        "grounded": 8,
+        "dropped": 0
+      },
+      "tapestry_capri": {
+        "grounded": 0,
+        "dropped": 0
+      },
+      "jetblue_spirit": {
+        "grounded": 0,
+        "dropped": 0
+      },
+      "adobe_figma": {
+        "grounded": 0,
+        "dropped": 0
+      },
+      "chevron_hess": {
+        "grounded": 0,
+        "dropped": 0
+      }
+    },
+    "total_dropped": 5,
+    "drop_examples": {
+      "pfizer_seagen": [
+        "“Company Material Adverse Effect” means any effect, change, ",
+        "Except as provided in this Section 5.2, from the date of thi"
+      ],
+      "hpe_juniper": [
+        "Except as provided by this Agreement, neither the execution "
+      ],
+      "albertsons_kroger": [
+        "Material Adverse Effect” means any Effect that, individually"
+      ],
+      "capitalone_discover": [
+        "As used in this Agreement, the term “Material Adverse Effect"
+      ]
+    }
+  }
+}

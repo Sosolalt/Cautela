@@ -1,0 +1,9 @@
+{
+ "contracts": [
+  {
+   "contract_id": "msft_activision",
+   "cards_path": "data/internal30/adj_cards/msft_activision.json",
+   "n_items": 34
+  }
+ ]
+}

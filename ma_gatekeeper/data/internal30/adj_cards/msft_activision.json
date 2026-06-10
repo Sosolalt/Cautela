@@ -1,0 +1,447 @@
+{
+ "contract_id": "msft_activision",
+ "items": [
+  {
+   "item_id": "msft_activision#0013",
+   "bucket": "solo_a",
+   "context": "I DEFINITIONS & INTERPRETATIONS 1.1 Certain Definitions. For all purposes of and pursuant to this Agreement, the following capitalized terms have the following respective meanings: (a) “Acceptable Confidentiality Agreement” means a customary confidentiality agreement containing provisions that require any counterparty thereto (and any of its Affiliates and representatives named therein) that receives non-public information of or with respect to the Company to keep such information confidential (it being understood that such agreement need not contain provisions that would prohibit the making of any Acquisition Proposal) and with other terms that are no less restrictive in the aggregate to s…",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "info",
+    "confidence": 0.8,
+    "text": "“Acceptable Confidentiality Agreement” means a customary confidentiality agreement containing provisions that require any counterparty thereto (and any of its Affiliates and representatives named therein) that receives non-public information of or with respect to the Company to keep such informatio…",
+    "explanation": "Defines the gating instrument for the window-shop exception and bars \"don't-ask-don't-waive\" effect (no-prohibit-Acquisition-Proposal carve-out); definitional support for the exclusivity fiduciary out."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0014",
+   "bucket": "solo_a",
+   "context": "ith other terms that are no less restrictive in the aggregate to such counterparty (and any of its Affiliates and representatives named therein) than the terms of the Confidentiality Agreement. (b) “Acquisition Proposal” means any offer or proposal (other than an offer or proposal by Parent or Merger Sub) relating to an Acquisition Transaction. (c) “Acquisition Transaction” means any transaction or series of related transactions (other than the Merger) involving: (i) any direct or indirect purchase or other acquisition by any",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "info",
+    "confidence": 0.9,
+    "text": "“Acquisition Proposal” means any offer or proposal (other than an offer or proposal by Parent or Merger Sub) relating to an Acquisition Transaction.",
+    "explanation": "Defined-term scope for the no-shop's central trigger (\"Acquisition Proposal\"); definitions-only, immaterial standing alone but anchors the exclusivity covenant."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0015",
+   "bucket": "solo_a",
+   "context": "erms of the Confidentiality Agreement. (b) “Acquisition Proposal” means any offer or proposal (other than an offer or proposal by Parent or Merger Sub) relating to an Acquisition Transaction. (c) “Acquisition Transaction” means any transaction or series of related transactions (other than the Merger) involving: (i) any direct or indirect purchase or other acquisition by any Person or “group” (as defined pursuant to Section 13(d) of the Exchange Act) of Persons, whether from the Company or any ot",
+   "pass_a": {
+    "tag": "change_of_control",
+    "severity": "block",
+    "confidence": 0.72,
+    "text": "“Acquisition Transaction” means any transaction or series of related transactions (other than the Merger) involving:",
+    "explanation": "This is the contract's functional change-of-control trigger definition — it captures direct/indirect acquisitions of control of the Company that the no-shop covenant polices, not a neighbor MAC/termination family."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0016",
+   "bucket": "solo_a",
+   "context": "erms of the Confidentiality Agreement. (b) “Acquisition Proposal” means any offer or proposal (other than an offer or proposal by Parent or Merger Sub) relating to an Acquisition Transaction. (c) “Acquisition Transaction” means any transaction or series of related transactions (other than the Merger) involving: (i) any direct or indirect purchase or other acquisition by any Person or “group” (as defined pursuant to Section 13(d) of the Exchange Act) of Persons, whether from the Company or any ot",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "info",
+    "confidence": 0.85,
+    "text": "“Acquisition Transaction” means any transaction or series of related transactions (other than the Merger) involving:",
+    "explanation": "Defines the 15%-threshold scope of competing transactions caught by the no-shop; definitions-only reference for the exclusivity family."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0017",
+   "bucket": "solo_a",
+   "context": "arent or Merger Sub) relating to an Acquisition Transaction. (c) “Acquisition Transaction” means any transaction or series of related transactions (other than the Merger) involving: (i) any direct or indirect purchase or other acquisition by any Person or “group” (as defined pursuant to Section 13(d) of the Exchange Act) of Persons, whether from the Company or any other Person(s), of securities representing more than 15% of the total outstanding voting power of the Company after giving effect to the consummation of such purchase or other acquisition, including pursuant to a tender offer or exchange offer by any Person or “group” of Persons that, if consummated in accordance with its terms, …",
+   "pass_a": {
+    "tag": "change_of_control",
+    "severity": "block",
+    "confidence": 0.8,
+    "text": "any direct or indirect purchase or other acquisition by any Person or “group” (as defined pursuant to Section 13(d) of the Exchange Act) of Persons, whether from the Company or any other Person(s), of securities representing more than 15% of the total outstanding voting power of the Company after g…",
+    "explanation": "This is the equity/voting-power change-of-control prong with a verbatim 15% beneficial-ownership threshold (direct or indirect, beneficial-owner basis) — squarely change_of_control, not assignment or MAC."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0018",
+   "bucket": "solo_a",
+   "context": "any Subsidiary of the Company) constituting or accounting for more than 15% of the revenue, net income or consolidated assets of the Company and its Subsidiaries, taken as a whole; or (iii) any merger, consolidation, business combination, recapitalization, reorganization, liquidation, dissolution or other transaction involving the Company (or any of its Subsidiaries whose business accounts for more than 15% of the revenue, net income or consolidated assets of the Company and its Subsidiaries, taken as a whole) in which the stockholders of the Company (or such Subsidiary) prior to such transaction will not own at least 85%, directly or indirectly, of the surviving company. (d) “Affiliate” me…",
+   "pass_a": {
+    "tag": "change_of_control",
+    "severity": "block",
+    "confidence": 0.74,
+    "text": "any merger, consolidation, business combination, recapitalization, reorganization, liquidation, dissolution or other transaction involving the Company (or any of its Subsidiaries whose business accounts for more than 15% of the revenue, net income or consolidated assets of the Company and its Subsi…",
+    "explanation": "This merger/ownership-continuity prong is a change-of-control trigger keyed to a verbatim 85% post-closing stockholder-continuity threshold (direct or indirect), distinguishing a controlling change from an ordinary transaction."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0019",
+   "bucket": "solo_a",
+   "context": "sidiaries, taken as a whole) in which the stockholders of the Company (or such Subsidiary) prior to such transaction will not own at least 85%, directly or indirectly, of the surviving company. (d) “Affiliate” means, with respect to any Person, any other Person that, directly or indirectly, controls, is controlled by or is under common control with such Person. For purposes of this definition, the term “control” (including, with correlative meanings, the terms “controlling,” “controlled by” and “under common control with”), as used with respect to any Person, means the possession, directly or indirectly, of the power to direct or cause the direction of the management and policies of that Pe…",
+   "pass_a": {
+    "tag": "change_of_control",
+    "severity": "info",
+    "confidence": 0.6,
+    "text": "“Affiliate” means, with respect to any Person, any other Person that, directly or indirectly, controls, is controlled by or is under common control with such Person. For purposes of this definition, the term “control” (including, with correlative meanings, the terms “controlling,” “controlled by” a…",
+    "explanation": "The defined-term “control” (management-and-policies, voting-securities-or-contract test) is the definitional control concept underpinning the change_of_control family, though it is definitions-only and immaterial standing alone."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0020",
+   "bucket": "solo_a",
+   "context": "s): (i) any “material contract” (as defined in Item 601(b)(10) of Regulation S-K promulgated by the SEC) with respect to the Company and its Subsidiaries, taken as whole; (ii) material Contracts to which the Company or any of its Subsidiaries grants or is granted a license to use (or grants, is granted or shares rights or interests in or to use) any Intellectual Property, content, characters, features, data (excluding Personal Data) or IT Assets, including the following Contracts, to the extent they are material Contracts: (A) in-bound and out-bound licenses, royalty, consent, release, ownership, exclusivity, publishing, distribution, development, research and source code escrow agreements;…",
+   "pass_a": {
+    "tag": "ip_assignment",
+    "severity": "watch",
+    "confidence": 0.66,
+    "text": "material Contracts to which the Company or any of its Subsidiaries grants or is granted a license to use (or grants, is granted or shares rights or interests in or to use) any Intellectual Property, content, characters, features, data (excluding Personal Data) or IT Assets, including the following …",
+    "explanation": "This defines the universe of in-bound/out-bound IP licenses (including source-code escrow and invention-assignment agreements) that are Material Contracts and therefore swept into the Section 3.5 non-contravention test — the load-bearing IP-license assets whose non-assignability on a CoC would matter; carve-outs (x)-(z) narrow it, hence qualified confidence."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0021",
+   "bucket": "solo_a",
+   "context": "ble software or other technology granted to the Company or its Subsidiaries; or (z) any licenses to software and materials licensed as open-source, public-source or freeware; -9- (iii) any Contract containing any covenant (A) materially limiting the right of the Company or any of its Subsidiaries or their respective Affiliates to engage in any line of business or to compete with any Person in any line of business or in any geographic area that is material to the Company; (B) prohibiting the Company or any of its Subsidiaries from engaging in any material business with any Person or levying a material fine, charge or other payment for doing so; or (C) granting any material “most favored nati…",
+   "pass_a": {
+    "tag": "non_compete",
+    "severity": "info",
+    "confidence": 0.62,
+    "text": "Contract containing any covenant (A) materially limiting the right of the Company or any of its Subsidiaries or their respective Affiliates to engage in any line of business or to compete with any Person in any line of business or in any geographic area that is material to the Company; (B) prohibit…",
+    "explanation": "This is the non_compete family because it expressly addresses covenants restraining the right to compete in any line of business or geographic area (classic non-compete scope), though it is a Material-Contracts disclosure rep with materiality/cancellation carve-outs rather than an operative restraint on the merger parties, hence info-severity and moderate confidence."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0022",
+   "bucket": "solo_a",
+   "context": "led Owned Company Shares and the Specified Owned Company Shares, collectively. (ccc) “Parent Common Stock” means the common stock, par value $0.00000625 per share, of Parent. -11- (ddd) “Parent Material Adverse Effect” means any Effect that would, or would reasonably be expected to, prevent or materially impede or materially delay, or prevents or materially impedes or materially delays, the consummation by Parent or Merger Sub of the Merger and the other transactions contemplated by this Agreement. (eee) “Parent Stock Plan” means Parent’s 2001 Stock Plan, as amended and restated. (fff) “Parent Stock Price” means an amount equal to the volume weighted average price per share roun",
+   "pass_a": {
+    "tag": "mac",
+    "severity": "info",
+    "confidence": 0.9,
+    "text": "“Parent Material Adverse Effect” means any Effect that would, or would reasonably be expected to, prevent or materially impede or materially delay, or prevents or materially impedes or materially delays, the consummation by Parent or Merger Sub of the Merger and the other transactions contemplated …",
+    "explanation": "The Parent MAE definition, limited to consummation-impeding effects (no business-effect prong); definitional and immaterial as a lever, hence info."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0023",
+   "bucket": "solo_a",
+   "context": "ified JV Entities; provided, that such representations and warranties shall be deemed to be made to the Knowledge of the Company insofar as they relate to any Specified JV Entity. -14- (xxx) “Superior Proposal” means any bona fide written Acquisition Proposal for an Acquisition Transaction that the Company Board has determined in good faith (after consultation with the Company’s financial advisor and outside legal counsel) is on terms that would be more favorable, from a financial point of view, to the Company Stockholders (in their capacity as such) than the Merger (taking into account any revisions to this Agreement made or proposed in writing by Parent prior to the time of such determina…",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "info",
+    "confidence": 0.85,
+    "text": "“Superior Proposal” means any bona fide written Acquisition Proposal for an Acquisition Transaction that the Company Board has determined in good faith (after consultation with the Company’s financial advisor and outside legal counsel) is on terms that would be more favorable, from a financial poin…",
+    "explanation": "Defines the \"Superior Proposal\" standard (with a 50% threshold and matching-credit) that conditions the fiduciary out and matching rights; definitional anchor for exclusivity."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0024",
+   "bucket": "solo_a",
+   "context": "oposal, the likelihood of consummation in accordance with the terms of such proposal, and the legal, financial (including the financing terms), regulatory, timing and other aspects of such proposal). For purposes of the reference to an “Acquisition Proposal” in this definition, all references to “15%” in the definition of “Acquisition Transaction” will be deemed to be references to “50%.” (yyy) “Tax Contest” means any inquiry, audit, examination, hearing, trial, appeal, or other administrative or judicial proceeding with respect to any Taxes or Tax Returns of Company. (zzz)",
+   "pass_a": {
+    "tag": "change_of_control",
+    "severity": "info",
+    "confidence": 0.62,
+    "text": "For purposes of the reference to an “Acquisition Proposal” in this definition, all references to “15%” in the definition of “Acquisition Transaction” will be deemed to be references to “50%.”",
+    "explanation": "This deeming clause raises the change-of-control threshold from a verbatim 15% to 50% for Superior Proposal purposes — a definitional change_of_control threshold mechanic, not a standalone operative consequence."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0025",
+   "bucket": "solo_a",
+   "context": "isals, offer to settle or settle any such demands or approve any withdrawal of any such demands, or agree to do any of the foregoing. 2.8 Equity Awards. (a) Surrendered Company Options. Each Company Option that is outstanding as of immediately prior to the Effective Time and (i) is vested as of immediately prior to the Effective Time or (ii) will become vested by its terms without any action taken by the Company, the Company Board or a compensation committee of the Company Board upon the occurrence of the Effective Time (each, a “Surrendered Company Option”) will, as of the Effective Time, be cancelled and converted into the right to receive the Merger Consideration for each share of Compan…",
+   "pass_a": {
+    "tag": "accelerated_vesting",
+    "severity": "watch",
+    "confidence": 0.7,
+    "text": "Each Company Option that is outstanding as of immediately prior to the Effective Time and (i) is vested as of immediately prior to the Effective Time or (ii) will become vested by its terms without any action taken by the Company, the Company Board or a compensation committee of the Company Board u…",
+    "explanation": "Captures options that auto-vest 'by its terms ... upon the occurrence of the Effective Time' (i.e., self-executing single-trigger CoC vesting) and cashes them out — accelerated_vesting (options) trigger language."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0026",
+   "bucket": "solo_a",
+   "context": "deration, such Surrendered Company Option shall be cancelled as of the Effective Time without payment therefor and shall have no further force or effect. (b) Surrendered Company Stock-Based Awards. Each Company Stock-Based Award that is outstanding as of immediately prior to the Effective Time and (i) is vested as of immediately prior to the Effective Time, (ii) that will become vested by its terms without any action taken by the Company, the Company Board or the compensation committee of the Company Board upon the occurrence of the Effective Time or (iii) that is granted to a non-employee member of the Company Board (each, a “Surrendered Company Stock-Based Award”), will, as of the Effecti…",
+   "pass_a": {
+    "tag": "accelerated_vesting",
+    "severity": "watch",
+    "confidence": 0.7,
+    "text": "Each Company Stock-Based Award that is outstanding as of immediately prior to the Effective Time and (i) is vested as of immediately prior to the Effective Time, (ii) that will become vested by its terms without any action taken by the Company, the Company Board or the compensation committee of the…",
+    "explanation": "RSU/PSU analog: awards that self-vest 'by its terms ... upon the occurrence of the Effective Time' (single-trigger CoC vesting) are cashed out — accelerated_vesting for Stock-Based Awards."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0027",
+   "bucket": "solo_a",
+   "context": "Surrendered Company Stock-Based Award, less any applicable withholding Taxes in accordance with Section 2.12. -23- (c) Assumed Company Awards. (i) Assumed Company Options. Each Company Option that is outstanding as of immediately prior to the Effective Time that is not a Surrendered Company Option and that has an exercise price per share of Company Common Stock that is less than the Merger Consideration (each, an “Assumed Company Option”) will, as of the Effective Time, be, as determined by Parent, (x) assumed by Parent and converted into a nonqualified stock option or (y) converted into a nonqualified stock option granted pursuant to the Parent Stock Plan (in each case, with the terms and …",
+   "pass_a": {
+    "tag": "accelerated_vesting",
+    "severity": "watch",
+    "confidence": 0.78,
+    "text": "Each Company Option that is outstanding as of immediately prior to the Effective Time that is not a Surrendered Company Option and that has an exercise price per share of Company Common Stock that is less than the Merger Consideration (each, an “Assumed Company Option”) will, as of the Effective Ti…",
+    "explanation": "Deems the merger a 'change in control' under the Company Stock Plans (the trigger event for plan-level acceleration) while converting PSUs to time-vesting at target — the operative CoC-acceleration hook for options/PSUs."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0028",
+   "bucket": "solo_a",
+   "context": "ct to performance-based vesting converted into time-based vesting Assumed Company Options (determined based on target performance levels) that shall vest at the conclusion of the original performance period, it being understood that the transactions contemplated by this Agreement constitute a “change in control” for purposes of the Company Stock Plans and award agreements thereunder), in respect of a number of shares of Parent Common Stock equal to the product (rounded down to the nearest whole share) of (i) the number of shares of Company Common Stock subject to such Assumed Company Option as of immediately prior to the Effective Time (determined based on",
+   "pass_a": {
+    "tag": "change_of_control",
+    "severity": "watch",
+    "confidence": 0.66,
+    "text": "period, it being understood that the transactions contemplated by this Agreement constitute a “change in control” for purposes of the Company Stock Plans and award agreements thereunder), in respect of a number of shares of Parent Common Stock equal to the product",
+    "explanation": "Operative acknowledgement that the Merger constitutes a change in control under the Company Stock Plans — a single-trigger CoC consequence for equity awards, risk-bearing but not a deal stopper."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0029",
+   "bucket": "solo_a",
+   "context": "conditions relating to vesting to remain the same with respect to Company Stock-Based Awards subject to time-based vesting, and with respect to Company Stock-Based Awards subject to performance-based vesting converted into time-based vesting Assumed Company Stock-Based Awards (determined based on target performance levels) that shall vest at the conclusion of the original performance period, it being understood that the transactions contemplated by this Agreement constitute a “change in control” for purposes of the Company Stock Plans and award agreements thereunder), in respect of a number of shares of Parent Common Stock equal to the product (rounded down to the nearest whole share) of (i…",
+   "pass_a": {
+    "tag": "change_of_control",
+    "severity": "watch",
+    "confidence": 0.64,
+    "text": "vesting converted into time-based vesting Assumed Company Stock-Based Awards (determined based on target performance levels) that shall vest at the conclusion of the original performance period, it being understood that the transactions contemplated by this Agreement constitute a “change in control…",
+    "explanation": "Parallel operative CoC acknowledgement for stock-based awards — single-trigger change-of-control treatment of equity, change_of_control rather than a generic compensation covenant."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0030",
+   "bucket": "solo_a",
+   "context": "the holders of any class or series of Company Capital Stock that is necessary pursuant to applicable Law, the Charter or the Bylaws to consummate the Merger. -31- 3.5 Non-Contravention. The execution and delivery of this Agreement by the Company, the performance by the Company of its covenants and obligations hereunder, and, assuming receipt of the Requisite Stockholder Approval, the consummation of the Merger do not (a) violate or conflict with any provision of the Charter or the Bylaws or the equivalent organizational or governing documents of any Subsidiary of the Company; (b) violate, conflict with, result in the breach of, constitute a default (or an event that, with notice or lapse of…",
+   "pass_a": {
+    "tag": "ip_assignment",
+    "severity": "watch",
+    "confidence": 0.74,
+    "text": "The execution and delivery of this Agreement by the Company, the performance by the Company of its covenants and obligations hereunder, and, assuming receipt of the Requisite Stockholder Approval, the consummation of the Merger do not (a) violate or conflict with any provision of the Charter or the…",
+    "explanation": "This is the operative no-conflict rep that tests whether the merger trips termination/acceleration of any Material Contract (which expressly includes in-bound/out-bound IP licenses per the Material Contract definition) — i.e., whether the CoC trips an IP-license anti-assignment a la Cincom; it is the ip_assignment risk locus, though heavily MAC-qualified."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0031",
+   "bucket": "solo_a",
+   "context": "greement, the business of the Company and its Subsidiaries has been conducted, in all material respects, in the ordinary course of business (other than as a result of COVID-19 and COVID-19 Measures). Since December 31, 2020 through the date of this Agreement, there has not occurred a Company Material Adverse Effect. (b) Since September 30, 2021 through the date of this Agreement, the Company has not taken any action that would be prohibited by Sections 5.2(a)-(f), (j)-(l)(D)-(E), (m)-(q), (s) or (t) (or, to th",
+   "pass_a": {
+    "tag": "mac",
+    "severity": "info",
+    "confidence": 0.8,
+    "text": "Since December 31, 2020 through the date of this Agreement, there has not occurred a Company Material Adverse Effect.",
+    "explanation": "This is the 'no MAE since' bring-down representation tied to the MAC standard; a standard rep rather than a stopper, so info."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0032",
+   "bucket": "solo_a",
+   "context": "terial Contract). A copy of each Material Contract set forth in Section 3.13(a) of the Company Disclosure Letter has been made available to Parent prior to the date of this Agreement. (b) Validity. Each Material Contract is valid and binding on the Company or each such Subsidiary of the Company party thereto, enforceable in accordance with its terms and is in full force and effect, and none of the Company, any of its Subsidiaries party thereto or, to the Knowledge of the Company, any other party thereto is or is alleged to be in breach of or default pursuant to any such Material Contract, except for such failures to be in full force and effect that would not have a Company Material Adverse …",
+   "pass_a": {
+    "tag": "ip_assignment",
+    "severity": "info",
+    "confidence": 0.58,
+    "text": "Each Material Contract is valid and binding on the Company or each such Subsidiary of the Company party thereto, enforceable in accordance with its terms and is in full force and effect, and none of the Company, any of its Subsidiaries party thereto or, to the Knowledge of the Company, any other pa…",
+    "explanation": "The validity rep over Material Contracts (which include IP licenses) bears on whether the merger leaves IP licenses in force or trips an anti-assignment default, but it is a static present-tense rep, not a CoC-assignment operative trigger — recall-first borderline inclusion."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0033",
+   "bucket": "solo_a",
+   "context": "ble as of the date of this Agreement. (b) The Company and its Subsidiaries are the sole owners of the Company Intellectual Property, free and clear of all Liens other than Permitted Liens. All Persons who have contributed to the creation, invention or development of any Company Intellectual Property have assigned in writing to the Company their rights and interests therein that do not initially vest with the Company by operation of Law. -39- (c) (i) Neither the Company nor any of its Subsidiaries is under any obligation to license (or grant any other rights in) any Company Intellectual Property to any Governmental Author",
+   "pass_a": {
+    "tag": "ip_assignment",
+    "severity": "info",
+    "confidence": 0.55,
+    "text": "All Persons who have contributed to the creation, invention or development of any Company Intellectual Property have assigned in writing to the Company their rights and interests therein that do not initially vest with the Company by operation of Law.",
+    "explanation": "This is an IP-assignment rep (employee/contributor invention assignment to the Company), squarely the assignment limb of the ip_assignment family, but it is a chain-of-title rep with no CoC or anti-assignment lever, hence info."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0034",
+   "bucket": "solo_a",
+   "context": "ealth or other welfare benefits or coverage to any person, except as may be required by Section 4980B of the Code or any similar Law. (i) Employee Plans Impacted by Merger; Section 280G. No Employee Plan exists that, as a result of the execution of this Agreement, shareholder approval of this Agreement, or the transactions contemplated by this Agreement (whether alone or in connection with any subsequent event(s)) would reasonably be expected to: (i) entitle any current or former employee, director, officer or independent contractor of the Company or any of its Subsidiaries (each, a “Company Employee”) to severance pay, unemployment compensation or any other payment or benefit, (ii) acceler…",
+   "pass_a": {
+    "tag": "accelerated_vesting",
+    "severity": "watch",
+    "confidence": 0.6,
+    "text": "No Employee Plan exists that, as a result of the execution of this Agreement, shareholder approval of this Agreement, or the transactions contemplated by this Agreement (whether alone or in connection with any subsequent event(s)) would reasonably be expected to: (i) entitle any current or former e…",
+    "explanation": "§280G acceleration rep addressing whether the deal accelerates vesting / creates parachute payments — references accelerated_vesting as a representation (qualified, not the operative acceleration itself)."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0035",
+   "bucket": "solo_a",
+   "context": "tion with Parent, terminate any employee at the level of Senior Vice President or above (other than for cause) or hire any new employee at the level of Senior Vice President or above; (h) (A) enter into, adopt, amend (including accelerating vesting), modify or terminate any Employee Plan or any agreement, trust, plan, fund or other arrangement that would be an Employee Plan if it were in existence as of the date of this Agreement; (B) increase the compensation or benefits of any Company Employee; (C) pay any special bonus or special remuneration to any Company Employee or pay any benefit not required by any Employee Plan; (D) grant any severance or termination pay to any Company Employee; o…",
+   "pass_a": {
+    "tag": "accelerated_vesting",
+    "severity": "info",
+    "confidence": 0.6,
+    "text": "(A) enter into, adopt, amend (including accelerating vesting), modify or terminate any Employee Plan or any agreement, trust, plan, fund or other arrangement that would be an Employee Plan if it were in existence as of the date of this Agreement; (B) increase the compensation or benefits of any Com…",
+    "explanation": "Interim-operating covenant prohibiting the Company from amending plans to accelerate vesting pre-close — references accelerated_vesting as a restricted action (covenant guardrail), not an operative acceleration."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0036",
+   "bucket": "solo_a",
+   "context": "horize or commit to enter into a Contract or other agreement to take any of the actions prohibited by this Section 5.2. 5.3 No Solicitation. (a) No Solicitation or Negotiation. Subject to the terms of Section 5.3(b), from the date of this Agreement until the earlier to occur of the termination of this Agreement pursuant to Article VIII and the Effective Time, the Company will cease and cause to be terminated any discussions or negotiations with and terminate any data room access (or other diligence access) of any Person and its Affiliates, directors, officers, employees, consultants, agents, representatives and advisors (collectively, “Representatives”) relating to any Acquisition Transacti…",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "watch",
+    "confidence": 0.85,
+    "text": "Subject to the terms of Section 5.3(b), from the date of this Agreement until the earlier to occur of the termination of this Agreement pursuant to Article VIII and the Effective Time, the Company will cease and cause to be terminated any discussions or negotiations with and terminate any data room…",
+    "explanation": "The companion \"cease discussions / shut the data room\" obligation that opens the no-shop covenant — a deal-protection restriction on continuing any competing process."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0037",
+   "bucket": "solo_a",
+   "context": "blic information furnished to such Person by or on behalf of the Company or any of its Subsidiaries prior to the date of this Agreement in accordance with the terms of such confidentiality agreement. Subject to the terms of Section 5.3(b) and Section 5.3(d), from the date of this Agreement until the earlier to occur of the termination of this Agreement pursuant to Article VIII and the Effective Time, the Company and its Subsidiaries and their respective directors, executive and other officers will not, and the Company will not authorize or direct any of its or its Subsidiaries’ employees, consultants or other Representatives to, directly or indirectly, (i) solicit, initiate, propose or indu…",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "block",
+    "confidence": 0.95,
+    "text": "Subject to the terms of Section 5.3(b) and Section 5.3(d), from the date of this Agreement until the earlier to occur of the termination of this Agreement pursuant to Article VIII and the Effective Time, the Company and its Subsidiaries and their respective directors, executive and other officers w…",
+    "explanation": "Core no-shop / no-solicitation covenant prohibiting solicitation, information-sharing, negotiation and entry into competing deals — the central deal-protection lever of the exclusivity family."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0038",
+   "bucket": "solo_a",
+   "context": "such Person or its Representatives that was not previously made available to Parent. -61- (c) No Change in Company Board Recommendation or Entry into an Alternative Acquisition Agreement. Except as provided by Section 5.3(d), at no time after the date of this Agreement may the Company Board (or a committee thereof): (i) (A) withhold, withdraw, amend, qualify or modify, or publicly propose to withhold, withdraw, amend, qualify or modify, the Company Board Recommendation in a manner adverse to Parent;",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "watch",
+    "confidence": 0.7,
+    "text": "Except as provided by Section 5.3(d), at no time after the date of this Agreement may the Company Board (or a committee thereof):",
+    "explanation": "The no-change-in-recommendation / no-Alternative-Acquisition-Agreement lock heading, restricting the Board's ability to flip — a deal-protection constraint subject only to the 5.3(d) fiduciary out."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0039",
+   "bucket": "solo_a",
+   "context": "Entry into Alternative Acquisition Agreement. Notwithstanding anything to the contrary set forth in this Agreement, at any time prior to obtaining the Requisite Stockholder Approval: (i) other than in connection with a bona fide Acquisition Proposal that constitutes a Superior Proposal, the Company Board may effect a Company Board Recommendation Change in response to an Intervening Event if the Company Board determines in good faith (after consultation with the Company’s financial advisor and outside legal counsel) that the failure to do so would be inconsistent with its fiduciary duties pursuant to applicable Law and then if and only if: (1) the Company has provided prior written notice to…",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "watch",
+    "confidence": 0.8,
+    "text": "other than in connection with a bona fide Acquisition Proposal that constitutes a Superior Proposal, the Company Board may effect a Company Board Recommendation Change in response to an Intervening Event if the Company Board determines in good faith (after consultation with the Company’s financial …",
+    "explanation": "Intervening-Event fiduciary out (non-Acquisition-Proposal recommendation-change route) gated by a notice-and-match period — part of the exclusivity deal-protection package."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0040",
+   "bucket": "solo_a",
+   "context": "ves with an opportunity to make a presentation to the Company Board regarding this Agreement and any adjustments with respect thereto (to the extent that Parent requests to make such a presentation), it being understood that (a) in the event of any material revisions to such Acquisition Proposal, the Company will be required to deliver a new written notice to Parent and to comply with the requirements of this Section 5.3(d)(ii)(3) with respect to such new written notice (with the “Notice Period” in respect of such new written notice being two Business Days, provided that such new notice shall in no event shorten the original three Business Day notice period); and (b) the Company Board, at t…",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "watch",
+    "confidence": 0.8,
+    "text": "it being understood that (a) in the event of any material revisions to such Acquisition Proposal, the Company will be required to deliver a new written notice to Parent and to comply with the requirements of this Section 5.3(d)(ii)(3) with respect to such new written notice (with the “Notice Period…",
+    "explanation": "Re-match right resetting a two-Business-Day notice window on any material revision to a competing bid — an incremental matching-rights deal-protection term within the exclusivity family."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0041",
+   "bucket": "solo_a",
+   "context": "n provided for in this Section 6.8 is not prior to or in substitution for any such claims pursuant to such policies or agreements. -73- 6.9 Employee Matters. (a) Acknowledgement. Parent hereby acknowledges and agrees that a “change of control” (or similar phrase) within the meaning of each of the Employee Plans, as applicable, will occur as of the Effective Time. (b) Employment; Benefits. The Surviving Corporation or one of its Subsidiaries will (and Parent will cause the Surviving Corporation or one of its Subsidiaries to) continue the employment o",
+   "pass_a": {
+    "tag": "accelerated_vesting",
+    "severity": "watch",
+    "confidence": 0.74,
+    "text": "Parent hereby acknowledges and agrees that a “change of control” (or similar phrase) within the meaning of each of the Employee Plans, as applicable, will occur as of the Effective Time.",
+    "explanation": "Acknowledges a CoC occurs at the Effective Time under every Employee Plan — the single-trigger event that activates any plan-level vesting acceleration; recall-first capture of the CoC switch."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0042",
+   "bucket": "solo_a",
+   "context": "ame by a duly authorized executive officer thereof, certifying that the conditions set forth in Section 7.2(a) and Section 7.2(b) have been satisfied. (d) Company Material Adverse Effect. No Company Material Adverse Effect will have occurred after the date of this Agreement that is continuing. -82- 7.3 Conditions to the Company’s Obligations to Effect the Merger. The obligations of the Company to consummate the Merger are subject to the satisfaction or waiver (where permissibl",
+   "pass_a": {
+    "tag": "mac",
+    "severity": "block",
+    "confidence": 0.92,
+    "text": "No Company Material Adverse Effect will have occurred after the date of this Agreement that is continuing.",
+    "explanation": "This is the operative MAC closing condition to Parent/Merger Sub's obligations — the deal-breaker lever that allows Parent to walk if a continuing Company MAE has occurred."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0043",
+   "bucket": "solo_a",
+   "context": "ants or agreements set forth in this Agreement, and which breach, failure or inaccuracy would result in the failure of the conditions set forth in Section 7.2(a) or Section 7.2(b); or (h) by the Company, at any time prior to receiving the Requisite Stockholder Approval if (i) the Company has received a Superior Proposal; (ii) the Company Board has authorized the Company to enter into an Alternative Acquisition Agreement to consummate the Acquisition Transaction contemplated by that Superior Proposal and the Company pays or causes to be paid to Parent (or its designee) the Company Termination Fee pursuant to Section 8.3(b)(iii); and (iii) the Company has complied with Section 5.3(d)(ii) with…",
+   "pass_a": {
+    "tag": "exclusivity",
+    "severity": "watch",
+    "confidence": 0.82,
+    "text": "by the Company, at any time prior to receiving the Requisite Stockholder Approval if (i) the Company has received a Superior Proposal; (ii) the Company Board has authorized the Company to enter into an Alternative Acquisition Agreement to consummate the Acquisition Transaction contemplated by that …",
+    "explanation": "Fiduciary-out termination right allowing the Company to exit and accept a Superior Proposal on payment of the termination fee — the exclusivity exit mechanism tied to 5.3(d) and the fee."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0044",
+   "bucket": "solo_a",
+   "context": "of the date (A) specified in such notice; or (B) that is five Business Days after such notice would otherwise be deemed to have been received pursuant to this Section 9.2. 9.3 Assignment. No Party may assign either this Agreement or any of its rights, interests, or obligations hereunder without the prior written approval of the other Parties; provided, that, Parent and Merger Sub may assign any or all of their rights, interests and obligations to Affiliates of Parent or Merger Sub without the prior written approval of any other Party. Subject to the preceding sentence, this Agreement will be binding upon and will inure to the benefit of the Parties and their respective successors and permit…",
+   "pass_a": {
+    "tag": "change_of_control",
+    "severity": "watch",
+    "confidence": 0.6,
+    "text": "No Party may assign either this Agreement or any of its rights, interests, or obligations hereunder without the prior written approval of the other Parties; provided, that, Parent and Merger Sub may assign any or all of their rights, interests and obligations to Affiliates of Parent or Merger Sub w…",
+    "explanation": "Anti-assignment/consent clause relevant to change_of_control via the deemed-assignment doctrine, with an affiliate carve-out for Parent/Merger Sub; flagged recall-first as it can be implicated by a controlling transfer."
+   },
+   "pass_b": null
+  },
+  {
+   "item_id": "msft_activision#0045",
+   "bucket": "solo_b",
+   "context": "e amount of all cash and cash equivalents of the Company as reflected in the most recent consolidated balance sheets (and the notes thereto) of the Company and its Subsidiaries; -59- (q) (A) sell or otherwise dispose of (whether by merger, consolidation or disposition of stock or assets or otherwise) any assets constituting a material line of business or any corporation, partnership or other business organization or material division thereof or (B) subject to a Lien, sell, assign, license (or grant a covenant not to sue or similar rights under), sublicense, transfer, allow to lapse or expire, pledge, abandon, discontinue, fail to maintain or otherwise dispose of any other material assets of…",
+   "pass_a": null,
+   "pass_b": {
+    "tag": "ip_assignment",
+    "severity": "watch",
+    "confidence": 0.78,
+    "text": "(A) sell or otherwise dispose of (whether by merger, consolidation or disposition of stock or assets or otherwise) any assets constituting a material line of business or any corporation, partnership or other business organization or material division thereof or (B) subject to a Lien, sell, assign, …",
+    "explanation": "Interim covenant directly restricting the Company from assigning, licensing, sublicensing or transferring material Company Intellectual Property without consent, with only an ordinary-course/past-practice carve-out — an operative IP-disposition (assignment) control, not a general no-conflict rep."
+   }
+  },
+  {
+   "item_id": "msft_activision#0046",
+   "bucket": "solo_b",
+   "context": "blic information furnished to such Person by or on behalf of the Company or any of its Subsidiaries prior to the date of this Agreement in accordance with the terms of such confidentiality agreement. Subject to the terms of Section 5.3(b) and Section 5.3(d), from the date of this Agreement until the earlier to occur of the termination of this Agreement pursuant to Article VIII and the Effective Time, the Company and its Subsidiaries and their respective directors, executive and other officers will not, and the Company will not authorize or direct any of its or its Subsidiaries’ employees, consultants or other Representatives to, directly or indirectly, (i) solicit, initiate, propose or indu…",
+   "pass_a": null,
+   "pass_b": {
+    "tag": "exclusivity",
+    "severity": "watch",
+    "confidence": 0.95,
+    "text": "Subject to the terms of Section 5.3(b) and Section 5.3(d), from the date of this Agreement until the earlier to occur of the termination of this Agreement pursuant to Article VIII and the Effective Time, the Company and its Subsidiaries and their respective directors, executive and other officers w…",
+    "explanation": "This is the core no-shop covenant barring solicitation of any Acquisition Proposal; it is deal-protection (exclusivity), and only watch (not block) because it is expressly made subject to the Section 5.3(b)/(d) fiduciary-out and superior-proposal carve-outs."
+   }
+  }
+ ]
+}
