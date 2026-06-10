@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 
-import type { CitationRef, GatekeeperDecision, Lane, RiskFinding } from "@/lib/types";
+import type { CitationRef, GatekeeperDecision, Lane, RiskFinding, Tag } from "@/lib/types";
 import { ReflectorLoopButton } from "./reflector-loop-button";
 
 interface Row {
@@ -86,8 +86,59 @@ function CitationRow({ citation }: { citation: CitationRef }) {
           <SpanLinkGlyph />
         </span>
       </div>
+      {/* GROUNDTRUTH_PLAN T1.2 — surface the deterministic map rationale so the
+          user sees WHY this clause maps to this authority (not just the cite). */}
+      {citation.rationale ? (
+        <div className="mt-0.5 text-[11px] leading-snug text-ink-muted">
+          {citation.rationale}
+        </div>
+      ) : null}
       <div className="mt-0.5 text-[10px] text-ink-muted">
         verified against {citation.primary_source} · {citation.verified_date}
+      </div>
+    </div>
+  );
+}
+
+// CitationNoneRow — the two DISTINCT graceful-None states (GROUNDTRUTH_PLAN
+// T1.2). When the deterministic map returns no CitationRef the reason is NOT
+// uniform, and conflating them would mislead a reviewer:
+//   (A) contract-anchored — the clause type genuinely has no controlling
+//       statute or case (e.g. accelerated_vesting); None is correct by design.
+//   (B) out-of-coverage / fail-closed — the tag DOES carry map authority, but
+//       not for this contract's governing law, so the lookup fails closed
+//       rather than serve another jurisdiction's law. This is an ESCALATION,
+//       not an "all clear".
+// The map's six covered tags are the discriminator.
+const MAP_COVERED_TAGS = new Set<Tag>([
+  "change_of_control",
+  "anti_assignment",
+  "ip_assignment",
+  "mac",
+  "exclusivity",
+  "non_compete",
+]);
+
+function CitationNoneRow({ tag }: { tag: Tag }) {
+  const outOfCoverage = MAP_COVERED_TAGS.has(tag);
+  return (
+    <div className="mt-1.5 border-t border-ink-dim pt-1.5">
+      <div className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className={clsx(
+            "inline-block h-2 w-2 shrink-0",
+            outOfCoverage ? "bg-accent-vermillion" : "bg-ink-muted",
+          )}
+        />
+        <span className="font-mono text-[11px] uppercase tracking-wide text-ink-muted">
+          {outOfCoverage ? "authority not resolved" : "contract-anchored"}
+        </span>
+      </div>
+      <div className="mt-0.5 text-[11px] leading-snug text-ink-muted">
+        {outOfCoverage
+          ? "No controlling authority for this clause under the contract's governing law — escalated rather than serving another jurisdiction's law."
+          : "No controlling statute or case on file for this clause type — the obligation is contract-anchored; review the clause language directly."}
       </div>
     </div>
   );
@@ -138,7 +189,9 @@ export function FindingsPane({ rows, status, selectedFindingId, onSelect, dealId
                 </div>
                 {finding.citation_ref ? (
                   <CitationRow citation={finding.citation_ref} />
-                ) : null}
+                ) : (
+                  <CitationNoneRow tag={finding.tag} />
+                )}
               </button>
             </li>
           );

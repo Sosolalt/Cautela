@@ -52,9 +52,12 @@ export function initHeroScene(opts: {
   const STAPLE_INSET_X = 0.60;   // in from the LEFT edge — nudged toward the corner
   const STAPLE_INSET_Z = 0.28;   // in from the TOP edge — nudged toward the corner
   const STACK_GAP  = 0.014;     // y-spacing between page centers (≥ thickness so plies pop)
-  // Loop: 0.0–2.5 page-flip → 2.5–2.7 dot snap → 2.7–3.25 line shoot
-  //       → 3.25–5.8 verdict held → 5.8–6.5 fade & reset.
-  const LOOP = 7.0;             // seconds (+0.5 to preserve verdict hold after longer flip)
+  // Loop (slowed 2x so the page turns half as often): 0.0–2.9 page-flip →
+  // 2.9–3.1 dot snap → 3.1–3.65 line shoot → 3.2–12.8 verdict held (long,
+  // calm) → 12.8–13.5 fade → 13.5–14.0 reset & next turn.
+  // The flip MOTION speed is unchanged (FLIP_DUR below); only the gap between
+  // turns is longer, spent holding the verdict card on screen.
+  const LOOP = 14.0;            // seconds — doubled from 7.0 (turns less often)
   const FLIP_DUR = 2.9;         // +0.5s — gives the slower easeInOutQuint room to breathe
   const ACCENT_VERM = 0xE63D2F;
   const PAPER_HEX = '#EFE9D9';
@@ -1319,8 +1322,8 @@ export function initHeroScene(opts: {
   const T_DOT      = T_FLIP_END;        // 2.50 — snap instantly at flip end
   const T_LINE     = T_FLIP_END + 0.20; // 2.70
   const T_BADGE    = T_FLIP_END + 0.30; // impact-triggered: card kicks in right as the page LANDS
-  const T_FADE     = 5.80;
-  const T_FADE_END = 6.50;
+  const T_FADE     = 12.80;     // hold the verdict card on screen for the whole
+  const T_FADE_END = 13.50;     // longer loop, then fade just before the reset
 
   // ---------- UI card + page-swap synchronisation ----------
   // The Phoenix-trace card mirrors the ACTIVE (revealed) chapter. Texture +

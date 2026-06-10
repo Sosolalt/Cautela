@@ -59,7 +59,10 @@ const CLUSTER_TINT: ReadonlyArray<string> = [
   "bg-accent-champagne text-ink-paper",
   "bg-accent-oxblood text-neutral-50",
   "bg-accent-ivory text-ink-paper",
-  "bg-accent-vermillion text-neutral-50",
+  // Vermillion is a hard fill for 10px text either way; dark ink-paper (4.25:1)
+  // beats light neutral-50 (3.70:1). The deal_id is also a title-tooltip, so the
+  // label is redundant-by-design — but take the better contrast.
+  "bg-accent-vermillion text-ink-paper",
 ];
 const CLUSTER_LEGEND: ReadonlyArray<string> = [
   "bg-accent-champagne",

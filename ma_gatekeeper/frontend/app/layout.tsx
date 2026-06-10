@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
-  title: "M&A Due Diligence Gatekeeper",
+  title: "Cautela — M&A Due Diligence",
   description:
     "M&A contract review where every verdict links to its Phoenix trace — and every flag is sourced to the clause it came from.",
 };

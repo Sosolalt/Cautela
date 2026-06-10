@@ -15,6 +15,23 @@ import {
   transitionTimingFunction,
 } from "../../design/tokens";
 
+// The design tokens are exported `as const` (deeply `readonly`), but
+// Tailwind's `Config` theme types expect mutable arrays/records (e.g.
+// `fontFamily` wants `string[]`, not `readonly string[]`). The values are
+// identical at runtime — this `writable` cast only strips the `readonly`
+// modifier so `next build`'s type-check accepts the assignment. It does NOT
+// modify the (forbidden-to-edit) `design/` source. See `next build` failure:
+// "readonly [...] cannot be assigned to the mutable type string[]".
+// Strips `readonly` while PRESERVING tuple length/shape (so `fontSize`'s
+// `[size, lineHeight, letterSpacing]` triples stay fixed-length tuples and
+// don't widen to `string[]`, which Tailwind's `fontSize` type rejects).
+type Writable<T> = T extends readonly [...infer U]
+  ? { -readonly [K in keyof T]: Writable<T[K]> }
+  : T extends object
+    ? { -readonly [K in keyof T]: Writable<T[K]> }
+    : T;
+const writable = <T>(value: T): Writable<T> => value as Writable<T>;
+
 // Risk-lane semantics — `lane.block` aliases to accent-clay (= oxblood) so the
 // severe-lane accent stays single-source per the Documentary-Brutalism brand.
 const lane = {
@@ -119,8 +136,13 @@ const config: Config = {
         neutral,
         lane,
       },
-      fontFamily,
-      fontSize,
+      fontFamily: writable(fontFamily),
+      // The design tokens model each size as a `[size, lineHeight, letterSpacing]`
+      // triple. Tailwind's *type* only declares 2-tuples / `[size, config]`, but
+      // it reads index 0 as the size at runtime and tolerates the extra members,
+      // so we assert the runtime-correct shape to unblock `next build`'s tsc pass
+      // without touching the (forbidden) `design/` token source.
+      fontSize: fontSize as unknown as Record<string, [string, string]>,
       spacing,
       borderRadius,
       transitionTimingFunction,
@@ -133,8 +155,10 @@ const config: Config = {
       // Breakpoints extend Tailwind defaults — see comment above.
       screens: breakpoints,
       // State primitives (v2 — SYSTEM.md §Token-spec).
-      // `opacity-disabled` / `opacity-skeleton` resolve via these keys.
-      opacity,
+      // `opacity-disabled` / `opacity-skeleton` resolve via these keys. Tokens
+      // are numeric (0.4 / 0.6); Tailwind's type wants string values but accepts
+      // numbers at runtime, so we assert to the declared string-record shape.
+      opacity: opacity as unknown as Record<string, string>,
     },
   },
   plugins: [],

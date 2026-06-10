@@ -1,4 +1,4 @@
-# Frontend — M&A Due Diligence Gatekeeper
+# Frontend — Cautela
 
 Next.js 14 (App Router) + Tailwind 3 three-pane review surface (plan §7 D15).
 

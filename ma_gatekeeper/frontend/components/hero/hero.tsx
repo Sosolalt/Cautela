@@ -6,6 +6,11 @@ import { useEffect, useRef } from "react";
 import { initHeroScene } from "./hero-scene";
 import "./hero.css";
 
+/** Swap to the real YouTube URL once the demo video is published; `null`
+ *  keeps the secondary "Watch it work" CTA visually present but inert
+ *  (no navigation, no blank tab, out of tab order). */
+const DEMO_VIDEO_URL: string | null = null;
+
 /**
  * Marketing hero — the Documentary-Brutalism WebGL dossier.
  *
@@ -92,10 +97,19 @@ export default function Hero() {
             <span>Try the demo</span>
             <span className="arrow">→</span>
           </Link>
-          {/* Secondary "Watch the 60-second demo" CTA removed — there is no
-              video asset yet, and a visibly-dead control next to the live CTA
-              reads worse than a single confident action. Re-add as a real
-              <a href="…"> once the demo video URL exists. */}
+          {/* Secondary CTA → demo video. While DEMO_VIDEO_URL is null the
+              control renders but is inert: no href (so no navigation / no
+              blank tab), out of the tab order, marked unavailable to AT.
+              Setting the constant flips it to a real new-tab link. */}
+          <a
+            className="cta-secondary"
+            {...(DEMO_VIDEO_URL
+              ? { href: DEMO_VIDEO_URL, target: "_blank", rel: "noopener noreferrer" }
+              : { role: "link", "aria-disabled": true, tabIndex: -1 })}
+          >
+            <span>Watch it work</span>
+            <span className="arrow">→</span>
+          </a>
         </div>
       </div>
 

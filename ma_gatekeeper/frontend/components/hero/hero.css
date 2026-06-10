@@ -103,7 +103,7 @@
    ============================================================ */
 .hero-stage .text {
   position: absolute;
-  top: 9vh;
+  top: clamp(48px, 9vh, 96px);
   left: 56px;
   right: 40px;
   max-width: min(940px, 65vw);
@@ -130,7 +130,7 @@
   font-size: clamp(56px, 7.4vw, 132px);
   line-height: 0.95;
   letter-spacing: -0.028em;
-  margin: 0 0 36px 0;
+  margin: 0 0 clamp(36px, 6vh, 72px) 0;
   color: var(--ink);
 }
 .hero-stage .headline .l1 { font-weight: 200; }
@@ -151,7 +151,7 @@
 .hero-stage .headline a.fn-link:hover { transform: rotate(-6deg) translateY(-2px); }
 
 .hero-stage .sub {
-  margin: 0 0 64px 0;
+  margin: 0 0 clamp(48px, 9.5vh, 120px) 0;
   max-width: 520px;
   font-size: 17px;
   line-height: 1.55;
@@ -162,8 +162,8 @@
 .hero-stage .ctas {
   display: flex;
   align-items: baseline;
-  gap: 48px;
-  margin-top: 36px;
+  gap: 168px;
+  margin-top: 0;
 }
 .hero-stage .cta-primary {
   font-family: var(--font-body);
@@ -186,14 +186,36 @@
 .hero-stage .cta-primary:hover { border-bottom-color: var(--accent-vermillion); }
 .hero-stage .cta-primary:hover .arrow { transform: translateX(8px); }
 .hero-stage .cta-secondary {
-  font-size: 13px;
-  color: var(--ink-muted);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
-  transition: color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* Visually identical to the primary CTA — same font, size, weight (500),
+     ink, vermillion arrow, and underline mechanism. The only difference is
+     the destination (demo video vs. the app). */
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink);
+  padding: 0 0 6px 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.hero-stage .cta-secondary:hover { color: var(--ink); }
+.hero-stage .cta-secondary .arrow {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-block;
+  color: var(--accent-vermillion);
+}
+.hero-stage .cta-secondary:hover { border-bottom-color: var(--accent-vermillion); }
+.hero-stage .cta-secondary:hover .arrow { transform: translateX(8px); }
+
+/* Square, brand-safe keyboard focus ring on both CTAs (no rounded default). */
+.hero-stage .cta-primary:focus-visible,
+.hero-stage .cta-secondary:focus-visible {
+  outline: 2px solid var(--accent-vermillion);
+  outline-offset: 4px;
+}
 
 /* ============================================================
    Footnote — bottom-LEFT.
@@ -238,10 +260,13 @@
   right: clamp(220px, 17vw, 290px);
   bottom: clamp(150px, 19vh, 220px);
   z-index: 3;
-  width: clamp(280px, 23vw, 330px);
+  /* Wider, not taller — a landscape rectangle. The extra width leaves blank
+     space to the RIGHT of the span ID / meta columns, giving the card its
+     deliberate rectangular shape without making it tall. */
+  width: clamp(440px, 38vw, 600px);
   box-sizing: border-box;
   background: var(--surface);
-  padding: 22px 26px 24px 26px;
+  padding: 26px 34px 28px 34px;
   /* Always a clean rectangle: a full 1px vermillion hairline on all four
      sides (was a brutalist top+left L-cut, which read as a broken/clipped box
      at some sizes). Square corners + no shadow per the brand lock. */
@@ -291,6 +316,20 @@
 .hero-stage .span-anchor .meta .ci { color: var(--accent-vermillion); }
 
 /* ============================================================
+   Short desktop viewports (<=760px tall): the headline scales on vw, not
+   height, so on a short laptop the absolutely-positioned .text stack can run
+   past the viewport bottom and clip under .hero-stage's overflow:hidden.
+   Give space back by trimming the headline size + inter-block margins.
+   ============================================================ */
+@media (min-width: 901px) and (max-height: 760px) {
+  .hero-stage .headline {
+    font-size: clamp(48px, 6vw, 92px);
+    margin-bottom: clamp(24px, 4vh, 40px);
+  }
+  .hero-stage .sub { margin-bottom: clamp(28px, 5vh, 48px); }
+}
+
+/* ============================================================
    Mobile (<=900px): the desktop composition is absolutely-positioned and
    only works when the 3D dossier occupies the right half. On narrow screens
    that collapses to a corner triangle and the absolute card overlaps the
@@ -325,6 +364,13 @@
   }
   .hero-stage .headline { font-size: clamp(40px, 11vw, 60px); }
   .hero-stage .sub { margin-bottom: 40px; }
+  /* The 32px-gap flex row would overflow a 360px screen (flex doesn't wrap by
+     default), so stack the two CTAs vertically on narrow viewports. */
+  .hero-stage .ctas {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
   .hero-stage .doc-id { right: 16px; top: 16px; font-size: 9px; }
   .hero-stage .span-anchor {
     position: static;

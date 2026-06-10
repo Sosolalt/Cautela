@@ -95,7 +95,7 @@ export default function ReviewPage() {
       <header className="flex items-center justify-between border-b border-ink-faint px-4 py-3">
         <div className="flex items-baseline gap-5">
           <h1 className="font-display text-xl tracking-tight text-ink">
-            M&amp;A Due Diligence Gatekeeper
+            Cautela
           </h1>
           {/* Cross-route nav in the hero's editorial register (mono, uppercase,
               vermillion on hover). Fix 7 — Portfolio Analyst route. */}

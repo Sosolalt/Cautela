@@ -79,12 +79,15 @@ export function PdfPane({ dealId, rows, selectedFindingId, onSelect }: Props) {
       // silently with "API/Worker version mismatch."
       // pdfjs-dist 4.x ships ESM-only workers (`pdf.worker.min.mjs` /
       // `pdf.worker.mjs`) — there is no `.min.js` build in this version.
-      // `pdf.worker.min.mjs` is the version-matched worker recommended by
-      // the react-pdf v9 README for pdfjs-dist 4.x bundler setups.
-      mod.pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-        "pdfjs-dist/build/pdf.worker.min.mjs",
-        import.meta.url,
-      ).toString();
+      // We serve the version-matched worker as a static asset from /public
+      // (copied there by the `copy-pdf-worker` build step in package.json).
+      // The previous `new URL("pdfjs-dist/build/pdf.worker.min.mjs",
+      // import.meta.url)` form made webpack emit the worker as an asset and
+      // then run it through Terser, which crashes on the worker's ESM
+      // `import`/`export` syntax ("cannot be used outside of module code") —
+      // breaking `next build`. A static /public path sidesteps the bundler
+      // entirely and keeps the API/Worker versions pinned together.
+      mod.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
       setDoc(mod);
     });
     return () => {
