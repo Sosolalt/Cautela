@@ -1,0 +1,81 @@
+{
+ "all": [
+  {
+   "deal_id": "msft_activision",
+   "label": "Microsoft / Activision Blizzard (2023)",
+   "text_path": "data/edgar/msft_activision.txt"
+  },
+  {
+   "deal_id": "pfizer_seagen",
+   "label": "Pfizer / Seagen (2023)",
+   "text_path": "data/edgar/pfizer_seagen.txt"
+  },
+  {
+   "deal_id": "cisco_splunk",
+   "label": "Cisco / Splunk (2024)",
+   "text_path": "data/edgar/cisco_splunk.txt"
+  },
+  {
+   "deal_id": "exxon_pioneer",
+   "label": "ExxonMobil / Pioneer Natural Resources (2024)",
+   "text_path": "data/edgar/exxon_pioneer.txt"
+  },
+  {
+   "deal_id": "hpe_juniper",
+   "label": "HPE / Juniper Networks (2024 signing; 2025 DOJ FJ)",
+   "text_path": "data/edgar/hpe_juniper.txt"
+  },
+  {
+   "deal_id": "albertsons_kroger",
+   "label": "Kroger / Albertsons (2022; merits docket 2025)",
+   "text_path": "data/edgar/albertsons_kroger.txt"
+  },
+  {
+   "deal_id": "synopsys_ansys",
+   "label": "Synopsys / Ansys (close 2025-07-17)",
+   "text_path": "data/edgar/synopsys_ansys.txt"
+  },
+  {
+   "deal_id": "paramount_skydance",
+   "label": "Paramount / Skydance (close 2025-08-07)",
+   "text_path": "data/edgar/paramount_skydance.txt"
+  },
+  {
+   "deal_id": "capitalone_discover",
+   "label": "Capital One / Discover (close 2025-05-18)",
+   "text_path": "data/edgar/capitalone_discover.txt"
+  },
+  {
+   "deal_id": "mars_kellanova",
+   "label": "Mars / Kellanova (EC approval 2025-12-08)",
+   "text_path": "data/edgar/mars_kellanova.txt"
+  },
+  {
+   "deal_id": "tapestry_capri",
+   "label": "Tapestry / Capri (Outside Date 2025-02-10)",
+   "text_path": "data/edgar/tapestry_capri.txt"
+  },
+  {
+   "deal_id": "jetblue_spirit",
+   "label": "JetBlue / Spirit (Ch.11 emergence 2025-03-12)",
+   "text_path": "data/edgar/jetblue_spirit.txt"
+  },
+  {
+   "deal_id": "adobe_figma",
+   "label": "Adobe / Figma (CMA final report 2025)",
+   "text_path": "data/edgar/adobe_figma.txt"
+  },
+  {
+   "deal_id": "chevron_hess",
+   "label": "Chevron / Hess (Stabroek JOA arbitration 2025-07-18)",
+   "text_path": "data/edgar/chevron_hess.txt"
+  }
+ ],
+ "smoke": [
+  {
+   "deal_id": "msft_activision",
+   "label": "Microsoft / Activision Blizzard (2023)",
+   "text_path": "data/edgar/msft_activision.txt"
+  }
+ ]
+}
