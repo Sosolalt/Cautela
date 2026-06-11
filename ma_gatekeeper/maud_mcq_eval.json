@@ -1,0 +1,30 @@
+{
+  "run_mode": "live",
+  "n_total_examples": 624,
+  "n_evaluated": 300,
+  "n_correct": 299,
+  "n_unmatched_responses": 0,
+  "n_skipped_with_reason": {
+    "gold_answer_not_in_choices": 324
+  },
+  "overall_micro_accuracy": 0.9966666666666667,
+  "overall_macro_accuracy": 0.9981884057971014,
+  "per_category": {
+    "Conditions to Closing": {
+      "n": 276,
+      "n_correct": 275,
+      "n_unmatched": 0,
+      "accuracy": 0.9963768115942029,
+      "aupr_degenerate": 0.5235507246376812
+    },
+    "General Information": {
+      "n": 24,
+      "n_correct": 24,
+      "n_unmatched": 0,
+      "accuracy": 1.0,
+      "aupr_degenerate": 1.0
+    }
+  },
+  "aupr_degenerate": 0.5616666666666666,
+  "comparison_baselines": null
+}

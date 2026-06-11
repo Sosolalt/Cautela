@@ -1,0 +1,64 @@
+{
+  "n_examples": 5,
+  "n_contracts": 3,
+  "clause_types": [
+    "change_of_control",
+    "anti_assignment"
+  ],
+  "per_clause_type": {
+    "change_of_control": {
+      "n_examples": 3,
+      "n_predicted": 2,
+      "n_gold": 4,
+      "n_matched": 1,
+      "precision": 0.5,
+      "recall": 0.25,
+      "f1": 0.3333333333333333,
+      "f1_strict": 0.3333333333333333,
+      "f1_paper": 0.3333333333333333,
+      "precision_paper": 0.5,
+      "recall_paper": 0.25,
+      "n_matched_paper": 1,
+      "aupr": 0.5
+    },
+    "anti_assignment": {
+      "n_examples": 2,
+      "n_predicted": 2,
+      "n_gold": 3,
+      "n_matched": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "f1_strict": 0.0,
+      "f1_paper": 0.0,
+      "precision_paper": 0.0,
+      "recall_paper": 0.0,
+      "n_matched_paper": 0,
+      "aupr": 0.0
+    }
+  },
+  "macro_f1": 0.16666666666666666,
+  "micro_f1": 0.18181818181818182,
+  "macro_f1_paper": 0.16666666666666666,
+  "micro_f1_paper": 0.18181818181818182,
+  "p_at_r_0_8": {
+    "target_recall": 0.8,
+    "total_gold": 7,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.14285714285714285,
+    "p_at_achieved_max_recall": 0.3333333333333333,
+    "rank_at_target": null,
+    "flag": "recall_0.8_unachieved"
+  },
+  "p_at_r_0_9": {
+    "target_recall": 0.9,
+    "total_gold": 7,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.14285714285714285,
+    "p_at_achieved_max_recall": 0.3333333333333333,
+    "rank_at_target": null,
+    "flag": "recall_0.9_unachieved"
+  },
+  "aupr_overall": 0.3333333333333333,
+  "comparison_baselines": null
+}

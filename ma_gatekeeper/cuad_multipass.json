@@ -1,0 +1,79 @@
+{
+  "n_examples": 30,
+  "n_contracts": 15,
+  "clause_types": [
+    "change_of_control",
+    "anti_assignment"
+  ],
+  "per_clause_type": {
+    "change_of_control": {
+      "n_examples": 15,
+      "n_predicted": 10,
+      "n_gold": 9,
+      "n_matched": 3,
+      "precision": 0.3,
+      "recall": 0.3333333333333333,
+      "f1": 0.3157894736842105,
+      "f1_strict": 0.3157894736842105,
+      "f1_paper": 0.3157894736842105,
+      "precision_paper": 0.3,
+      "recall_paper": 0.3333333333333333,
+      "n_matched_paper": 3,
+      "aupr": 0.25
+    },
+    "anti_assignment": {
+      "n_examples": 15,
+      "n_predicted": 17,
+      "n_gold": 15,
+      "n_matched": 8,
+      "precision": 0.47058823529411764,
+      "recall": 0.5333333333333333,
+      "f1": 0.5,
+      "f1_strict": 0.5,
+      "f1_paper": 0.5,
+      "precision_paper": 0.47058823529411764,
+      "recall_paper": 0.5333333333333333,
+      "n_matched_paper": 8,
+      "aupr": 0.6420454545454546
+    }
+  },
+  "macro_f1": 0.40789473684210525,
+  "micro_f1": 0.4313725490196078,
+  "macro_f1_paper": 0.40789473684210525,
+  "micro_f1_paper": 0.4313725490196078,
+  "p_at_r_0_8": {
+    "target_recall": 0.8,
+    "total_gold": 24,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.4583333333333333,
+    "p_at_achieved_max_recall": 0.4230769230769231,
+    "rank_at_target": null,
+    "flag": "recall_0.8_unachieved"
+  },
+  "p_at_r_0_9": {
+    "target_recall": 0.9,
+    "total_gold": 24,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.4583333333333333,
+    "p_at_achieved_max_recall": 0.4230769230769231,
+    "rank_at_target": null,
+    "flag": "recall_0.9_unachieved"
+  },
+  "aupr_overall": 0.4791313949208686,
+  "comparison_baselines": null,
+  "eval_config": {
+    "split": "test",
+    "limit": 30,
+    "seed": 42,
+    "live": true,
+    "clause_types": [
+      "change_of_control",
+      "anti_assignment"
+    ],
+    "definitions_injected": true,
+    "chunk_size": 60000,
+    "chunk_overlap": 4000,
+    "recall_sweep": true,
+    "protocol_note": "Multi-pass extraction (chunked windows and/or a second recall sweep), NOT single-pass. Numbers reflect a higher inference budget than the single-pass fine-tuned CUAD baselines and are not apples-to-apples; report alongside the single-pass number and disclose in the README."
+  }
+}

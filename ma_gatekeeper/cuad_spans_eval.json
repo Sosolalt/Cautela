@@ -1,0 +1,64 @@
+{
+  "n_examples": 150,
+  "n_contracts": 75,
+  "clause_types": [
+    "change_of_control",
+    "anti_assignment"
+  ],
+  "per_clause_type": {
+    "change_of_control": {
+      "n_examples": 75,
+      "n_predicted": 51,
+      "n_gold": 35,
+      "n_matched": 18,
+      "precision": 0.35294117647058826,
+      "recall": 0.5142857142857142,
+      "f1": 0.41860465116279066,
+      "f1_strict": 0.41860465116279066,
+      "f1_paper": 0.41860465116279066,
+      "precision_paper": 0.35294117647058826,
+      "recall_paper": 0.5142857142857142,
+      "n_matched_paper": 18,
+      "aupr": 0.3689153439153439
+    },
+    "anti_assignment": {
+      "n_examples": 75,
+      "n_predicted": 55,
+      "n_gold": 97,
+      "n_matched": 34,
+      "precision": 0.6181818181818182,
+      "recall": 0.35051546391752575,
+      "f1": 0.4473684210526315,
+      "f1_strict": 0.4473684210526315,
+      "f1_paper": 0.4473684210526315,
+      "precision_paper": 0.6181818181818182,
+      "recall_paper": 0.35051546391752575,
+      "n_matched_paper": 34,
+      "aupr": 0.7009925439313064
+    }
+  },
+  "macro_f1": 0.4329865361077111,
+  "micro_f1": 0.43697478991596633,
+  "macro_f1_paper": 0.4329865361077111,
+  "micro_f1_paper": 0.43697478991596633,
+  "p_at_r_0_8": {
+    "target_recall": 0.8,
+    "total_gold": 132,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.3939393939393939,
+    "p_at_achieved_max_recall": 0.49056603773584906,
+    "rank_at_target": null,
+    "flag": "recall_0.8_unachieved"
+  },
+  "p_at_r_0_9": {
+    "target_recall": 0.9,
+    "total_gold": 132,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.3939393939393939,
+    "p_at_achieved_max_recall": 0.49056603773584906,
+    "rank_at_target": null,
+    "flag": "recall_0.9_unachieved"
+  },
+  "aupr_overall": 0.5864634808795958,
+  "comparison_baselines": null
+}

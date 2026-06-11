@@ -1,0 +1,78 @@
+{
+  "n_examples": 30,
+  "n_contracts": 15,
+  "clause_types": [
+    "change_of_control",
+    "anti_assignment"
+  ],
+  "per_clause_type": {
+    "change_of_control": {
+      "n_examples": 15,
+      "n_predicted": 10,
+      "n_gold": 9,
+      "n_matched": 3,
+      "precision": 0.3,
+      "recall": 0.3333333333333333,
+      "f1": 0.3157894736842105,
+      "f1_strict": 0.3157894736842105,
+      "f1_paper": 0.3157894736842105,
+      "precision_paper": 0.3,
+      "recall_paper": 0.3333333333333333,
+      "n_matched_paper": 3,
+      "aupr": 0.7777777777777778
+    },
+    "anti_assignment": {
+      "n_examples": 15,
+      "n_predicted": 16,
+      "n_gold": 15,
+      "n_matched": 8,
+      "precision": 0.5,
+      "recall": 0.5333333333333333,
+      "f1": 0.5161290322580646,
+      "f1_strict": 0.5161290322580646,
+      "f1_paper": 0.5161290322580646,
+      "precision_paper": 0.5,
+      "recall_paper": 0.5333333333333333,
+      "n_matched_paper": 8,
+      "aupr": 0.763888888888889
+    }
+  },
+  "macro_f1": 0.41595925297113756,
+  "micro_f1": 0.43999999999999995,
+  "macro_f1_paper": 0.41595925297113756,
+  "micro_f1_paper": 0.43999999999999995,
+  "p_at_r_0_8": {
+    "target_recall": 0.8,
+    "total_gold": 24,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.4583333333333333,
+    "p_at_achieved_max_recall": 0.44,
+    "rank_at_target": null,
+    "flag": "recall_0.8_unachieved"
+  },
+  "p_at_r_0_9": {
+    "target_recall": 0.9,
+    "total_gold": 24,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.4583333333333333,
+    "p_at_achieved_max_recall": 0.44,
+    "rank_at_target": null,
+    "flag": "recall_0.9_unachieved"
+  },
+  "aupr_overall": 0.7662396694214877,
+  "comparison_baselines": null,
+  "eval_config": {
+    "split": "test",
+    "limit": 30,
+    "seed": 42,
+    "live": true,
+    "clause_types": [
+      "change_of_control",
+      "anti_assignment"
+    ],
+    "definitions_injected": true,
+    "chunk_size": null,
+    "chunk_overlap": 4000,
+    "recall_sweep": false
+  }
+}

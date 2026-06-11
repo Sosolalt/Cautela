@@ -1,0 +1,23 @@
+{
+  "run_mode": "live",
+  "n_total_examples": 62,
+  "n_evaluated": 5,
+  "n_correct": 5,
+  "n_unmatched_responses": 0,
+  "n_skipped_with_reason": {
+    "gold_answer_not_in_choices": 57
+  },
+  "overall_micro_accuracy": 1.0,
+  "overall_macro_accuracy": 1.0,
+  "per_category": {
+    "General Information": {
+      "n": 5,
+      "n_correct": 5,
+      "n_unmatched": 0,
+      "accuracy": 1.0,
+      "aupr_degenerate": 1.0
+    }
+  },
+  "aupr_degenerate": 1.0,
+  "comparison_baselines": null
+}

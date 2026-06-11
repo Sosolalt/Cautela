@@ -1,0 +1,78 @@
+{
+  "n_examples": 150,
+  "n_contracts": 75,
+  "clause_types": [
+    "change_of_control",
+    "anti_assignment"
+  ],
+  "per_clause_type": {
+    "change_of_control": {
+      "n_examples": 75,
+      "n_predicted": 56,
+      "n_gold": 41,
+      "n_matched": 14,
+      "precision": 0.25,
+      "recall": 0.34146341463414637,
+      "f1": 0.28865979381443296,
+      "f1_strict": 0.28865979381443296,
+      "f1_paper": 0.32989690721649484,
+      "precision_paper": 0.2857142857142857,
+      "recall_paper": 0.3902439024390244,
+      "n_matched_paper": 16,
+      "aupr": 0.41752284104036125
+    },
+    "anti_assignment": {
+      "n_examples": 75,
+      "n_predicted": 63,
+      "n_gold": 98,
+      "n_matched": 38,
+      "precision": 0.6031746031746031,
+      "recall": 0.3877551020408163,
+      "f1": 0.4720496894409938,
+      "f1_strict": 0.4720496894409938,
+      "f1_paper": 0.49689440993788825,
+      "precision_paper": 0.6349206349206349,
+      "recall_paper": 0.40816326530612246,
+      "n_matched_paper": 40,
+      "aupr": 0.7517627072098177
+    }
+  },
+  "macro_f1": 0.3803547416277134,
+  "micro_f1": 0.40310077519379844,
+  "macro_f1_paper": 0.4133956585771915,
+  "micro_f1_paper": 0.43410852713178294,
+  "p_at_r_0_8": {
+    "target_recall": 0.8,
+    "total_gold": 139,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.37410071942446044,
+    "p_at_achieved_max_recall": 0.45614035087719296,
+    "rank_at_target": null,
+    "flag": "recall_0.8_unachieved"
+  },
+  "p_at_r_0_9": {
+    "target_recall": 0.9,
+    "total_gold": 139,
+    "p_at_r_0_8": null,
+    "achieved_recall_max": 0.37410071942446044,
+    "p_at_achieved_max_recall": 0.45614035087719296,
+    "rank_at_target": null,
+    "flag": "recall_0.9_unachieved"
+  },
+  "aupr_overall": 0.6539323404915851,
+  "comparison_baselines": null,
+  "eval_config": {
+    "split": "test",
+    "limit": 150,
+    "seed": 42,
+    "live": true,
+    "clause_types": [
+      "change_of_control",
+      "anti_assignment"
+    ],
+    "definitions_injected": true,
+    "chunk_size": null,
+    "chunk_overlap": 4000,
+    "recall_sweep": false
+  }
+}
