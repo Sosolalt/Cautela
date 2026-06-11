@@ -2,8 +2,8 @@
   "clusters": [
     {
       "cluster_id": "cluster_1_standard_modern_mae",
-      "name": "Standard modern MAE — full carve-outs + disproportionate-impact hook",
-      "theme": "Enumerated carve-outs (economic, industry-wide, war/terrorism/pandemic, changes in Law/GAAP) gated by a disproportionate-impact hook applied uniformly across all clauses.",
+      "name": "Standard protections — the safe norm",
+      "theme": "The buyer cannot walk away from the deal over broad outside problems — economic downturns, industry-wide slumps, wars, pandemics, or changes in law — unless the target company is hit noticeably harder than its competitors. This is today's market-standard wording, and 22 of the 30 deals use it.",
       "member_deal_ids": [
         "hpe-juniper-doj",
         "chevron-hess",
@@ -33,8 +33,8 @@
     },
     {
       "cluster_id": "cluster_2_pandemic_deviation",
-      "name": "Pandemic carve-out specifically deviated",
-      "theme": "Standard enumerated carve-outs PLUS a structural deviation that singles out the pandemic clause — either excluded from the disproportionate-impact hook or explicitly allocated to one party.",
+      "name": "Pandemic risk shifted to one side",
+      "theme": "Almost the standard wording, but the pandemic exception is rewritten so that COVID-style losses land specifically on the buyer — a deliberate reallocation of risk that a reviewer should flag.",
       "member_deal_ids": [
         "pfizer-seagen",
         "forescout-advent"
@@ -44,8 +44,8 @@
     },
     {
       "cluster_id": "cluster_3_forward_looking_durationally_significant",
-      "name": "Forward-looking 'reasonably be expected to' + durationally-significant standard",
-      "theme": "MAE definition has NO enumerated carve-out list; instead, governs via a forward-looking 'reasonably be expected to' threshold tied to long-term earnings power.",
+      "name": "Judgment-based, not a checklist",
+      "theme": "No fixed list of exceptions at all. Whether the buyer can exit instead hinges on a forward-looking judgment about lasting damage to the company's long-term earning power — short-term blips don't count.",
       "member_deal_ids": [
         "hexion-huntsman",
         "ibp-tyson",
@@ -56,8 +56,8 @@
     },
     {
       "cluster_id": "cluster_4_ordinary_course_independent",
-      "name": "Ordinary Course covenant independent of MAE carve-outs",
-      "theme": "MAE carve-outs are present but the §5.1 Ordinary Course covenant operates as an INDEPENDENT closing condition — pandemic effects can satisfy the MAE carve-out yet still breach the Ordinary Course covenant.",
+      "name": "A separate back-door exit",
+      "theme": "The standard exceptions are present, but a separate \"keep running the business as usual\" promise can independently let the buyer walk away — even when the main walk-away clause would have protected the seller. This is the gap that unwound the Tiffany / LVMH and AB Stable deals.",
       "member_deal_ids": [
         "ab-stable-maps",
         "tiffany-lvmh"
@@ -69,7 +69,7 @@
   "outliers": [
     {
       "deal_id": "akorn-fresenius",
-      "why": "Sole deal whose MAE definition contains NO enumerated carve-out for industry-wide conditions, no carve-out for changes in Law or GAAP, and no disproportionate-impact hook — the Akorn fact pattern. Every other contract in the portfolio negotiates at least the standard four-bucket carve-out list (Cluster 1) or governs via the forward-looking standard (Cluster 3); this deal does neither."
+      "why": "The dangerous one. Its walk-away clause is missing almost every standard protection — no exception for industry-wide trouble, none for changes in law or accounting rules, and no \"only if hit harder than peers\" test. This is close to the exact wording a court used to let a buyer cancel the real Akorn / Fresenius merger. Every other contract here is far better protected — this is the deal a reviewer should open first."
     }
   ]
 }

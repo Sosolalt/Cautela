@@ -31,6 +31,182 @@ import pytest
 from agent.schemas import RiskFinding
 
 
+@pytest.mark.parametrize("body", [
+    '[{"clause_id": "x"}]',                       # bare JSON, no fence
+    '```json\n[{"clause_id": "x"}]\n```',         # ```json fenced
+    '```\n[{"clause_id": "x"}]\n```',             # bare ``` fenced
+    '  ```json\n[{"clause_id": "x"}]\n```  ',     # fenced + surrounding ws
+])
+def test_strip_code_fences_unwraps_risk_judge_body(body):
+    """Regression for PROJECT_LOG Phase 14: Gemini wraps the risk_judge
+    findings array in a ```json fence, so a bare json.loads raised and the
+    stream emitted n_findings=0 even when real findings existed. The server
+    must tolerate fenced and unfenced bodies identically."""
+    from agent.server import _strip_code_fences
+
+    parsed = json.loads(_strip_code_fences(body))
+    assert parsed == [{"clause_id": "x"}]
+
+
+def _base_raw_finding(**overrides):
+    raw = {
+        "clause_id": "sec_9.3",
+        "clause_text": "9.3 Assignment. No Party may assign ...",
+        "tag": "anti_assignment",
+        "severity": "block",
+        "judge_score": 0.9,
+        "cited_spans": ["sec_9.3"],
+        "cited_spans_text": "9.3 Assignment ...",
+        "explanation": "Anti-assignment triggers consent on change of control.",
+    }
+    raw.update(overrides)
+    return raw
+
+
+@pytest.mark.parametrize("score_in,score_out", [
+    (8, 0.8),        # 1-10 integer scale
+    (9, 0.9),
+    (2, 0.2),
+    (85, 0.85),      # 0-100 scale
+    (0.7, 0.7),      # already 0-1 — untouched
+    (12, 0.12),      # >10 -> /100
+])
+def test_coerce_risk_finding_rescales_judge_score(score_in, score_out):
+    """Regression (Phase 15 live run on microsoft_activision): the Risk Judge
+    emits judge_score on a 1-10 (sometimes 0-100) scale, which violates the
+    RiskFinding `ge=0, le=1` bound and dropped EVERY finding to a validation
+    error (n_findings=0 on a run that produced real findings). The server
+    rescales+clamps so the finding validates."""
+    from agent.server import _coerce_risk_finding_raw
+
+    coerced = _coerce_risk_finding_raw(_base_raw_finding(judge_score=score_in))
+    assert coerced["judge_score"] == pytest.approx(score_out)
+    RiskFinding.model_validate(coerced)  # must not raise
+
+
+def test_coerce_risk_finding_joins_cited_spans_text_list():
+    """The Risk Judge sometimes emits cited_spans_text as a LIST of span
+    strings; the schema wants a single string. Coercion joins them so the
+    inline judges still see the full verbatim context."""
+    from agent.server import _coerce_risk_finding_raw
+
+    raw = _base_raw_finding(cited_spans_text=["span one.", "span two."])
+    coerced = _coerce_risk_finding_raw(raw)
+    assert coerced["cited_spans_text"] == "span one.\n\nspan two."
+    RiskFinding.model_validate(coerced)
+
+
+def test_coerce_risk_finding_fills_null_clause_id_from_cited_spans():
+    """A null clause_id (Judge couldn't attribute to a single clause) falls
+    back to the first cited_spans entry so the clause_id->page join has a key."""
+    from agent.server import _coerce_risk_finding_raw
+
+    raw = _base_raw_finding(clause_id=None, cited_spans=["sec_2.1", "sec_2.2"])
+    coerced = _coerce_risk_finding_raw(raw)
+    assert coerced["clause_id"] == "sec_2.1"
+    RiskFinding.model_validate(coerced)
+
+
+@pytest.mark.parametrize("label,canon", [
+    ("MAC Carve-Out", "mac"),
+    ("Change of Control", "change_of_control"),
+    ("Assignment", "anti_assignment"),
+    ("Vesting Acceleration", "accelerated_vesting"),
+    ("IP Assignment", "ip_assignment"),
+    ("Exclusivity / No-Shop", "exclusivity"),
+    ("Non-Compete", "non_compete"),
+    ("change_of_control", "change_of_control"),  # already canonical
+])
+def test_coerce_risk_finding_canonicalizes_tag_label(label, canon):
+    """Regression (Phase 15 live run): the Risk Judge emits human-readable tag
+    labels ("MAC Carve-Out", "Change of Control") instead of the canonical
+    snake_case Tag enum, failing the literal validator and dropping the finding.
+    Coercion maps them back to the enum."""
+    from agent.server import _coerce_risk_finding_raw
+
+    coerced = _coerce_risk_finding_raw(_base_raw_finding(tag=label))
+    assert coerced["tag"] == canon
+    RiskFinding.model_validate(coerced)
+
+
+@pytest.mark.parametrize("label,canon", [
+    ("Block", "block"), ("High", "block"), ("medium", "watch"), ("Low", "info"),
+])
+def test_coerce_risk_finding_canonicalizes_severity(label, canon):
+    """The Risk Judge sometimes capitalizes severity or uses a high/medium/low
+    scale; coercion maps to the info/watch/block enum."""
+    from agent.server import _coerce_risk_finding_raw
+
+    coerced = _coerce_risk_finding_raw(_base_raw_finding(severity=label))
+    assert coerced["severity"] == canon
+    RiskFinding.model_validate(coerced)
+
+
+def test_coerce_risk_finding_handles_all_drift_modes_at_once():
+    """The live failure: a single finding drifting on tag + severity +
+    judge_score + cited_spans_text simultaneously must still validate."""
+    from agent.server import _coerce_risk_finding_raw
+
+    raw = _base_raw_finding(
+        tag="MAC Carve-Out", severity="Block", judge_score=8,
+        cited_spans_text=['"Company Material Adverse Effect" means ...'],
+    )
+    f = RiskFinding.model_validate(_coerce_risk_finding_raw(raw))
+    assert f.tag == "mac" and f.severity == "block" and f.judge_score == pytest.approx(0.8)
+    assert isinstance(f.cited_spans_text, str)
+
+
+def test_coerce_risk_finding_fills_missing_clause_text_from_cited_spans_text():
+    """Regression (Phase 15 live run #4): the Risk Judge omits the required
+    `clause_text` field entirely, putting the clause prose only in
+    `cited_spans_text`. Coercion backfills clause_text from it so the finding
+    validates."""
+    from agent.server import _coerce_risk_finding_raw
+
+    raw = _base_raw_finding(cited_spans_text="9.3 Assignment. No Party may assign ...")
+    del raw["clause_text"]
+    coerced = _coerce_risk_finding_raw(raw)
+    assert coerced["clause_text"] == "9.3 Assignment. No Party may assign ..."
+    RiskFinding.model_validate(coerced)
+
+
+def test_coerce_risk_finding_missing_clause_text_and_no_source_fails_loud():
+    """If clause_text is missing AND there is no cited_spans_text to backfill
+    from, the finding still fails loud (no fabrication)."""
+    from agent.server import _coerce_risk_finding_raw
+
+    raw = _base_raw_finding()
+    del raw["clause_text"]
+    del raw["cited_spans_text"]
+    coerced = _coerce_risk_finding_raw(raw)
+    with pytest.raises(Exception):
+        RiskFinding.model_validate(coerced)
+
+
+def test_coerce_risk_finding_leaves_unknown_tag_to_fail_loud():
+    """A tag that maps to nothing confidently is left raw so validation fails
+    loud (coercion is normalization, not a catch-all guess)."""
+    from agent.server import _coerce_risk_finding_raw
+
+    coerced = _coerce_risk_finding_raw(_base_raw_finding(tag="Frobnicator Clause"))
+    assert coerced["tag"] == "Frobnicator Clause"
+    with pytest.raises(Exception):
+        RiskFinding.model_validate(coerced)
+
+
+def test_coerce_risk_finding_leaves_uncoercible_to_fail_loud():
+    """Coercion is normalization, not error-hiding: a genuinely bad field it
+    can't confidently fix (here, a non-numeric judge_score) is left untouched
+    so model_validate still fails loud."""
+    from agent.server import _coerce_risk_finding_raw
+
+    raw = _base_raw_finding(judge_score="very high")
+    coerced = _coerce_risk_finding_raw(raw)
+    assert coerced["judge_score"] == "very high"
+    with pytest.raises(Exception):
+        RiskFinding.model_validate(coerced)
+
+
 def test_risk_finding_schema_does_not_require_llm_to_supply_trace_id():
     """The original Issue 3 bug: `arize_trace_id` was a required str
     that no producer populated. New contract: server is sole producer."""
