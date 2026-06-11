@@ -196,9 +196,28 @@ export function FindingsPane({ rows, status, selectedFindingId, onSelect, dealId
             </li>
           );
         })}
+        {rows.length === 0 && status === "streaming" && (
+          <li className="px-4 py-10 text-center">
+            {/* Reassurance state — a deal review runs the parser → classifier
+                fan-out → cross-reference → risk-judge pipeline on Vertex, so the
+                first finding can take 30–60s to arrive. Without this the empty
+                list reads as "nothing's happening / it broke". The pulsing dot +
+                copy tells the reviewer the model is working. */}
+            <div className="mb-3 flex items-center justify-center gap-2">
+              <span className="inline-block h-2 w-2 animate-pulse bg-accent-vermillion" />
+              <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-muted">
+                Analyzing the deal
+              </span>
+            </div>
+            <p className="mx-auto max-w-[28ch] text-xs leading-relaxed text-ink-muted">
+              Scanning the contract for risky terms. Each finding appears here as
+              it&apos;s flagged — this usually takes a couple of minutes.
+            </p>
+          </li>
+        )}
         {rows.length === 0 && status !== "streaming" && (
           <li className="px-3 py-8 text-center font-mono text-xs uppercase tracking-[0.14em] text-ink-muted">
-            Select a deal to start a review
+            {status === "error" ? "Review failed — see the banner above" : "Select a deal to start a review"}
           </li>
         )}
       </ul>
