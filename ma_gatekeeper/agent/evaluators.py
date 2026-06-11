@@ -32,15 +32,79 @@ Credentials (no API key).
 from __future__ import annotations
 
 import functools
+import logging
 import os
+import time
+
+_LOG = logging.getLogger(__name__)
 
 # Model name: as of 2026-05, the publicly-callable Gemini 3 Pro identifier on
 # Vertex is "gemini-3.1-pro-preview"; Gemini 2.5 Pro is the fallback if a quota
 # bump isn't approved. Override via env.
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview")
+# GA Flash model for the LIVE inline judges — see _make_llm(). Mirrors
+# agents.GEMINI_FLASH_MODEL (same env var, single source of truth).
+GEMINI_FLASH_MODEL = os.environ.get("GEMINI_FLASH_MODEL", "gemini-3.5-flash")
+
+# Sync pacer for the inline judges, which call Vertex (2 calls per finding) via
+# phoenix-evals OUTSIDE the ADK graph — so `agents._throttle_before_model`
+# doesn't cover them. OFF by default (interval 0): the classifier burst now runs
+# on GA `gemini-3.5-flash`, freeing the Pro preview bucket, so pacing shouldn't
+# be needed. Shares the same env knob so setting GEMINI_MIN_CALL_INTERVAL_SEC>0
+# re-enables pacing on BOTH the pipeline and these judges together.
+_GEMINI_MIN_CALL_INTERVAL_SEC = float(
+    os.environ.get("GEMINI_MIN_CALL_INTERVAL_SEC", "0")
+)
+_last_inline_judge_call_at = [0.0]
 
 
-def _make_llm():
+def _pace_inline_judge_call() -> None:
+    """Sleep so consecutive inline-judge Vertex calls are >= the interval apart."""
+    if _GEMINI_MIN_CALL_INTERVAL_SEC <= 0:
+        return
+    wait = _GEMINI_MIN_CALL_INTERVAL_SEC - (time.monotonic() - _last_inline_judge_call_at[0])
+    if wait > 0:
+        time.sleep(wait)
+    _last_inline_judge_call_at[0] = time.monotonic()
+
+
+# The inline judges run on the SAME tight Vertex preview-quota bucket as the
+# heavy ADK stages, but they go through `phoenix.evals.LLM` rather than ADK's
+# Gemini wrapper, so they don't inherit `agents._build_model`'s retry_options.
+# Without this, a transient 429 on either judge raises straight up through
+# `run_inline_judges` into the server's finding loop and aborts the whole
+# review AFTER the findings were produced (Phase 15: the exact "0 findings on a
+# run that worked" failure, just one stage later). We retry transient errors
+# (429 / RESOURCE_EXHAUSTED / 503 / timeout) with exponential backoff so a quota
+# blip self-heals; non-transient errors still fail loud.
+_TRANSIENT_MARKERS = (
+    "429", "resource_exhausted", "resource exhausted", "exhausted",
+    "503", "unavailable", "deadline", "timeout", "500",
+)
+
+
+def _evaluate_with_retry(clf, payload: dict, *, attempts: int = 3,
+                         base_delay: float = 2.0, max_delay: float = 20.0):
+    """Call clf.evaluate(payload), retrying transient Vertex errors w/ backoff."""
+    last_exc: Exception | None = None
+    for i in range(attempts):
+        try:
+            return clf.evaluate(payload)
+        except Exception as exc:  # noqa: BLE001 — classify by message, re-raise if not transient
+            msg = str(exc).lower()
+            is_transient = any(m in msg for m in _TRANSIENT_MARKERS)
+            last_exc = exc
+            if not is_transient or i == attempts - 1:
+                raise
+            delay = min(max_delay, base_delay * (2 ** i))
+            _LOG.warning("inline-judge transient error (attempt %d/%d), "
+                         "backing off %.1fs: %s", i + 1, attempts, delay, exc)
+            time.sleep(delay)
+    assert last_exc is not None  # unreachable; loop either returns or raises
+    raise last_exc
+
+
+def _make_llm(model: str = GEMINI_MODEL):
     """Return a phoenix.evals.LLM bound to Gemini, routed to Vertex.
 
     provider="google" — the google-genai adapter. It routes to Vertex AI
@@ -49,9 +113,16 @@ def _make_llm():
     falls back to the Gemini Developer API and demands GOOGLE_API_KEY.
     "vertex"/"vertexai" are NOT valid here (they require litellm, which is
     not installed). Verified 2026-06-09 against the installed SDK.
+
+    `model` defaults to the heavy Pro model but the LIVE inline judges pass
+    GEMINI_FLASH_MODEL: they fire ~2 calls per finding (~10/review), which on
+    the tight Pro PREVIEW quota dominated demand and caused the review to stall
+    in 429-retry backoff (Phase 15). Moving them to the GA Flash model — its own
+    higher, separate quota — leaves only the 3 heavy reasoning stages on the Pro
+    bucket. Grading hallucination/faithfulness is well within Flash's ability.
     """
     from phoenix.evals import LLM
-    return LLM(provider="google", model=GEMINI_MODEL)
+    return LLM(provider="google", model=model)
 
 
 @functools.lru_cache(maxsize=1)
@@ -100,7 +171,7 @@ def make_hallucination_classifier():
             "Reply with exactly one of: factual, hallucinated."
         ),
         choices={"factual": 1.0, "hallucinated": 0.0},
-        llm=_make_llm(),
+        llm=_make_llm(GEMINI_FLASH_MODEL),  # live inline judge → GA Flash quota
     )
 
 
@@ -144,7 +215,7 @@ def make_faithfulness_classifier():
             "Reply with exactly one of: faithful, partial, unfaithful."
         ),
         choices={"faithful": 1.0, "partial": 0.5, "unfaithful": 0.0},
-        llm=_make_llm(),
+        llm=_make_llm(GEMINI_FLASH_MODEL),  # live inline judge → GA Flash quota
     )
 
 
@@ -169,8 +240,12 @@ def run_inline_judges(*, context: str, explanation: str,
     h_clf = make_hallucination_classifier()
     f_clf = make_faithfulness_classifier()
 
-    h_scores = h_clf.evaluate({"context": context, "explanation": explanation})
-    f_scores = f_clf.evaluate({
+    _pace_inline_judge_call()
+    h_scores = _evaluate_with_retry(
+        h_clf, {"context": context, "explanation": explanation}
+    )
+    _pace_inline_judge_call()
+    f_scores = _evaluate_with_retry(f_clf, {
         "clause_text": clause_text,
         "trigger_language": trigger_language,
         "explanation": explanation,
