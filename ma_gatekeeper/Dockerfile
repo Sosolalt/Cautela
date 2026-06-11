@@ -30,6 +30,18 @@ COPY requirements.txt thresholds.json* ./
 # citation-linkage feature, so ship it. data/ is otherwise excluded.
 COPY data/citation_map.json data/citation_map.json
 
+# Portfolio Analyst fixtures — read at RUNTIME (not just in tests) by the
+# /portfolio endpoint. agent/server.py:portfolio() calls load_sample_contracts()
+# -> tests/fixtures/portfolio_sample.json, and the PORTFOLIO_LIVE-unset default
+# make_mock_portfolio() reads tests/fixtures/portfolio_expected_output.json. Both
+# resolve to /app/tests/fixtures/ (Path(__file__).parent.parent in
+# agent/portfolio_analyst.py). Without them the mock path raises FileNotFoundError,
+# which Starlette renders as a 500 OUTSIDE the CORS middleware (no
+# Access-Control-Allow-Origin) -> the browser reports "Failed to fetch" on
+# /portfolio. tests/ is otherwise excluded; ship only these two data files.
+COPY tests/fixtures/portfolio_sample.json tests/fixtures/portfolio_sample.json
+COPY tests/fixtures/portfolio_expected_output.json tests/fixtures/portfolio_expected_output.json
+
 # Cloud Run injects $PORT at runtime; honor it via sh form.
 # Use a non-root user (USER 1000) per Cloud Run security guidance.
 RUN useradd -u 1000 -m runner
