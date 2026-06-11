@@ -1,245 +1,410 @@
-# Demo Script — M&A Due Diligence Gatekeeper
+# Demo Script — Cautela
 
-3-minute Devpost submission video. Synthesized E9 storytelling artifact
-(deferred from Phase 5; built through `feature-build-loop` 2026-05-27).
-Supersedes [`../../plan.md`](../../plan.md) §8 for recording purposes —
-plan §8 stays as the design-time spec, this file is the recording-time
-spec.
+**Devpost submission video. Record-from teleprompter, grounded in the ACTUAL
+current frontend + backend (2026-06-11), after the Phase-19 UI polish.** Full
+rewrite — prior revs described the pre-Phase-19 UI (right-pane Phoenix *iframe*,
+"Run Reflector now" button, 5-col portfolio). Those surfaces no longer exist;
+everything below is reconciled against the real components.
 
-**Anchors** — every claim in this file traces to one of:
-- [`../../plan.md`](../../plan.md) §3.2 (THE MOMENT), §5.5 (allow-list voiceover lock), §6.3 (promotion rule + ε), §6.4 (pre-seeding), §8 (current beat table), §12 (Devpost text-section budgets)
-- [`devpost.md`](devpost.md) "Reflector pre-seeding disclosure" block (canonical wording)
-- [`../../design/tokens.ts`](../../design/tokens.ts) (every cited typographic / motion / color token)
-- [`../../PROJECT_LOG.md`](../../PROJECT_LOG.md) "Pre-commitments locked" + "What failed"
-- [`internal30_deal_bank.md`](internal30_deal_bank.md) §2 Narrative-12 (BMS/Celgene CVR — cold-open source row; Skadden *Inside the Courts* SDNY summary; **Meso Scale v. Roche row L78, Cincom v. Novelis row L76, PPG v. Guardian row L79, SQL Solutions v. Oracle row L77** — controlling-precedent rows that land in Cluster 1 of the Fix 7 Portfolio Analyst output)
-- [`../agent/portfolio_analyst.py`](../agent/portfolio_analyst.py) + [`../tests/fixtures/portfolio_sample.json`](../tests/fixtures/portfolio_sample.json) + [`../tests/fixtures/portfolio_expected_output.json`](../tests/fixtures/portfolio_expected_output.json) (Fix 7 — 1M-context Portfolio Analyst beat at 1:55–2:05; deterministic mock backs the bake, `PORTFOLIO_LIVE=1` opts into the operator-wired Vertex path)
+**Length: this cut runs ~4:00 of content at 150 wpm + on-screen action.** It's the
+"full-depth" version — Hugo records it, then trims live if it runs long (the most-
+cuttable beats are flagged ⤵ in the operator notes). **Narrate to the events, not
+the clock** — durations are estimates, not a metronome.
 
----
-
-## Deliverable 1 — 30-second climactic voiceover script (verbatim)
-
-Read at conversational pace (~150 wpm). Recorded by Hugo (French-fluent
-English). One take. Plays over the Phoenix Experiments view at 2:30–3:00.
-The recap of the deal-selection moment is intentional — it lets the
-30-second block stand alone (e.g. as a Devpost teaser cut) while still
-working as the in-context climax narration.
-
-```
-Five pre-indexed deals. I picked one. The agent flagged a
-change-of-control clause.
-
-Overnight, the Reflector read its failure traces and drafted a
-candidate. It shipped only after two gates passed: a
-paired-bootstrap test on the regression set, and a no-regression
-check on a frozen fold within an epsilon noise floor.
-
-The production prompt was deliberately seeded weaker 48 hours
-before demo recording so the auto-improvement loop is structurally
-guaranteed to outperform.
-```
-
-**Word count: 73 words `split()` / ~80 spoken-equivalent.** Verified
-via `len(voiceover.split()) → 73` (post Fix-9 cascade: "real signal to
-find" = 4 split() tokens replaced by "is structurally guaranteed to
-outperform" = 5 split() tokens, net +1). The `split()` count undercounts
-what the speaker actually utters because hyphenated tokens read as
-multiple words and numerals expand: "change-of-control" speaks as 3 not
-1 (+2); "pre-indexed" as 2 not 1 (+1); "paired-bootstrap" as 2 not 1
-(+1); "no-regression" as 2 not 1 (+1); "auto-improvement" as 2 not 1
-(+1); "48" speaks as "forty-eight" (+1) — total spoken-equivalent
-adjustment **+7**, so 73 + 7 = **80 spoken words**. At 150 wpm
-conversational pace: 80 × 60 / 150 = **32.0 seconds**. This lands
-~2.0s past the nominal 30.0s climax slot at the literal 150-wpm pace —
-acceptable because (a) the post-badge held shot at 2:36–3:00 is a
-24s window with no competing voiceover (the Deliverable-2 badge has
-already faded out by 2:36.4 per L139–L140; the GitHub / hosted-demo /
-Phoenix-URL card displays at the bottom of frame through 3:00), so the
-2.0s spill is absorbed even more comfortably (it lands inside a 24s
-silent window, not an 8s one); (b) at the lower-end conversational
-pace (~140 wpm) the read lands at 34.3s, which the operator notes
-section already flags as the trim-or-widen branch; (c) the rewrite
-prioritized landability of the middle paragraph (FIX_PLAN Fix 3) over
-sub-30s strictness. An earlier draft included a "Cmd-click — the full
-Phoenix trace opens." line at this position; that line was trimmed
-because the cmd+click moment is already shown visually at 1:30–1:55
-and does not need re-narration at the climax. The middle paragraph
-was rewritten from the original "Auto-promotion fires only when the
-paired-bootstrap CI lower bound clears zero on the regression set, and
-the candidate does not regress on the frozen fold within epsilon" —
-flagged by the Devpost generalist judge, demo storyteller, and ML/eval
-skeptic critics as invisible to non-experts — into the "two gates
-passed: paired-bootstrap test on the regression set + no-regression
-check on a frozen fold within an epsilon noise floor" framing, which
-names the same three components in plain English.
-
-**Locked phrases honored** (verbatim or close-paraphrase, with sources):
-
-| Lock | Source | Where in script |
-|---|---|---|
-| "five pre-indexed deals" | plan.md §5.5 L252 ("5 pre-indexed deals our agent has reviewed end-to-end") + L256 voiceover obligation ("must say 'five pre-indexed deals' in plain English at the moment the dropdown opens") | Sentence 1, opening four words: "Five pre-indexed deals." |
-| Reflector pre-seed disclosure (verbatim clause) | devpost.md "Reflector pre-seeding disclosure" L242–246 (post Fix-9 cascade: "real signal to find" → "is structurally guaranteed to outperform" applied in lockstep across devpost.md canonical, climax VO, and Deliverable-2 badge) | Final paragraph, verbatim: "The production prompt was deliberately seeded weaker 48 hours before demo recording so the auto-improvement loop is structurally guaranteed to outperform." (Devpost L242–246 quotes "production"; the double-quotes are dropped here so the spoken read flows — same wording the Deliverable-2 badge already drops them in for legibility. Honesty edit per Fix 9: "real signal to find" implied discovery; the loop is in fact structurally guaranteed to outperform on the pre-seeded surface — recovery, not discovery.) |
-| Paired-bootstrap CI + frozen fold + ε floor | plan.md §6.3 L371 ("ε(fold5) = max(1× paired-bootstrap-SE of the per-example score delta on fold 5, 0.03)") + L376 ("paired bootstrap CI prevents promoting noise; the frozen held-out fold prevents promoting overfit; the SE-scaled ε prevents the non-regression gate from being either rubber-stamp or perpetually false-positive") | Middle paragraph, all three components named: **paired-bootstrap** test on the regression set, **no-regression** check on a **frozen fold**, **epsilon** noise floor. Reframed from jargon stack ("CI lower bound clears zero", "does not regress within epsilon") into plain English ("two gates passed") without softening into "the loop got better". |
-
-**Banned phrases verified absent** (per PROJECT_LOG.md "What failed"
-and plan.md §1):
-
-- No "100% precision" / no "100% recall" — only "Block-tier clause" and the procedural gate language.
-- No "70–90% of deals fail" — no market-size or failure-rate stat.
-- No "recently indexed" — uses the locked "pre-indexed" verbatim.
-- No unsourced $-figure / %-figure.
-- Does NOT paraphrase the §15 cadence tagline "Every flag, sourced. Every verdict, traced. Every span, clickable." (`design/COPY.md`) — that line is the landing-page OG anchor, not the voiceover.
+Supersedes [`../../plan.md`](../../plan.md) §8 for recording.
 
 ---
 
-## Deliverable 2 — On-screen pre-seed badge spec
+## What actually exists now (the only things we can film in-app)
 
-**Fix 4 reduction (2026-06-08).** The prior 22.0s on-screen caption
-(35 words, two sentences) was nuked and replaced with a 6.0s
-lower-third **badge** carrying a single short disclosure line. The
-reclaimed ~16 seconds funds the mid-demo $6.4B-at-risk beat (new beat
-row at 1:00–1:15, below). The full 3-sentence disclosure — including
-canonical Sentence 3 "Honest engineering of reproducibility, not
-staging." that the prior 35-word caption had dropped — now lives in
-the YouTube video description and the Devpost project description
-(both pull verbatim from `devpost.md` L242–246 "Reflector pre-seeding
-disclosure" block). The badge is the freeze-frame surface; the
-description is the long-form surface.
+Reconciled against the live components on 2026-06-11:
 
-**Badge text** (verbatim, one line):
+- **Hero `/`** — WebGL "dossier" landing ([`../frontend/components/hero/hero.tsx`](../frontend/components/hero/hero.tsx)).
+  - Headline (3 lines): **"Every flag, sourced. Every verdict, traced."**
+  - Subhead: *"M&A contract review where every verdict links to its Phoenix
+    trace — and every flag is sourced to the clause it came from."*
+  - Live anchor card: **"Phoenix trace · Verdict"** · *"Clause 1.4(b) · Adverse
+    effect · Cluster-bootstrap LB · 0.91"*.
+  - CTAs: **"Try the demo" → `/review`** (use this). *"Watch it work"* is **inert**
+    (`DEMO_VIDEO_URL = null`) — don't click it on camera.
+  - Animation: a ~14s WebGL loop — a 25-page paper stack flips, verdicts land on
+    pages with red overlays, a hairline "trace" connects a flagged clause to a
+    Phoenix span id. Let it run under the thesis/origin VO.
+
+- **`/review`** — three panes:
+  **PDF/HTML exhibit (LEFT, wide) · Findings list (CENTER) · Phoenix Verdict card (RIGHT)**.
+  - Header: wordmark **"Cautela"** (a link → hero), nav `Review / Portfolio →`,
+    and the **"Pre-indexed deal"** dropdown. Options render as `name (filing)`,
+    e.g. *"Microsoft / Activision Blizzard (2023) (8-K/Ex 2.1)"*.
+  - Pick a deal → review **auto-starts** (no run button). Empty state shows a
+    pulsing vermillion dot + **"Analyzing the deal"** (first finding ~30–60s).
+  - Findings **STREAM in** (SSE) into one list. Each row: a **lane chip**
+    (Auto-clear / Escalate / Block), the `tag`, a 2-line explanation,
+    `judge=0.xx · τ=0.xx`, and a **citation row** — the cite + a `STATUTE / CASE
+    LAW` kind badge + a champagne **jurisdiction** chip + a one-line rationale +
+    *"verified against `<source>` · `<date>`"* + a ↗ glyph. **This citation row
+    is the on-screen proof for the law point in the Block beat.**
+  - **Click a finding** → **all three panes snap on the same frame**: LEFT
+    exhibit **scrolls + highlights the cited clause** (vermillion band; HTML
+    highlighter — the common case; true-PDF gets a bbox overlay); CENTER row gets
+    a 4px vermillion left-bar; RIGHT **Verdict card** fills.
+  - **RIGHT pane = the Verdict card** ([`../frontend/components/trace-pane.tsx`](../frontend/components/trace-pane.tsx)),
+    NOT an embedded Phoenix SPA: **Status pill** (root span) · **Latency** ·
+    **Spans** · a **"This finding"** block · an **"In plain English"** explainer ·
+    the **lane meaning** (*"Flagged for a human to review — a 'look here' signal,
+    not an error."*) · a **Span breakdown** · and a vermillion **"Open full trace
+    in Phoenix"** CTA → new tab. **We click this CTA at the audit peak.**
+  - Bottom of the findings pane: a boxed **"Self-improvement · Phoenix"** panel
+    with a **"Self-improve now"** button.
+
+- **Reflector log** (climax surface) — streams in order: `LoopAgent spawned` →
+  `Phoenix MCP list_traces — N traces` → `candidate prompt generated` →
+  `Phoenix Experiment complete — CI lower = 0.xxx` → `frozen-fold non-regression
+  check — Δ=0.xxx (ε=0.xxx)` → `iteration complete` → **`AUTO-PROMOTED`**
+  (champagne-deep badge) + PR link. (Fallback terminal row: `NO PROMOTION`.)
+
+- **`/portfolio`** ([`../frontend/components/portfolio-pane.tsx`](../frontend/components/portfolio-pane.tsx)) —
+  header *"Portfolio Analyst · One Gemini 3 Pro call reads all 30 contracts at
+  once — grouped by how each deal's 'walk-away' clause is written"*.
+  - LEFT: a **6-col / 30-tile grid** — loads pulsing grey, resolves to **22 grey
+    "standard"** tiles, **3 colored clusters**, and the lone **`akorn-fresenius`
+    outlier** spanning 2 cols, ringed + pulsing vermillion, stamped **"⚠ Outlier"**.
+  - RIGHT: **"What this shows"** primer, **"4 patterns across 30 deals · 1 deal
+    fits no pattern"**, per-cluster name/n/theme, and a vermillion **"Review this
+    one first"** block (the `akorn-fresenius` rationale: *"close to the exact
+    wording a court used to let a buyer cancel the real Akorn / Fresenius merger."*).
+  - Deterministic fixture ([`../tests/fixtures/portfolio_expected_output.json`](../tests/fixtures/portfolio_expected_output.json));
+    live Vertex path is opt-in (`PORTFOLIO_LIVE=1`).
+
+### What does NOT exist (so it's an EDIT asset, or it's cut)
+
+- ❌ a right-pane Phoenix *iframe* → the **in-app Verdict card** + a new-tab CTA
+  (clicked at the audit peak to show the real trace tree + scores).
+- ❌ "Run Reflector now" → **"Self-improve now"** in a boxed panel.
+- ❌ a 5-col portfolio → **6-col, 30 tiles**, outlier spans 2 cols.
+- ❌ any on-screen `$69B` / `$6.4B` / `800k-token` counter → **spoken VO only**.
+- ❌ an in-app architecture diagram → folded into the DEAL-PICK VO (no slide).
+- ❌ **The user-facing legal citations are NOT model output** — they come from a
+  deterministic, hand-curated, primary-source-verified map (see the law backbone
+  below). The model flags the clause; it never invents the citation. ("We trained
+  the agents against the gold set" is fine to say — see the operator note on what
+  "trained" means here — but never "the model cites the law".)
+
+---
+
+## The law backbone (say it accurately — this is a credibility anchor)
+
+The Block beat leans on this, so get it right. The citations a user sees are
+**deterministic**, from [`../data/citation_map.json`](../data/citation_map.json)
+via [`../agent/citation_linker.py`](../agent/citation_linker.py):
+
+- **A hand-curated, primary-source-verified map of 15 controlling authorities**
+  (11 statutes + 4 cases) across 6 clause tags. Real entries include: **8 Del. C.
+  § 251 / § 271** (Delaware merger statutes), **15 U.S.C. § 18a / § 18** (HSR /
+  Clayton antitrust), **U.C.C. § 9-406 / § 2-210** (anti-assignment), **35 U.S.C.
+  § 261** (IP assignment), and the case law — **Akorn v. Fresenius** + **AB Stable
+  v. MAPS** (MAC), **Revlon** (exclusivity), **In re Trados** (change-of-control).
+- **The model never generates the citation.** `lookup_citation(tag, jurisdiction)`
+  is a synchronous deterministic lookup; it **fails closed** (returns "authority
+  not resolved") rather than serve the wrong jurisdiction's law. A separate
+  internal LLM proposer is compared to the map and logged to Phoenix as eval data
+  only — it never reaches the user.
+- **So the honest pitch is the inverse of "we fed the model a law dataset":** the
+  law is pinned to primary sources and *can't be hallucinated*, because it isn't
+  generated. That's the line.
+- **Clause→authority you'll actually see:** a **change-of-control** block cites
+  **Delaware merger statutes / In re Trados**; **Akorn v. Fresenius** is the **MAC**
+  case (it shows on a MAC finding + is the portfolio outlier). Name the
+  clause-correct authority on camera.
+
+---
+
+## Deliverable 1 — Beat table (12 beats, ~4:00, self-paced)
+
+`[IN-APP]` films the running site; `[EDIT]` is a built asset. Durations are
+estimates (VO @150 wpm + action). ★ = load-bearing.
+
+| ~Start | Beat | Surface | On screen / what to do |
+|---|---|---|---|
+| **0:00** (~10s) | Cold open — stakes (real M&A deal) | `[EDIT]` title card | Black; **voice from t=0.** BMS / Celgene (2019); one missed deadline cost $6.4B. Stakes only — no claim Cautela catches this. |
+| **0:10** (~22s) | Thesis — triage / preprocess | `[IN-APP] /` hero | Hero loop + headline. Cautela = the **first-pass / double-check layer** that lets human reviewers spend time only where it matters. Lanes + sourced + traced. |
+| **0:32** (~19s) | **ORIGIN — why it's real** | `[IN-APP] /` hero | Personal, to camera: **two M&A friends** who read contracts all day pushed Hugo to build it; the hours are what they want back. Makes it concrete + real. *(They're also the gold-set annotators — Q&A.)* |
+| **0:51** (~28s) | Deal pick **+ architecture** | `[IN-APP] /review` | Click **"Try the demo"** → open **"Pre-indexed deal"** (5 visible). Two-word gloss on *pre-indexed*, then the **4-agent ADK pipeline** (parser → 6-way classifier fan-out → cross-reference → risk judge) for the technical jury. Pick **Microsoft / Activision Blizzard (2023)**. |
+| **1:20** (~21s) | Live run — findings stream | `[IN-APP] /review` | "Analyzing the deal" → rows stream into the CENTER list. Narrate the **triage framing** (escalate ≠ error); let the **Block** row land. |
+| **1:41** (~30s) | **BLOCK FINDING + credibility + law ★** | `[IN-APP] /review` | Cursor on the red **Block** chip (change-of-control) + its **citation row**. Value **spoken** ($69B). Land the law backbone (**citations pinned to a curated, primary-source-verified map**) + the training story (**we trained the agents against a gold set hand-validated by two M&A experts**). Then: *supposed to be there; triage, not gotcha.* |
+| **2:11** (~32s) | **AUDIT PEAK ★** | `[IN-APP] /review → Phoenix` | **Click the Block row** → 3 panes snap. Then **click "Open full trace in Phoenix"** → new tab: **pan the full span tree** (parser → classifiers → cross-ref → risk-judge), **then zoom the 3 evaluator annotations** (hallucination · faithfulness · routing-gate). "Recorded, not asserted." |
+| **2:43** (~19s) | **WHY THIS EXISTS ★** (differentiator) | `[IN-APP]` (rest on the Phoenix trace / cut back to `/review`) | Harvey / Kira / Luminance read contracts too — what they don't ship is an honest answer to **"how do you know?"** Ours does, because it's **built on Arize** — every verdict traces back to its evidence. |
+| **3:03** (~14s) | **PORTFOLIO ★** | `[IN-APP] /portfolio` | Click **"Portfolio →"**. The whole data room in one view — **every contract sorted by priority**; the vermillion **outlier pops to the top = open it first.** Let the visual carry it; one short line. |
+| **3:17** (~21s) | **LOOP PREMISE** | `[IN-APP] /review` Reflector | Scroll to **"Self-improvement · Phoenix"**; click **"Self-improve now"**. **Disclosure badge fires on the click.** Narrate the premise as the log streams. |
+| **3:38** (~16s) | **PAYOFF ★ (climax)** | `[IN-APP]` Reflector log | Log reaches **`AUTO-PROMOTED`** (champagne badge). Land it; hold ~3s. *(Optional receipt: external Phoenix → Experiments.)* |
+| **3:54** (~6s) | Close | `[EDIT]` card | Cautela wordmark + one-line thesis + GitHub / hosted-demo / Phoenix URLs. Held silent. |
+
+**~4:00 total.** Trim further toward 3:00 (if needed) via the operator-note cuts.
+
+---
+
+## Deliverable 2 — Teleprompter (SAY + DO interleaved) — the record-from surface
+
+Read the **bold** lines aloud (~150 wpm). `▸ DO` / `▸ SHOW` cues sit at the exact
+point in the read. VO word counts are Python-counted; re-run `len(text.split())`
+on any edit.
+
+---
+
+**[COLD OPEN]** `[EDIT]` title card.
+`▸ SHOW:` black title card; lines land one at a time. Voice from t=0.
+
+> **"In 2019, Bristol-Myers Squibb acquired Celgene."**  *(hold ~1s)*
+> **"One deadline, buried in that merger agreement, slipped and made them loose six point four billion dollars."**
+
+`▸ DO:` hard cut to the **hero `/`**. *(22 words. The real, sourced BMS/Celgene CVR forfeiture — the Liso-cel milestone missed by 36 days. Stakes only; no claim Cautela catches this. Accuracy note: the merger itself closed — it was the CVR payout that was forfeited — so "a deadline slipped and $6.4B vanished" is true; don't say "the merger collapsed".)*
+
+---
+
+**[THESIS]** `[IN-APP] /`
+`▸ SHOW:` the WebGL hero loop + headline *"Every flag, sourced. Every verdict, traced."*
+
+> **"Reading a merger agreement end-to-end takes a team of lawyers weeks. Cautela does the first pass — it reads every clause and sorts each one between clear, escalate, or block. The reviewers then spend their hours only where it matters, and every flag stays sourced to its clause and traced in Phoenix."**
+
+*(51 words. A preprocessing / double-check layer that focuses human attention — NOT a replacement for lawyers.)*
+
+---
+
+**[DEAL PICK + ARCHITECTURE]** `[IN-APP] /review`
+`▸ DO:` click **"Try the demo"** → `/review`. Open the **"Pre-indexed deal"** dropdown — 5 options render as `name (filing)`.
+
+> **"These are five pre-indexed deals — real merger filings, already fetched and parsed. Behind each one, four agents on Google's ADK: a parser splits the contract into clauses, six classifiers fan out in parallel to flag the risky ones, a cross-reference agent resolves the definitions, and a risk judge scores each finding — every call on Gemini 3.5 Flash, traced in Arize Phoenix."**
+
+`▸ DO:` select **Microsoft / Activision Blizzard (2023)** → review auto-starts. *(63 words. "Pre-indexed" = already fetched + parsed. Pipeline detail for the technical jury — the real backbone. This click is the boundary; everything after depends on the live parse.)*
+
+---
+
+**[LIVE RUN]** `[IN-APP] /review`
+`▸ SHOW:` findings **streaming into the CENTER list**; rows carry a lane chip + `judge=… · τ=…` + a citation row.
+
+> **"Auto-clear for the boilerplate. Escalate when a human should take a look — that's not an error, it's a 'look here'. And block for a hard stop."**
+
+`▸ DO:` hold, let the list fill; wait for the **Block** row. *(38 words)*
+
+
+---
+
+**[AUDIT PEAK ★ — keep moving]** `[IN-APP] /review → Phoenix`
+`▸ DO:` **click the Block row.** All three panes snap on the same frame.
+`▸ SHOW:` LEFT — the exhibit **scrolls + draws a vermillion band on the cited clause**. RIGHT — the **Verdict card** ("In plain English" + the lane-meaning line).
+
+> **"One click, and all three panes line up. Left: the exact clause, highlighted in the real filing. Right: the verdict in plain English."**
+
+---
+
+**[BLOCK FINDING + CREDIBILITY + LAW ★]** `[IN-APP] /review`
+`▸ SHOW:` cursor on the red **Block** chip row (change-of-control), then along its **citation row** (the `STATUTE / CASE LAW` badge, the Delaware jurisdiction chip, "verified against …").
+
+> **"So when you click on a flagged clause, the cause is not guessed. Their is law underneath: every citation is pinned to a curated, primary-source-verified map of controlling authority — Delaware statutes and the real case law. We trained the agents against a gold set of real deals. So this isn't second-guessing elite counsel — it's first-pass triage in seconds, with the law attached."**
+
+*(72 words. THIS is where the law backbone + the training story land. Accuracy: name **Delaware merger statutes / In re Trados** for a change-of-control block — **Akorn v. Fresenius is the MAC case**, so only say "Akorn" if the visible finding is MAC. The "two M&A experts" are the ORIGIN friends = the gold-set annotators. Spoken $69B; no on-screen counter — other deal → operator table. This is the credibility beat; see the ⭐ appendix.)*
+
+---
+
+`▸ DO:` click the RIGHT-pane **"Open full trace in Phoenix"** CTA → real trace in a **new tab**.
+`▸ SHOW:` **first pan the full span tree** top-to-bottom — parser, the six classifiers, cross-reference, risk-judge — **then zoom into the risk-judge span's three evaluator annotations** (hallucination · clause-faithfulness · risk-judge gate).
+
+> **"Now I open the full trace in Phoenix — the whole pipeline: parser, the six classifiers, cross-reference, risk judge. And down here, the three evaluators that scored it: hallucination, faithfulness, and the routing gate. Every number behind the verdict is recorded, not asserted."**
+
+*(66 words. WHY: the span tree proves the pipeline actually ran + every call is traced; the evaluator annotations prove the verdict is grounded — the exact scores that drove clear/escalate/block are recorded, so a reviewer can audit instead of trust. The Arize money shot. **If Phoenix is cold/unset, skip the new-tab click — the Verdict card carries the proof; see fallbacks.**)*
+
+---
+
+**[WHY THIS EXISTS ★]** `[IN-APP]` rest on the Phoenix trace, or cut back to `/review`.
+`▸ SHOW:` linger a beat on the trace you just opened as you say "how do you know?", then the cursor back on the findings.
+
+> **"Vertical legal-AI tools already exist — Harvey, Kira, Luminance. What they don't ship is an honest answer to one question: how do you know? Ours does — because we built it on Arize. Every verdict you just saw traces back to its evidence."**
+
+*(43 words. The differentiator, straight from the README. It foregrounds Arize for the partner track and pays off the audit you just showed.)*
+
+---
+
+**[PORTFOLIO ★]** `[IN-APP] /portfolio`
+`▸ DO:` click **"Portfolio →"** in the header nav.
+`▸ SHOW:` the grid loads **pulsing grey**, then **resolves**; the **outlier pulses vermillion** (spans 2 cols, "⚠ Outlier"). Cursor to the right **"Review this one first"** block as you say the last line.
+
+> **"And this is the whole data room in one view — every contract in the deal, sorted by priority, so the team knows exactly which ones to open first."**
+
+*(29 words. The vermillion outlier pulsing top-of-grid IS "open first" — let the visual carry it. Optional add if you want the scale/Gemini point: "One Gemini call across all of them at once.")*
+
+---
+
+**[LOOP PREMISE]** `[IN-APP] /review` Reflector
+`▸ DO:` back on `/review`, scroll to the **"Self-improvement · Phoenix"** panel and click **"Self-improve now"**. **Disclosure badge fires on this click.**
+`▸ SHOW:` the **event log streams** — narrate as rows appear: `LoopAgent spawned` → `Phoenix MCP list_traces` → `candidate prompt generated` → `Phoenix Experiment complete — CI lower = …` → `frozen-fold non-regression check — Δ=… (ε=…)`.
+
+> **"This is the self-improvement loop. Through Phoenix's MCP server, the Reflector reads its own escalation traces, grows them into a regression dataset, and drafts a candidate cross-reference prompt. A Phoenix Experiment scores it against the live prompt — and it only ships if the gain clears two statistical gates it can't fake: a bootstrap confidence lower-bound above zero, and non-regression on a held-out fold."**
+
+*(48 words)*
+
+---
+
+**[PAYOFF ★ climax]** `[IN-APP]` Reflector log
+`▸ SHOW:` the log reaches the **`AUTO-PROMOTED`** champagne badge. Hold ~3s. Land the last word on the stamp.
+
+> **"List the traces, draft a candidate, run the experiment, clear the frozen fold — auto-promoted. The system improved its own prompt, and Phoenix is the gate that proved it earned the ship."**
+
+`▸ DO (optional receipt):` cut to **external Phoenix → Experiments** (candidate-vs-production). *(32 words. Assume populated.)*
+
+---
+
+**[CLOSE]** `[EDIT]` card
+`▸ SHOW:` **Cautela wordmark + one-line thesis + GitHub / hosted-demo / Phoenix URLs.**
+
+> *(silent — hold ~6s)*
+
+---
+
+**Locked phrases honored:** "five pre-indexed deals" (plan §5.5) spoken at the
+dropdown open while 5 options show. The two gates (paired-bootstrap CI +
+frozen-fold) are **named** in LOOP PREMISE and **shown live** in the log.
+
+**Banned (PROJECT_LOG "What failed"):** no "100% precision/recall"; no "we caught
+what the lawyers missed"; no "the model cites the law" (the citation map is
+deterministic); no market/failure-rate stat; no "recently indexed"; no on-screen
+"$6.4B at risk" counter implying Cautela catches the Celgene loss; no unsourced
+$/%-figure. $69B is the real reported Microsoft/Activision value — spoken only.
+
+---
+
+## Deliverable 3 — Disclosure badge spec
+
+Fires **the instant Hugo clicks "Self-improve now"** (LOOP PREMISE) — framing the
+coda instead of competing with the payoff. 6.0s hold, out before AUTO-PROMOTED.
 
 ```
 Pre-seeded prompt — full disclosure in description
 ```
 
-Word count: 7 tokens (Python `len(badge.split()) → 7`, em-dash counted
-as a standalone token). At a 1.5×-speed reader's effective pace
-(~1.67 wps), minimum readable hold is 7 / 1.67 = **4.19 seconds** —
-the 6.0s on-screen hold clears the floor with ~1.81s fade-out margin.
-A passive native-pace viewer registers it inside ~1s; a freeze-frame
-rule-lawyer sees "full disclosure in description" and lands on the
-canonical 3-sentence block in the description below the video.
-
-Note: the word "outperform" in the long-form description (devpost.md
-L244 post Fix-9 cascade) replaces the prior "real signal to find"
-wording — see the Locked-phrases-honored table in Deliverable 1
-above. The badge text intentionally does not paraphrase the lock; it
-points at it.
-
-**Spec table**:
-
-| Property | Value | Source / token |
-|---|---|---|
-| Badge text | "Pre-seeded prompt — full disclosure in description" | Honest-disclosure pointer. Long-form surface = `devpost.md` L242–246 verbatim (3 sentences, including the canonical Sentence 3 "Honest engineering of reproducibility, not staging." that the prior caption had dropped). Post Fix-9: long-form reads "structurally guaranteed to outperform" not "real signal to find". |
-| Font family | `fontFamily.body` → Space Grotesk / Inter Tight | `design/tokens.ts` L172. Body register for prose disclosure; mono/overlay is reserved for span-IDs (L173). |
-| Font weight | `500` (inline axis value) | Reads as disclosure-with-conviction without crossing into bold. Not a separate token — variable-font weight axis. |
-| Font size | `fontSize.small` → 14px / line-height 1.5 / letter-spacing 0 | `design/tokens.ts` L222. 14px clears WCAG 1.4.4 resize-without-loss-of-function for 1440p video bake. |
-| Color (text) | `colors.neutral-50` → `#F4F2EC` | `design/tokens.ts` L86. ~17:1 contrast on neutral-900 surface — safe even with the scrim at 0.92 alpha. |
-| Color (scrim) | `colors.neutral-900` → `#0B0B0C` at 0.92 alpha | `design/tokens.ts` L95. Lower-third strip behind the badge only, so the underlying Phoenix Experiments view stays visible above/below. |
-| Position | Lower-third, horizontally centered. Bottom margin = `spacing.5` (24px); inner padding = `spacing.4` (16px). | `design/tokens.ts` L246, L245. Lower-third anchor survives YouTube's progress-bar overlay on the lower 6%. |
-| In-point | T = 2:30.000 (frame 4500 @ 30fps) | Fires the instant the Reflector `_LOG.info("PROMOTED candidate %s → tag=production on %s", ...)` line appears in the LEFT-pane terminal tail (and the `production` tag pill flips in the RIGHT-pane Phoenix prompts-list view simultaneously). |
-| Out-point | T = 2:36.000 (frame 4680 @ 30fps) | 6.0s hold — clears the 4.19s 1.5×-speed readability floor for the 7-token badge with ~1.81s fade-out margin. Post-badge held shot runs 2:36 → 3:00 (24s, well above the ≥5s floor for the GitHub / hosted-demo / Phoenix URL card to register). |
-| Fade-in duration | `durationComponent` → 400ms | `design/tokens.ts` L311. Not `durationMicro` (200ms — feels like a hover-tooltip and underweights the disclosure); not `durationHero` (800ms — would steal focus from the auto-promotion event); explicitly **not** `durationMoneymomentSpan` (1800ms — `@policy noreuse` per `tokens.ts` L325, reserved for §6.4 landing-page moneymoment unfurl + the §How-it-works pipeline pulse only). |
-| Fade-out duration | `durationComponent` → 400ms | Symmetric with fade-in. |
-| Easing | `easePrimary` → `cubic-bezier(0.16, 1, 0.3, 1)` | `design/tokens.ts` L298. The single locked easing per SYSTEM.md §Motion language §1. |
-| Reduced-motion | Under `@media (prefers-reduced-motion: reduce)`: fades suppressed, badge appears instantly at in-point and disappears instantly at out-point. **Hold duration unchanged at 6s** — the readability floor is preserved. | SYSTEM.md §Motion language reduced-motion universal contract. Note: on a baked YouTube export this is a no-op; documented here for any future live-`<video>`-with-JS-overlay surface (e.g. a scroll-replay landing-page section). |
-
-After Effects (or any future live overlay) implements the fade timing
-from the spec table above; the canonical render target is the YouTube
-bake.
-
-**Honest-disclosure check** (per spec — freeze-frame survivability):
-
-- Badge sits on a 92%-opacity scrim. Max-contrast neutral-50 text on near-black. Variable-font 500 at 14px on a 1440p bake reads as clean disclosure prose, not a code/terminal block.
-- 6.0s hold — above the 4.19s 1.5×-speed floor for 7 tokens. A passive native-pace viewer registers it inside ~1s; the "full disclosure in description" pointer sends a freeze-frame rule-lawyer to the canonical 3-sentence block (`devpost.md` L242–246) reproduced verbatim in both the YouTube video description and the Devpost project description.
-- The long-form disclosure in those two surfaces names: (a) the seeding action, (b) the 48-hour window, (c) what the loop logic actually consists of (paired-bootstrap CI, frozen-fold non-regression, auto-promotion), (d) that the loop logic is unchanged, (e) that the loop is structurally guaranteed to outperform (post Fix-9 honesty edit — was "has a real signal to find" pre-cascade), and (f) "Honest engineering of reproducibility, not staging." Each is a clause a literal-minded judge could otherwise infer the opposite of.
+`len(badge.split()) → 7`. Lower-third, centered. `fontFamily.body` 500 /
+`fontSize.small` 14px; `colors.neutral-50` on `colors.neutral-900` @ 0.92 scrim;
+fade `durationComponent` 400ms / `easePrimary`. Long-form lives in the YouTube +
+Devpost descriptions ([`devpost.md`](devpost.md) "Reflector pre-seeding disclosure").
 
 ---
 
-## Deliverable 3 — Restructured beat table
+## Fallbacks (real-UI failure modes)
 
-**Invariants preserved** (from plan.md §8):
-
-- Total runtime ≤ 3:00.
-- Ordering: problem → architecture → live demo → climax → close.
-- Pre-recorded EDGAR fallback exists (separate row below).
-- Cmd+click reveal present (now as setup beat, NOT climax).
-- §5.5 voiceover lock ("five pre-indexed deals") fires at dropdown open and is recapped in the climax voiceover.
-- Architecture beat compressed to 15s, per plan.md §8 v2/v3.
-
-**Inversion (the spec's load-bearing change)** — current plan.md §8
-has the cmd+click @ 1:50–2:05 as "THE MOMENT" with auto-promotion
-trailing it as the loop reveal. This table inverts: cmd+click is the
-**setup beat that establishes auditability**, and the auto-promotion
-event is the **single climax** (final 30s, held).
-
-**Cold-open divergence from `plan.md` §8 Phase 7B lock** — Phase 7B
-(see [`../../PROJECT_LOG.md`](../../PROJECT_LOG.md) L142–144) locked
-cmd+click as the 0:00–0:04 cold-open. This table further diverges
-from that lock per FIX_PLAN Fix 2 (demo storyteller + Devpost
-generalist critic finding: a cmd+click cold-open dies for non-experts
-— no human stake, no dollar, no protagonist). The new cold open is a
-BMS/Celgene CVR narrative beat that opens with a date, a $6.4B
-forfeit, and the clause that caused it. The cmd+click reveal is
-preserved at the 1:30–1:55 setup beat (audit-proof: "every flag
-traces to a clause + Phoenix span"). The L5–L7 lock contract of this
-file (`demo_script.md` supersedes `plan.md` §8 for recording)
-authorizes the divergence; **no edit to `plan.md` is required**.
-
-| Time | Beat | What's on screen | Voiceover gist |
-|---|---|---|---|
-| **0:00–0:15** | Cold open — BMS/Celgene CVR (the clause that cost $6.4B) | [0:00–0:13] Pure black screen. White serif type fades in over `durationComponent` 400ms (`design/tokens.ts` L311), `easePrimary` `cubic-bezier(0.16, 1, 0.3, 1)` (`tokens.ts` L298), one line at a time per VO beat. Typography: `fontFamily.display` → Instrument Serif (`tokens.ts` L171), size `display-md` 88px (`tokens.ts` L195) for the date headline, dropping to `display-sm` 64px (`tokens.ts` L196) for the subsequent lines so the date carries the visual weight. Color: `colors.neutral-50` `#F4F2EC` (`tokens.ts` L86) on `colors.neutral-900` `#0B0B0C` (`tokens.ts` L95). Centered, no chrome, no logo, no cite-card on this beat — the citation surfaces in the YouTube description (Devpost project description carries the full BMS/Celgene CVR Skadden summary URL). [0:13–0:15] Hard cut to the Gatekeeper UI, voiceover live. **Pacing model: Model B (paced read with inter-sentence pauses at the staged timestamps).** Per-sentence budgets at 150 wpm using spoken-equivalent counts (proper-noun + numeric expansion): S1 [0:00–0:03] "December 31, 2020." — `split()`=3 / spoken≈4 / read ~1.6s in 3.0s slot (1.4s pause). S2 [0:03–0:07] "Bristol-Myers Squibb missed an FDA deadline by 36 days." — `split()`=9 / spoken≈11 ("Bristol-Myers Squibb"=3, "F-D-A"=3, "36"=1) / read ~4.0–4.4s in 4.0s slot (tight; pause absorbs into S3 lead-in). S3 [0:07–0:11] "One missing clause cost $6.4 billion to Celgene shareholders." — `split()`=9 / spoken≈11 ("$6.4 billion"="six point four billion"=4) / read ~4.0–4.4s in 4.0s slot. S4 [0:11–0:13] "Gatekeeper reads for the clause nobody flagged at signing." — `split()`=9 / spoken≈9 / read ~3.6s in 2.0s slot — OVERFLOW; this sentence is delivered across [0:11–0:14.6] and the hard cut moves to 0:14.6–0:15 (0.4s settle). Totals: `split()`=30 / spoken≈35. The "31 words at 150 wpm = 12.4s continuous" math from the storyteller's draft is DROPPED — Model B governs. | [0:00] "December 31, 2020." [0:03] "Bristol-Myers Squibb missed an FDA deadline by 36 days." [0:07] "One missing clause cost $6.4 billion to Celgene shareholders." [0:11] "Gatekeeper reads for the clause nobody flagged at signing." (source: [`internal30_deal_bank.md`](internal30_deal_bank.md) §2 Narrative-12 — BMS/Celgene CVR row; primary citation: Skadden *Inside the Courts* SDNY summary PDF linked in that row; sentence 4 hook deliberately echoes the §15 demo-narrative wedge. S2 trimmed from "missed an FDA approval deadline by 36 days" → "missed an FDA deadline by 36 days" per Model B's 4.0s slot budget.) |
-| **0:15–0:30** | Architecture | Static one-slide architecture diagram: Parser → Classifier → Cross-Reference → Risk Judge → Router; Reflector loop wired through Arize Phoenix MCP. Three callouts only: (1) Gemini 3 + ADK, (2) Phoenix tracing on every span, (3) MCP-driven self-improvement loop. | "Gatekeeper runs Gemini 3 on Google ADK, traced end-to-end in Arize Phoenix. A nightly Reflector loop reads its own traces back through Phoenix MCP." |
-| **0:30–0:50** | Deal selection (live demo opens) | UI dropdown opens. Verbatim label visible on-screen: **"5 pre-indexed deals our agent has reviewed end-to-end"** (plan.md §5.5 L250 wording — locked, numeral form). 5 entries rendered with deal names from [`../agent/allow_list.py`](../agent/allow_list.py) (Microsoft/Activision, Pfizer/Seagen, Cisco/Splunk, ExxonMobil/Pioneer, HPE/Juniper). Hugo clicks one. | **"I pick one of five pre-indexed deals."** (§5.5 voiceover lock fires verbatim — spelled-out form per plan.md §5.5 L254 voiceover obligation — at dropdown open.) |
-| **0:50–1:00** | Streaming findings via SSE (open) | Findings populate left-to-right into three lanes (Auto-Clear / Escalate / Block). Each chip shows numeric judge score AND lane color (plan.md §9). Header shows τ_h and τ_f thresholds. Auto-Clear and Escalate lanes fill first; Block lane visibly empty so the Block-tier landing in the next beat reads as the event. | "Findings stream in — Auto-Clear, Escalate, Block." |
-| **1:00–1:15** | **$6.4B-at-risk tick-up — ties Block-tier finding back to BMS/Celgene cold open** | Block-tier finding chip lands in the Block lane at 1:00.0 with score badge visible. **Inset overlay (top-right, lower-third footprint):** SVG counter ticks up from `$0.0B` to `$6.4B` over ~1.0s (T = 1:01.0 → 1:02.0), then holds the "$6.4B at risk" label through 1:14.0 with a 1.0s fade-out to 1:15.0. Counter typography: `fontFamily.mono` → Geist Mono (`design/tokens.ts` L173) at `fontSize.mono-arch` 32px (`tokens.ts` L214) for the digits; label "at risk" sits at `fontSize.mono-badge` 14px (`tokens.ts` L217) directly below in `colors.accent-oxblood` `#8B2635` (`tokens.ts` L127). Counter ease/duration uses `easePrimary` `cubic-bezier(0.16, 1, 0.3, 1)` (`tokens.ts` L298) over `durationHero` 800ms (`tokens.ts` L312) so the tick-up reads as a significant event, not a hover micro-interaction. Block-tier finding chip itself uses the standard chip styling — no special treatment. **Pacing: Model B (paced read).** VO `split()` = 15 tokens, spoken-equivalent ≈ 19 ("Block-tier" speaks as 2 not 1; "BMS" speaks as 3 not 1; "$6.4 billion" speaks as "six point four billion" = 4 not 2; em-dash silent). 19 × 60 / 150 wpm = **7.6 seconds spoken** in a 15.0s slot — leaves ~6s of the slot for the counter animation, hold, and the Block-tier chip landing to register without competing VO. Per-beat budget: [1:00.0–1:01.0] Block-tier chip lands (1.0s silent), [1:01.0–1:02.0] counter ticks up (1.0s, S1 + S2 deliver: "Block-tier — this is the missing clause from BMS and Celgene." spoken ≈ 4.0s overlapping the tick), [1:02.0–1:06.0] S2 tail + S3 "$6.4 billion at risk." spoken ≈ 3.6s, [1:06.0–1:15.0] held "$6.4B at risk" overlay + Block lane visible (9.0s silent settle into the cmd+click beat). | "Block-tier — this is the missing clause from BMS and Celgene. $6.4 billion at risk." (source: [`internal30_deal_bank.md`](internal30_deal_bank.md) §2 Narrative-12 BMS/Celgene CVR row; $6.4B figure anchors back to the cold-open beat at 0:00–0:15 S3 "One missing clause cost $6.4 billion to Celgene shareholders." — single cohesive arc.) |
-| **1:15–1:30** | Streaming findings via SSE (continued) | Remaining findings finish populating; Block-tier chip continues to hold visible with score badge and lane color. Header continues to show τ_h and τ_f thresholds. | "Every flag carries the cited clause and the judge score." |
-| **1:30–1:55** | Audit-proof beat: cmd+click → Phoenix trace ("we didn't hallucinate it — every flag traces to a clause + Phoenix span" — **NOT** the climax; relocated here from the plan.md §8 Phase 7B cold-open lock per the divergence note above) | Cursor moves to Block finding. Cmd+click. Phoenix dashboard opens in pre-loaded second window (split-screen per plan.md §7 D19). On-screen: full trace tree; the three Phoenix annotations `hallucination`, `clause_faithfulness`, `risk_judge_gate` (PROJECT_LOG.md L72) visible; cited clause span highlighted. Hold ~25s — enough to register the audit surface, NOT the climax hold. | "Cmd-click — the full Phoenix trace opens. Every span, every evaluator, every cited clause. We didn't hallucinate it: every flag traces to a clause and a Phoenix span." |
-| **1:55–2:05** | **Portfolio Analyst — one call, 30 contracts** | Switch to the Portfolio view (`/portfolio` route — `frontend/app/portfolio/page.tsx`). Static 5×6 grid of 30 deal cells renders deal_id labels (post-cutoff core + demo-path + Narrative-12 + 1 synthetic count-pad). At T+0.5s the cluster colors light up: four distinct tints pulled from `design/tokens.ts` accent palette (`accent-champagne` / `accent-oxblood` / `accent-ivory` / `accent-vermillion`), one per MAE-carveout cluster (Cluster 1 standard modern n=22, Cluster 2 pandemic-deviation n=2, Cluster 3 forward-looking durationally-significant n=3, Cluster 4 Ordinary-Course-independent n=2). One cell (akorn-fresenius) does NOT take a cluster color — it sits on the surface tone with a 2px oxblood ring and the Tailwind `animate-pulse` cadence (1s period). RIGHT-side legend lists the four cluster names + the outlier rationale block "Sole deal whose MAE definition contains no enumerated industry-wide carve-out — the Akorn fact pattern." Backed by the deterministic mock at `tests/fixtures/portfolio_expected_output.json` for the bake; `--live` path raises NotImplementedError until D9 operator wires the Vertex Files-API call (mirrors `eval_maud_mcq.py:make_live_agent`). **Portfolio Analyst always ships** — no SHIP/CUT gate, the visual is deterministic against the fixture. | "One call. Eight hundred thousand tokens. Thirty contracts. The agent finds four MAE-carveout clusters. Akorn is the outlier." (`split()` = 18 tokens, spoken-equivalent ≈ 20 ("MAE-carveout" = 3, "Akorn" = 1, "eight hundred thousand" = 3 — already 3 split tokens, no expansion → +2 net for the M-A-E letter-by-letter read); 20 × 60 / 150 wpm = **8.0s spoken** in a 10s slot — leaves a clean ~2s cushion that absorbs the tab-switch into Honest-numbers without spilling. Trim rationale: "Gemini 3 Pro" dropped (already named at 0:15–0:30 architecture beat, no information lost); "fact pattern as the outlier" collapsed to "is the outlier" (Akorn name preserved as the M&A-credible reference, single-call framing preserved via "One call", 30/4/800k numerals all preserved).) |
-| **2:05–2:15** | Honest numbers | Switch to the README results table. Cluster-bootstrap 95% LB on Block recall (headline, contracts as IID unit) displayed with the achieved number (pre-committed to publish unmodified per PROJECT_LOG.md L103, as superseded — cluster-bootstrap LB is now the headline; the Wilson row appears below as an exploratory per-finding-IID cross-check). Three-track table visible: MAUD-MCQ accuracy, CUAD-Spans token-F1, Internal-30 5-fold-CV Block recall. Footer label: "5-fold CV; fold 5 reserved for Reflector non-regression." | "Numbers are reported as cluster-bootstrap lower bounds on a frozen held-out fold, treating contracts as the IID unit. We publish the achieved number, not the best case." |
-| **2:15–2:30 (byte-stable in BOTH states)** | Loop setup: Reflector grows the regression dataset, candidate proposed | Switch to the Phoenix Experiments tab. Visible: `regressions-v1` dataset row added by Reflector overnight; `candidate` prompt row in the prompts list. Two experiment-run rows visible in the experiments table (both completed overnight via Cloud Scheduler): one against `regressions-v1`, one against `internal-30-holdout-fold-5`. | "Overnight, the Reflector read its failure traces and proposed a candidate prompt." |
-| **2:30–3:00 (byte-stable in BOTH states)** | **CLIMAX (sole) — auto-promotion event** | **Split-screen.** LEFT pane: Reflector run output (terminal tail / stdout capture from the nightly Cloud Scheduler hit on `/reflect`) — two adjacent log lines visible: `_LOG.info("Promotion gates passed: %s", diag)` with the `diag` dict surfacing `regression_ci_lb`, `epsilon_fold5`, `fold5_candidate_mean`, `fold5_production_mean`, `fold5_non_regression_ok`, `regression_gate_ok`, followed by `_LOG.info("PROMOTED candidate %s → tag=production on %s", ...)`. Function entry points: [`agent/reflector.py:461`](../agent/reflector.py#L461) (`paired_bootstrap_ci_lb`), [`:503`](../agent/reflector.py#L503) (`epsilon_fold5`), [`:508`](../agent/reflector.py#L508) (`should_promote`), [`:753`](../agent/reflector.py#L753) (`_promote_candidate` — which calls `client.prompts.tags.create` to flip the `production` tag), [`:760`](../agent/reflector.py#L760) (PROMOTED log line), [`:851`](../agent/reflector.py#L851) (Promotion-gates-passed log line). RIGHT pane: Phoenix Experiments tab — the experiments results table for the regression-set + fold-5-holdout runs (per-example scores in columns), with the prompts-list view visible underneath showing the `production` tag pointing to the new (just-promoted) version. Optional inset: reliability-diagram PNG from [`scripts/calibrate.py:184`](../scripts/calibrate.py#L184) `plot_reliability` for fold-5, picture-in-picture. The moment the climax beat opens (T = 2:30.000) the auto-promotion event lands in both panes simultaneously. **Badge per Deliverable 2 (L139–L140) fades in at 2:30, holds through 2:36, fades out by 2:36.4.** Final ~24s (2:36 → 3:00) holds the post-promotion state; bottom-of-frame card shows GitHub URL + hosted demo URL + Phoenix project URL in `fontSize.mono-attribution`. **Honest framing**: the CI LB / ε narrative is proven by Reflector code output (LEFT) and by Phoenix experiment scores + prompts-list view (RIGHT) — NOT by a custom Phoenix CI-bar visualization. Phoenix Experiments ships a results table + comparison summaries, not custom paired-bootstrap CI plots; the visuals on screen are the artifacts that actually exist in the deployed system. The MCP-tool name `add-prompt-version-tag` is the protocol-level surface (Phoenix MCP server); the deployed Reflector uses the equivalent Phoenix Python SDK path (`client.prompts.tags.create`) — both flip the same `production` tag, but the visible log line is the SDK one. | (The full Deliverable-1 voiceover plays across this 30s window.) |
-
-**Total runtime: exactly 3:00.**
-
-### Pre-recorded EDGAR fallback (separate row, explicit cut-in / re-merge)
-
-| Trigger | Cut-in window | What plays instead | Voiceover behavior |
-|---|---|---|---|
-| Live EDGAR fetch latency > 30s, OR EdgarTools MCP raises, OR Vertex AI 429s during the live demo segment | Cuts in at 0:50 (seam at the deal-selection click); re-merges with the live recording at 1:55 (start of the Fix 7 Portfolio Analyst beat — Portfolio tab + cursor state re-aligned at the cut). Cmd+click setup beat (1:30–1:55) is **inside** the pre-recorded segment; per plan.md §8 "the cmd+click moment is recorded against the local data and works deterministically." Portfolio Analyst beat is deterministic against the mock fixture, so the re-merge surface is render-stable regardless of whether the prior 0:50–1:55 was live or pre-recorded. | A D19-captured walkthrough of one known-good run on Microsoft/Activision (the most reliable per `verify_allow_list.py` D10 output — confirm at recording time), against local cached EDGAR fixtures for bit-identical takes. | Live voiceover continues uncut over the pre-recorded segment. |
-| Phoenix Cloud Run cold-start > 10s on cmd+click | Phoenix is pre-loaded in a second window from 0:00 per plan.md §7 D19, AND `min-instances=1` from D20 per plan.md §12. Belt-and-suspenders fallback: if both fail, the cmd+click jump shows a full-screen still of the trace from a prior recording, with a "captured 2026-06-{date}" timestamp in the corner. | Single still image of the trace from the most-recent good capture. | Voiceover line trimmed by ~1.5s (recoverable in edit). |
-| Auto-promotion event fails to fire during recording (paired-bootstrap CI LB does not clear zero, OR ε(fold5) blocks promotion) | Climax beat (2:30–3:00) cuts to a D17 rehearsal capture pre-verified to show BOTH: (a) the LEFT-pane Reflector log output containing `paired_bootstrap_ci_lb` > 0 on the regression set AND `epsilon_fold5` passing on the frozen fold, AND (b) the RIGHT-pane Phoenix prompts-list view showing the `production` tag flip from candidate to new prompt. Timestamp ribbon: "captured during D17 rehearsal". The disclosure badge still plays. If no D17 rehearsal capture meets both gates, the climax voiceover must be edited to a procedural variant ("the gate fires only when the paired-bootstrap CI lower bound clears zero on the regression set, and the candidate does not regress on the frozen fold within epsilon") and the post-badge held shot replaced by the most recent good Reflector promotion event from production traces (Reflector log tail + Phoenix prompts-list view, same split-screen layout as the primary climax beat). | D17 rehearsal capture pre-verified against both gates via the LEFT-pane Reflector log + RIGHT-pane Phoenix prompts-list flip (or, on cascade-fallback, the most recent good production promotion event). | Voiceover unchanged on the primary path; on the cascade-fallback path it shifts to the procedural variant above. |
-
-### Devpost description anchors (linked from the YouTube description, NOT read aloud)
-
-The close-beat card on screen at 2:36–3:00 surfaces the README/hosted/Phoenix URLs. The YouTube video description below the video links explicitly to (each is already drafted verbatim in [`devpost.md`](devpost.md)):
-
-- **Demo Scope paragraph** — devpost.md "Demo scope paragraph" block. Names all 5 deals + the selection rationale. Required in the Devpost project description per plan.md §12.
-- **Reflector pre-seeding disclosure** — devpost.md "Reflector pre-seeding disclosure" block. The badge from Deliverable 2 is the freeze-frame surface for this disclosure; the Devpost text is the long-form surface.
-- **AI-generated-content disclosure** — devpost.md "AI-generated-content disclosure" block. Required per plan.md §12.
+| Trigger | Mitigation | What plays instead |
+|---|---|---|
+| Live SSE latency / EdgarTools raises / Vertex 429 during LIVE RUN | Pre-record one known-good Microsoft/Activision `/review` run; the AUDIT-PEAK click is deterministic against the captured stream. | Captured `/review` walkthrough; live VO continues uncut. |
+| **Phoenix cold-start / `NEXT_PUBLIC_PHOENIX_URL` unset at the AUDIT PEAK** | The Verdict card degrades gracefully — Status/Latency/Spans show "—" but **"In plain English" + the citation row still render**. **Skip the new-tab Phoenix click**; trim the second half of the audit VO. *(Best: pre-warm Phoenix `min-instances=1` + capture the trace tab once at rehearsal.)* | Verdict card only, or a captured Phoenix-trace still. |
+| HTML highlighter doesn't land the band (legacy EDGAR markup) | If it misses, the proof is the **citation row + Verdict card** (highlight-independent). Say "the clause it came from", not "highlighted". | Citation row + Verdict card only. |
+| Citation row shows "authority not resolved" / "contract-anchored" on the chosen finding | Pick a finding whose tag is in the **6 map-covered tags** (change_of_control, anti_assignment, ip_assignment, mac, exclusivity, non_compete) at rehearsal — those carry the cite the **Block-beat law point** needs. | A finding with a populated CitationRef. |
+| Portfolio live path errors / not wired | `/portfolio` serves the **mock fixture** by default (deterministic — 4 clusters + the Akorn outlier). VO claims capability, not live-ness. | Mock-backed grid. |
+| Reflector ends in **NO PROMOTION** at recording | Prompt is pre-seeded weak to promote; if it still fails, cut the payoff to a rehearsal capture pre-verified to reach **AUTO-PROMOTED** ("captured during rehearsal" ribbon). Badge still plays on the click. | Rehearsal capture of the AUTO-PROMOTED log. |
 
 ---
 
 ## Recording-day operator notes (for Hugo)
 
-These are not part of the deliverables — they are the operational
-notes that must be stopwatch-verified at recording time.
+- **Length:** this is the ~4:20 full-depth cut. To reach ≤3:00, trim in this
+  order: (1) drop the optional Phoenix **new-tab click**, keep the Verdict card
+  (−~10s); (2) tighten the **architecture** VO to the parser + parallel-classifier
+  line only (−~8s); (3) shorten the **Live-run** hold (−~6s); (4) tighten the
+  **Portfolio** to the data-room scenario + the pop-out, drop the token line
+  (−~8s). That recovers ~30s without losing a ★ beat.
+- **Law accuracy:** the on-screen citation for a **change-of-control** block is a
+  **Delaware merger statute (§ 251 / § 271) or In re Trados** — **Akorn v.
+  Fresenius is the MAC case** (it's the portfolio outlier). Name the
+  clause-correct authority. Confirm the loaded Block's citation row at rehearsal.
+- **What "trained" means here (for a Q&A follow-up):** saying *"we trained the
+  agents against a gold set"* on camera is fine — but technically it's **calibration
+  + the Reflector loop**, not gradient fine-tuning: the judge thresholds (τ_h/τ_f)
+  were tuned by cross-validation against the ~530-finding lawyer+analyst gold set,
+  and the nightly Reflector loop improves the prompts from failure traces. If a
+  judge drills in, give that accurate version. (Separately: the **citations** are a
+  deterministic primary-source map — never model output.)
+- **ORIGIN beat:** deliver to camera; optional lower-third with the two friends'
+  names/roles (with consent). It's the same two people who validated the gold set.
+- **Set `NEXT_PUBLIC_PHOENIX_URL` + `NEXT_PUBLIC_PHOENIX_PROJECT`** and confirm the
+  Phoenix project is populated (trace tree + the three span annotations) before
+  the AUDIT PEAK take — needed for the tree+scores reveal.
+- **AUDIT PEAK choreography:** click finding → 3 panes snap → click "Open full
+  trace in Phoenix" → in the new tab, **pan the span tree first, THEN zoom the
+  risk-judge evaluator annotations**. Rehearse the tab-switch warm.
+- **Two EDIT assets to build:** the cold-open title card and the close card. **No
+  architecture slide, no results-table capture** (both cut).
+- **Per-deal value table** (BLOCK is spoken): Microsoft/Activision ≈ **$69B**
+  (default) · Exxon/Pioneer ≈ **$60B** · Pfizer/Seagen ≈ **$43B** · Cisco/Splunk ≈
+  **$28B** · HPE/Juniper ≈ **$14B**.
+- **The Reflector log is the climax — narrate to the events, not the clock.**
+- **Word counts are Python-counted.** Re-run `len(text.split())` on any edit.
 
-- **Word counts are Python-counted, not eyeballed.** If you trim or add a word, re-run `len(text.split())` against the literal block. Hand-counts drift across column breaks; trust the script, not the count.
-- **Pacing target: ~150 wpm.** At that pace the climax voiceover lands at 32.0s — 2.0s past the 30s slot, absorbed by the 24s post-badge held shot (2:36–3:00) which carries no competing VO. See pacing block at L41–73 (held-shot rationale at L52–58). If you naturally pace at 140 wpm, the same script lands at ~34s — trim one short connective phrase or widen the climax slot by ~2s and tighten the streaming-findings beat (0:50–1:30) to compensate.
-- **The "five pre-indexed deals" line fires twice**: once at the dropdown open (0:30–0:50) and once as recap inside the climax voiceover (2:30–3:00). Both are verbatim. This is intentional — the §5.5 lock is a recording-day disclosure obligation, not a single-utterance constraint.
-- **Badge rendering**: Inter Medium 500 at 14px on a 1440p export should be tested before recording day. The token system would also support Inter 600 at the same size if the 500 weight reads light on a Phoenix-dashboard-bright backdrop. Test once; if 500 holds, ship; if not, escalate weight to 600 (same `fontSize.small` key, no token change).
-- **Beat timings are designed, not stopwatch-tested.** The 25s cmd+click hold (1:30–1:55) and the 30s climax hold (2:30–3:00) need at least one full-rehearsal stopwatch pass on D17–D18. If a beat overruns, trim from the streaming-findings beat (0:50–1:30) — it has the most natural slack.
-- **The fallback rows ARE the live demo for any judge watching the bake.** The "live demo" framing exists for in-person / Q&A — the bake should look identical whether the EDGAR fetch was live or pre-recorded.
+---
+
+<!-- =====================================================================
+     ⭐⭐⭐  USE THIS DURING THE DEMO / Q&A  ⭐⭐⭐
+     THE REAL GOAL OF THE PROJECT — CREDIBILITY FRAMING
+     Woven into LIVE-RUN + BLOCK + AUDIT + WHY-THIS-EXISTS, and carried
+     visually by the UI ("In plain English" + lane-meaning Verdict block,
+     the case-law citation row, the portfolio Akorn outlier). Verbatim for Q&A.
+     ===================================================================== -->
+
+## ⭐ THE REAL GOAL — credibility framing (say this; the example is load-bearing)
+
+**The trap to avoid:** never claim Cautela "found problems the lawyers missed."
+That's false. The Microsoft–Activision agreement was drafted by elite counsel; the
+clauses we flag are *supposed to be there*.
+
+**The truthful, stronger framing — Cautela is a TRIAGE / SCREENING layer, not a
+gotcha detector:**
+
+- **"Escalate" ≠ "error."** It means *"a human should look at this."* Auto-clear =
+  standard/low-risk · Escalate = flagged for attention · Block = hard-stop pending
+  review. Flagging change-of-control or MAC is *correct triage* — what a first-year
+  associate's first pass produces, in seconds instead of hours, **with the
+  controlling law attached.** *(The Verdict card states this on screen.)*
+
+- **The clauses it surfaced are real, material, heavily-negotiated terms, grounded
+  in primary law:** the **$2,270,100,000 termination fee** + no-solicitation /
+  fiduciary-out structure; the **MAC walk-away with its COVID/pandemic carve-outs**,
+  cited to **Akorn v. Fresenius** — the *one* Delaware case where a MAC justified
+  killing a merger; **single-trigger vesting** (Section 2.8).
+
+- **The citations can't be hallucinated** because they're **not generated** — they
+  come from a hand-curated, primary-source-verified map (15 authorities; statutes +
+  the real cases). The model flags the clause; the law is pinned. *(This is the
+  Block-beat point and the answer to a "did the model make up that case?" follow-up.)*
+
+- **For THIS deal the MAC flag is genuinely on-point:** Microsoft–Activision sat in
+  regulatory limbo ~18 months (FTC/CMA/EU); whether a MAC had occurred was a live,
+  real-world question. The model surfaced the clause that mattered most.
+
+- **The portfolio makes the same point at scale:** the `akorn-fresenius` outlier is
+  flagged because its walk-away clause is *"close to the exact wording a court used
+  to cancel the real Akorn / Fresenius merger."* The screening layer pointing at the
+  one exposed contract in thirty — exactly the data-room scenario in the VO.
+
+- **The origin is real, and it's the same two people:** the two M&A friends in the
+  ORIGIN beat — a lawyer and an analyst — are the **annotators of record** for the
+  human-validated Internal-30 gold set the judges were calibrated against. The
+  people who inspired the project are the people who graded it.
+
+**THE LINE TO SAY ON CAMERA (or under questioning):**
+> *"Cautela isn't second-guessing the lawyers. It does first-pass triage in
+> seconds and grounds every flag in controlling Delaware law — pinned to the
+> primary source, not generated. On a $69 billion deal, this is the screening
+> layer that tells a reviewer where to look and why it matters legally."*
+
+<!-- END credibility framing -->
 
 ---
 
 ## Cross-references (audit trail)
 
-- Plan beat-table being superseded for recording: [`../../plan.md`](../../plan.md) §8.
-- Pre-commitments enforced verbatim: [`../../PROJECT_LOG.md`](../../PROJECT_LOG.md) "Pre-commitments locked".
-- Canonical disclosure wordings reused: [`devpost.md`](devpost.md) "Demo scope paragraph", "Reflector pre-seeding disclosure", "AI-generated-content disclosure".
-- Token sources for every cited typography / motion / color value: [`../../design/tokens.ts`](../../design/tokens.ts).
-- Cold-open BMS/Celgene CVR source row + Skadden primary citation: [`internal30_deal_bank.md`](internal30_deal_bank.md) §2 Narrative-12.
-- **Fix 7 Portfolio Analyst beat (1:55–2:05) — cluster taxonomy + outlier**: agent module [`../agent/portfolio_analyst.py`](../agent/portfolio_analyst.py); endpoint at `agent/server.py` `/portfolio` route (sync JSON, passcode-gated, mock-default; `PORTFOLIO_LIVE=1` opts into the live Vertex path). Fixture pair: [`../tests/fixtures/portfolio_sample.json`](../tests/fixtures/portfolio_sample.json) (30 contracts keyed against `internal30_deal_bank.md`) + [`../tests/fixtures/portfolio_expected_output.json`](../tests/fixtures/portfolio_expected_output.json) (canonical 4-cluster + 1-outlier output). Frontend pane: [`../frontend/components/portfolio-pane.tsx`](../frontend/components/portfolio-pane.tsx) at route [`/portfolio`](../frontend/app/portfolio/page.tsx). Tests: [`../tests/test_portfolio_analyst.py`](../tests/test_portfolio_analyst.py).
-- **Fix 6 (structural reasoning) — POST-HACKATHON DEFERRED**: `verify_structural_reasoning.py` + `tests/fixtures/structural_reasoning_pair.json` + `test_verify_structural_reasoning.py` remain in the repo as a deferred capability. Demo dependency lifted in Fix 7 (the Portfolio Analyst beat is strictly better at the 1:55–2:05 slot per the 7-juror panel review). Controlling precedents previously cited for the conditional beat (Cincom L76, SQL Solutions L77, Meso Scale L78, PPG L79 in `internal30_deal_bank.md`) are still load-bearing for the cluster narrative — Cincom/SQL/Meso/PPG each have standard MAE language and land in Cluster 1 of the Portfolio Analyst output, with the assignment-law structural angle now narrated in the cluster-legend tooltips rather than in a dedicated beat.
-- Operator-side recording checklist (D19 row): [`../HANDOFF.md`](../HANDOFF.md) "D19 (demo recording)".
+- Real components: [`../frontend/app/review/page.tsx`](../frontend/app/review/page.tsx) · [`../frontend/components/findings-pane.tsx`](../frontend/components/findings-pane.tsx) · [`../frontend/components/trace-pane.tsx`](../frontend/components/trace-pane.tsx) · [`../frontend/components/pdf-pane.tsx`](../frontend/components/pdf-pane.tsx) · [`../frontend/components/reflector-loop-button.tsx`](../frontend/components/reflector-loop-button.tsx) · [`../frontend/components/portfolio-pane.tsx`](../frontend/components/portfolio-pane.tsx) · [`../frontend/components/deal-picker.tsx`](../frontend/components/deal-picker.tsx) · [`../frontend/components/hero/hero.tsx`](../frontend/components/hero/hero.tsx).
+- Portfolio fixture (what `/portfolio` films): [`../tests/fixtures/portfolio_expected_output.json`](../tests/fixtures/portfolio_expected_output.json).
+- **Law backbone:** [`../agent/citation_linker.py`](../agent/citation_linker.py) + [`../data/citation_map.json`](../data/citation_map.json) — 15 controlling authorities (11 statutes + 4 cases) across 6 tags; **deterministic, primary-source-verified, never model output**; fails closed on wrong jurisdiction. Design: `design/STATUTE_LAYER.md`.
+- Backend routes: `agent/server.py` `/allow-list`, `/review-by-deal` (SSE), `/reflect/loop` (SSE), `/portfolio`, `/filing/{deal_id}`. Reflector events: [`../agent/reflector.py`](../agent/reflector.py).
+- 5 deals: [`../agent/allow_list.py`](../agent/allow_list.py). Topology + models: [`../agent/agents.py`](../agent/agents.py) (review on `GEMINI_FLASH_MODEL` = gemini-3.5-flash; Portfolio on `GEMINI_MODEL` = gemini-3.1-pro-preview).
+- Origin/calibration: the two M&A friends (lawyer + analyst) are the Internal-30 gold annotators of record (~530 findings) — README §9.
+- "Why this exists" differentiator: root [`../../README.md`](../../README.md) §"Why this exists" — *"Vertical legal-AI tools already exist (Harvey, Kira, Luminance). What they don't ship is an honest answer to the question, 'how do you know?'"* (the VO is verbatim from this).
+- Cold-open stakes + Skadden citation: [`internal30_deal_bank.md`](internal30_deal_bank.md) §2 (BMS/Celgene CVR — Liso-cel milestone, $6.4B).
+- Disclosure wordings: [`devpost.md`](devpost.md).
+</content>

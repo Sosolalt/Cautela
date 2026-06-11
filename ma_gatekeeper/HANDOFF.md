@@ -403,18 +403,38 @@ do.
 ## Sanity checks that should pass before D7 architecture freeze
 
 These verify that the actual installed SDK matches the shapes the code
-expects (the architecture/Arize reviewer flagged these explicitly):
+expects (the architecture/Arize reviewer flagged these explicitly).
+**Updated 2026-06-09 against the real installed SDKs on Python 3.12** —
+the four commands below are the *verified-correct* forms; the original
+draft commands had drifted and are noted inline.
 
-1. `python -c "from phoenix.evals import LLM; LLM(model='gemini-3-pro', provider='vertexai')"`
-   — no exception.
-2. `python -c "from phoenix.client import Client; Client().annotations.add_span_annotation"`
-   — attribute exists; if it's `client.spans.add_annotation` instead,
-   update `agent/router.py` (one line) and `agent/reflector.py`.
-3. `python -c "from google.adk import LlmAgent, ParallelAgent, SequentialAgent"`
-   — no import error.
-4. `python -c "from google.adk.tools.mcp_tool import MCPToolset, StdioServerParameters"`
-   — `MCPToolset(connection_params=StdioServerParameters(...))` is the
-   non-deprecated form.
+> Run inside the 3.12 venv. **Python 3.14 will NOT work** — google-adk /
+> arize-phoenix / openinference-instrumentation-vertexai all cap at
+> `<3.14`. Build the venv with `python3.12 -m venv .venv`.
+
+1. `GOOGLE_GENAI_USE_VERTEXAI=TRUE GOOGLE_CLOUD_PROJECT=<proj> GOOGLE_CLOUD_LOCATION=global python -c "from phoenix.evals import LLM; LLM(model='gemini-3.1-pro-preview', provider='google')"`
+   — no exception. The provider is **`google`** (the google-genai
+   adapter), NOT `vertex`/`vertexai` (those need litellm, which we don't
+   install, and raise "Unknown provider"). The Vertex env vars must be
+   present or the adapter falls back to the Gemini Developer API and
+   demands `GOOGLE_API_KEY`. Code: `agent/evaluators.py:_make_llm`
+   (already uses `provider="google"`).
+2. `python -c "from phoenix.client import Client; Client().spans.add_span_annotation"`
+   — attribute exists. The canonical path is **`client.spans.add_span_annotation`**
+   (NOT `client.annotations.*` — that raises `AttributeError` on the
+   installed client). Code already correct: `agent/router.py:64`.
+3. `python -c "from google.adk.agents import LlmAgent, ParallelAgent, SequentialAgent"`
+   — no import error. Import from **`google.adk.agents`**, NOT
+   `google.adk` (the top-level re-export does not exist). Code already
+   correct: `agent/agents.py:66`.
+4. `python -c "from google.adk.tools.mcp_tool import MCPToolset; from mcp import StdioServerParameters"`
+   — both import. `StdioServerParameters` lives in the upstream **`mcp`**
+   package, NOT `google.adk.tools.mcp_tool`. Code already correct:
+   `agent/reflector.py` (imports it from `mcp`). NOTE: the installed ADK
+   also exposes `StdioConnectionParams` in `google.adk.tools.mcp_tool`;
+   if a future ADK rejects a raw `StdioServerParameters` as
+   `connection_params`, wrap it as
+   `StdioConnectionParams(server_params=StdioServerParameters(...))`.
 
 If any of these fail, fix at the SDK boundary in the named file. The
 internal logic does not depend on the SDK shape.

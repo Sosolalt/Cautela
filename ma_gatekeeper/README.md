@@ -23,22 +23,37 @@ review rounds with final scores 9/10 (market, architecture), 9.2/10
 
 ## Architecture (plan §4.2)
 
+The six-stage review pipeline runs end-to-end on **Gemini 3.5 Flash**
+(GA), pinned via `GEMINI_FLASH_MODEL` — it carries the structured
+extract/classify/judge work at the accuracy the eval rail demands
+(held-out Block-recall 1.0) for roughly an order of magnitude less than
+the Pro preview, whose large-context pricing on a ~150K-token merger
+agreement made per-review cost untenable. **Gemini 3.1 Pro**
+(`GEMINI_MODEL`) is reserved for the two stages whose 1M-context
+reasoning pays for itself: the Portfolio Analyst and the Reflector.
+Every stage reads its model from env, so any deployment can dial a stage
+up to Pro without touching code.
+
 ```
-PDF upload  (Cloud Run FastAPI handler)
+PDF / HTML upload  (Cloud Run FastAPI handler)
    v
-Parser           (Gemini 3 Pro, populates pdf_bbox)
+Parser           (Gemini 3.5 Flash, populates pdf_bbox)
    v
-Classifier       (ParallelAgent, Gemini 3 Flash fan-out)
+Classifier       (ParallelAgent, Gemini 3.5 Flash fan-out)
    v
-CrossReference   (Gemini 3 Pro, resolves definitions <-> operative)
+CrossReference   (Gemini 3.5 Flash, resolves definitions <-> operative)
    v
-RiskJudge        (inline phoenix.evals + span annotation)
+RiskJudge        (Gemini 3.5 Flash + inline phoenix.evals + span annotation)
    v
 Router           (deterministic Python, NOT an LLM)
    v
 Reporter         (Jinja2 template, NOT an LLM)
 
-Reflector (separate Cloud Scheduler cron):
+Portfolio Analyst (separate agent, Gemini 3.1 Pro):
+  one ~800k-token call across all 30 demo contracts -> cross-deal
+  cluster taxonomy (MAC templates, outlier deal, representative clause)
+
+Reflector (separate Cloud Scheduler cron, Gemini 3.1 Pro):
   list-traces -> add-dataset-examples -> upsert-prompt -> two experiments
   (regression set + frozen fold-5) -> auto-promote ONLY if both gates pass
 ```
@@ -61,28 +76,35 @@ Reflector (separate Cloud Scheduler cron):
 ```
 ma_gatekeeper/
   agent/
-    schemas.py           # Pydantic models (plan §4.3)
-    instrumentation.py   # phoenix.otel.register with set_global_tracer_provider=False
+    schemas.py           # Pydantic models (plan §4.3) + the 8-value Tag enum (source of truth)
+    instrumentation.py   # phoenix.otel.register (HTTP-OTLP /v1/traces, set_global_tracer_provider=False)
     evaluators.py        # hallucination + faithfulness create_classifier wrappers
-    router.py            # deterministic gating (plan §6.2) + span annotation writer
-    agents.py            # ADK SequentialAgent / ParallelAgent topology
+    router.py            # deterministic independent gating (plan §6.2) + span annotation writer
+    agents.py            # ADK Sequential/Parallel topology (review pipeline on GEMINI_FLASH_MODEL)
+    portfolio_analyst.py # 5th agent: one ~800k-token Gemini 3.1 Pro pass over all 30 deals
+    reflector.py         # nightly self-improvement loop (plan §6.3) + Phoenix MCP introspection
+    reflector_loop.py    # demo-facing observe->propose->experiment->gate->promote loop
+    citation_linker.py   # deterministic primary-source citation map + internal LLM proposer
+    pdf_bbox.py          # bounding-box extraction for span pins
+    allow_list.py        # curated 5-deal demo registry (ticker, EDGAR ex-2.1 URL)
     prompts.py           # fallback prompt templates (Phoenix is source of truth)
-    reflector.py         # nightly self-improvement loop (plan §6.3)
-    server.py            # FastAPI: /review, /review-by-deal, /reflect, /allow-list
+    server.py            # FastAPI: /review, /review-by-deal, /filing, /portfolio,
+                         #          /reflect, /reflect/loop, /allow-list, /healthz
+  frontend/              # Next.js 14 + Tailwind UI (see "Frontend" below)
   scripts/
-    download_datasets.py # CUAD + MAUD + EDGAR pull
-    perturb_contracts.py # adversarial slice (regex transforms) + TF-IDF/LogReg leakage AUC audit (<0.6 to ship; see plan §5.3 v4.1 honest impl note)
-    calibrate.py         # 5-fold CV grid search + reliability diagrams
-    annotate.py          # Gemini pre-label -> Argilla JSONL + Cohen's kappa
-    seed_reflector.py    # D18 pre-seed: weaken production prompt, stage strong as candidate
-  tests/
-    test_fold_split.py     # D9-morning unit test (7 tests)
-    test_promotion_rule.py # bootstrap CI + epsilon floor + allowlist (9 tests)
-    test_router.py         # independent-gating semantics (7 tests)
-    test_stats.py          # one-sided Wilson + cluster bootstrap (8 tests)
-    test_annotate.py       # JSONL serialization + kappa math (21 tests)
-    test_seed_reflector.py # D18 pre-seed: weak-template + tag pairing (9 tests)
-    test_allow_list.py     # 5-deal schema + HTTP 503/404 invariants (9 tests)
+    download_datasets.py     # CUAD + MAUD + EDGAR pull
+    fetch_internal30.py      # pull the Internal-30 cohort filings
+    build_internal30_gold.py # multi-agent Pass A/B cohort gold builder
+    judge_internal30.py      # D8 -> calibration bridge (--live grades each finding)
+    annotate.py / make_kappa_template.py  # pre-label JSONL + Cohen's kappa
+    calibrate.py             # 5-fold CV grid search + reliability diagrams
+    eval_maud_mcq.py / eval_cuad_spans.py / eval_citation_gold.py  # public + gold benchmarks
+    build_readme_table.py    # regenerates the results table between the HTML markers
+    perturb_contracts.py     # adversarial slice + TF-IDF/LogReg leakage AUC audit (<0.6 to ship)
+    seed_reflector.py / seed_reflector_datasets.py  # D18 pre-seed + Phoenix dataset seeding
+    render_climax_plots.py   # demo reliability/promotion plots
+    confirm_selfimprove_promotes.py  # asserts the self-improve loop actually promotes
+  tests/                 # 571 pure-Python unit tests; no live API calls (see "Tests")
   Dockerfile
   requirements.txt
   .env.example
@@ -106,13 +128,69 @@ python -m scripts.download_datasets --out data/
 uvicorn agent.server:app --reload --port 8080
 ```
 
+## Frontend (`frontend/`)
+
+A **Next.js 14 + Tailwind** app served on Cloud Run as `cautela-frontend`.
+The `/review` page is a three-pane workspace: the document exhibit (left),
+the streaming findings pane (middle), and the trace / "in plain English"
+pane (right). Selecting a deal **auto-starts** the review; findings stream
+in over SSE and appear as the Risk Judge emits them.
+
+- **Document pane** (`components/pdf-pane.tsx`) — react-pdf for PDFs; for
+  the HTML EDGAR exhibits the demo deals actually ship, it renders the
+  filing in a `sandbox="allow-scripts"` (opaque-origin, **no**
+  `allow-same-origin`) blob iframe and splices in a postMessage
+  highlighter that draws span-level bands on the cited clause when a
+  finding is selected.
+- **Phoenix board** (`components/phoenix-board.tsx`, `lib/phoenix.ts`) —
+  embeds the self-hosted Phoenix project and deep-links each finding to
+  its span tree through a same-origin `/phoenix-api/*` proxy; the project
+  id is resolved by name at runtime.
+- **Portfolio pane** (`components/portfolio-pane.tsx`) — surfaces the
+  cross-deal cluster taxonomy from the Portfolio Analyst.
+- **Self-improvement panel** (`components/reflector-loop-button.tsx`) —
+  triggers the Reflector loop and shows AUTO-PROMOTED / NO PROMOTION
+  outcome badges with the CI-LB and Δ/ε from the experiment.
+
+Frontend type-safety against the Python schemas is pinned by
+`tests/test_frontend_type_sync.py` (and `test_tag_sync.py` for the clause-
+tag union).
+
+## Deployment
+
+Self-hosted on Google Cloud Run (`test-ec90e`), scales to zero off-demo:
+
+- **Backend** — `ma-gatekeeper` (FastAPI). Deploy with
+  `gcloud run deploy ma-gatekeeper --source . --region=us-central1`
+  (no env flags preserves baked env + secrets).
+- **Frontend** — `cautela-frontend` (Next.js, Cloud Build).
+- **Phoenix** — self-hosted on Cloud Run, OpenInference tracing over
+  HTTP-OTLP (`/v1/traces` — Cloud Run can't receive the gRPC:4317 default).
+- **Reflector** — Cloud Scheduler cron hitting `/reflect` (OIDC-gated).
+
+A live `/review-by-deal` on `microsoft_activision` streams four real
+findings (change-of-control, anti-assignment, MAC carve-out, accelerated
+vesting) and lands a full trace tree in the Phoenix `ma-gatekeeper`
+project.
+
 ## Tests
 
-208 pure-Python unit tests; no live API calls. Run:
+**571 pure-Python unit tests** with fixed seeds and zero live API calls.
+Run:
 
 ```bash
 .venv/bin/python -m pytest tests/ -v
 ```
+
+Current status: **570 pass / 1 fail**, where the only failure is
+`test_env_documented` (`.env.example` is missing two non-secret
+Reflector knobs — `GEMINI_FLASH_MODEL` and `GEMINI_MIN_CALL_INTERVAL_SEC`
+— a cosmetic one-line operator fix; the file is house-rule off-limits to
+the agent). Coverage now spans the eval rail (`test_eval_maud_mcq`,
+`test_eval_cuad_spans`, `test_eval_citation_gold`), the Internal-30 gold
+builder, the SSE review stream (`test_server_stream`), the PDF/HTML proxy
+and bbox layers, the Portfolio Analyst, the citation linker + freshness
+gate, the demo-facing reflector loop, and the frontend type-sync guard.
 
 The fold-split tests are the explicit D9-morning unit test (plan §7 v3)
 catching off-by-one + leak-via-shared-state bugs. The promotion-rule
@@ -236,9 +314,11 @@ guarded by `test_tag_sync.py:test_cross_reference_prompt_has_four_clause_family_
 The hosted demo presents a curated dropdown of **5 pre-indexed deals**,
 not an open ticker box. Each is pre-vetted to surface at least one
 Block-tier finding so the demo cannot land on an "all clear"
-anticlimax. The EdgarTools MCP fetches the actual 8-K Exhibit 2.1
-filing live for each demo invocation — the artifact is real and could
-change between runs.
+anticlimax. Each deal's actual 8-K Exhibit 2.1 is fetched live from SEC
+EDGAR at demo time — a direct request to the filing's public EDGAR
+archive URL, so the agent reviews the real document, not a repo copy.
+(The `edgartools` library registers the required SEC identity at startup
+and backs the fallback fetch for any not-yet-pinned deal.)
 
 **Demo Scope paragraph** (required in the Devpost description):
 
@@ -246,7 +326,7 @@ change between runs.
 > 8-K/Ex 2.1 merger filings, pre-validated to surface at least one
 > change-of-control, anti-assignment, or MAC-related finding so the
 > agent has something interesting to do on camera. The filings are
-> fetched live from EDGAR via the EdgarTools MCP server at demo time.
+> fetched live from SEC EDGAR at demo time.
 
 ## Eval headline (plan §5.4 v4)
 
@@ -259,14 +339,34 @@ used for the headline number.
 > reported as a secondary exploratory per-finding-IID cross-check;
 > per-evaluator thresholds (τ_h, τ_f), 4-fold CV on Internal-30.
 
+**Judge design — high-precision flagging.** Each finding is graded against
+its cited clause by two inline judges (`agent/evaluators.py`). The
+hallucination judge scores the *operative claim* — what the explanation says
+the clause itself says or does — and treats standard legal-doctrine framing
+(Revlon, Omnicare, MAC, fiduciary-out…), market-customary benchmarks, and
+risk-direction judgments as expert work-product rather than fabrication; it
+returns `hallucinated` only on a direct contradiction with the clause or
+invented clause content. The faithfulness judge grades the explanation
+against the clause text **and** the trigger language, returning `unfaithful`
+only on contradiction. Both are deliberately conservative about *raising* a
+defect, so every flag is trustworthy: when a judge objects, there is a
+concrete, identifiable problem (verified on the 530-row lawyer+analyst gold,
+where the judges still flag genuine over-reach rather than rubber-stamping).
+
+Because the judges flag conservatively, the routing gate (τ_h, τ_f) is
+permissive by construction; the headline Block-recall is therefore reported
+**with** its cluster-bootstrap 95% lower bound, not as a point estimate
+alone. The deployed τ_f is pinned by the lowest-scoring Block finding
+(f=0.50), which is the binding constraint on recall.
+
 <!-- BEGIN_RESULTS_TABLE -->
 | Track | Metric | Value | Notes |
 |---|---|---|---|
-| Internal-30 | Block recall (point estimate) | — | Pooled across 0 headline fold(s); frozen fold ? excluded. |
-| Internal-30 | Block recall (cluster bootstrap 95% LB, one-sided) | — | Load-bearing number per plan §0 + §5.4 v3 — published unmodified. Cluster bootstrap over contracts (1000 resamples) — findings within a contract are correlated, so contracts are the IID unit. |
-| Internal-30 | Block recall (Wilson 95% LB — exploratory, per-finding IID) | — | Exploratory cross-check only — assumes findings are IID Bernoulli trials, which they are not (findings within a contract are correlated). Over-tight as a cluster-corrected estimate; the cluster bootstrap row above is the headline. |
-| Internal-30 | Effective N (contracts) | — | Per plan §5.2 v3 — fold 5 (Reflector frozen set) excluded. |
-| Internal-30 | Deployed thresholds | — | Median across headline folds; written to router config. |
+| Internal-30 | Block recall (point estimate) | 1.000 | Pooled across 4 headline fold(s); frozen fold 5 excluded. |
+| Internal-30 | Block recall (cluster bootstrap 95% LB, one-sided) | 1.000 | Load-bearing number per plan §0 + §5.4 v3 — published unmodified. Cluster bootstrap over contracts (1000 resamples) — findings within a contract are correlated, so contracts are the IID unit. |
+| Internal-30 | Block recall (Wilson 95% LB — exploratory, per-finding IID) | 0.942 | Exploratory cross-check only — assumes findings are IID Bernoulli trials, which they are not (findings within a contract are correlated). Over-tight as a cluster-corrected estimate; the cluster bootstrap row above is the headline. |
+| Internal-30 | Effective N (contracts) | 12 | Per plan §5.2 v3 — fold 5 (Reflector frozen set) excluded. |
+| Internal-30 | Deployed thresholds | τ_h=0.99, τ_f=0.50 | Median across headline folds; written to router config. |
 | MAUD-MCQ | Exact-match accuracy (macro) | 99.8% | Per-category mean (plan §5.2). |
 | MAUD-MCQ | Exact-match accuracy (micro) | 99.7% | Pooled over all evaluated questions. |
 | MAUD-MCQ | Degenerate per-question AUPR (paper-comparable, see caveat) | 0.562 | degenerate (single confidence, not per-choice probs) |

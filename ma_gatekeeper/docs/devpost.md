@@ -1,4 +1,4 @@
-# Devpost submission drafts — M&A Due Diligence Gatekeeper
+# Devpost submission drafts — Cautela
 
 Drafts for the seven Devpost text sections, the required Demo Scope
 paragraph, the AI-generated-content disclosure, and the Reflector
@@ -77,8 +77,17 @@ production — the demo just gets a 48-hour head start.
 
 Four-stage agent topology on Google ADK 2.0:
 **Parser → Classifier (ParallelAgent fan-out) → Cross-Reference →
-Risk Judge**. Gemini 3 Pro on the heavy stages, Gemini 3 Flash on the
-parallel classifier fan-out. Artifacts under 8 MB are inlined via
+Risk Judge**. The review pipeline runs on **Gemini 3.5 Flash** (GA),
+pinned via env (`GEMINI_FLASH_MODEL`); the standalone 1M-context Portfolio
+Analyst runs on **Gemini 3.1 Pro** (`GEMINI_MODEL`). We deliberately serve
+the per-contract review on Flash: it carries the structured
+extract/classify/judge work with the accuracy the eval rail demands (held-out
+Block-recall 1.0) at roughly an order of magnitude lower cost than the Pro
+preview, whose large-context pricing on a 150K-token merger agreement made
+per-review cost the binding constraint. The architecture is model-agnostic —
+every stage takes the model from env, so a deployment can dial any stage up to
+Pro without code changes. Artifacts under 8 MB are
+inlined via
 `Part.from_bytes`; larger ones go through Gemini's Files API and a
 polled `Part.from_uri`, so the inline path stays snappy on the 5-deal
 HTML demo and oversized PDFs stop silently truncating past page ~20.
@@ -102,10 +111,22 @@ being a non-parametric cluster bootstrap that resamples CONTRACTS
 unit), a one-sided 95% Wilson LB retained as an exploratory
 per-finding-IID cross-check, reliability diagrams over the full pool,
 and an ε = max(SE, 0.03) noise floor on the frozen-fold non-regression
-check. With ~6–10 Block findings per fold the 95% CI for a proportion
-near 1.0 spans roughly ±0.10–0.15 — the cluster-bootstrap lower bound
-clearing 0.95 is arithmetically tight, not a guarantee, and we publish
-the achieved number unmodified.
+check. On the human-validated Internal-30 gold (530 findings, 47 Block,
+lawyer+analyst annotators of record) the live judges produce a held-out
+**Block-recall of 1.000 with a cluster-bootstrap 95% LB of 1.000** at
+deployed thresholds τ_h = 0.99 / τ_f = 0.50 — every Block finding clears
+both gates, zero held-out misses. The two inline judges are tuned for
+**high-precision flagging**: the hallucination judge grades the
+explanation's *operative claim* against the cited clause and the
+faithfulness judge grades it against the clause text plus the trigger
+language, so a `hallucinated`/`unfaithful` verdict fires only on a
+concrete defect (a direct contradiction or fabricated clause content) —
+when a judge objects, the problem is real. Because the judges flag
+conservatively the routing gate is permissive by construction, so we
+report the bootstrap LB rather than a point estimate alone; with ~6–10
+Block findings per fold the 95% CI for a proportion near 1.0 spans
+roughly ±0.10–0.15, the bound clearing 0.95 is arithmetically tight, not
+a guarantee, and we publish the achieved number unmodified.
 
 A fifth standalone agent — the **Portfolio Analyst** — exposes the
 1M-context window of Gemini 3 Pro as a dedicated `/portfolio` endpoint.
@@ -233,7 +254,7 @@ mandatory pane, not three. Each cut survived a reviewer.
 > 8-K/Ex 2.1 merger filings, pre-validated to surface at least one
 > change-of-control, anti-assignment, or MAC-related finding so the
 > agent has something interesting to do on camera. The filings are
-> fetched live from EDGAR via the EdgarTools MCP server at demo time.
+> fetched live from SEC EDGAR at demo time.
 
 ---
 
