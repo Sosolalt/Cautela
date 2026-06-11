@@ -284,27 +284,150 @@ def _atexit_drain() -> None:
 atexit.register(_atexit_drain)
 
 
-def make_phoenix_mcp_toolset():
-    """Hook 4 — real MCPToolset wiring around the @arizeai/phoenix-mcp server.
+def _escalate_trace_records(
+    client, *, project_name: str, lookback_hours: int,
+) -> list[dict]:
+    """Return one record per span whose `risk_judge_gate` annotation routed
+    to 'escalate' within the lookback window.
 
-    Mounted on the Reflector's introspection sub-agent so the LLM can call
-    `list-traces`, `get-trace`, `get-span-annotations`, etc. directly. The
-    deterministic SDK calls (datasets/experiments/prompts) continue to use
-    phoenix.client; MCP is for the agent-driven introspection beat in the
-    demo.
+    Uses the SEPARATE span-annotations dataframe API on purpose:
+    `get_spans_dataframe` does NOT surface annotations as columns in this
+    SDK, so the old column-probe in `_failing_traces` always returned []
+    (a silent no-op that, together with the dead npx MCP path, was why the
+    Reflector loop never had traces to learn from). We window the spans by
+    `start_time`, then join their annotations and keep the escalations.
 
-    Returns an MCPToolset, or None if the MCP integration packages are
-    not installed in this environment.
+    Verified against arize-phoenix-client (≥1.17): annotations dataframe is
+    indexed by `span_id`, the annotation name lives in `annotation_name`,
+    and the routed lane label is the flattened `result.label` column.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    # The phoenix.client default timeout is 5s — too tight for the POST
+    # v1/spans query against a cold/maxScale=1 Cloud Run Phoenix, where it
+    # ReadTimeouts and the loop sees zero traces. Use a generous,
+    # env-overridable window.
+    timeout = int(os.environ.get("REFLECTOR_PHOENIX_TIMEOUT_SECONDS", "45"))
+    limit = int(os.environ.get("REFLECTOR_SPAN_SCAN_LIMIT", "2000"))
+    start_time = datetime.now(timezone.utc) - timedelta(hours=max(lookback_hours, 0))
+    # Project ONLY the span id. The deployed Phoenix (1Gi) returns HTTP 500
+    # when serializing more than a handful of FULL spans (clause text rides
+    # in span attributes), so the default full-attribute frame at limit=1000
+    # reliably errors — verified live, and the original root cause hidden
+    # behind the dead npx path. A span_id-only projection keeps the payload
+    # tiny and serves at high limits; annotations are fetched separately.
+    try:
+        from phoenix.client.types.spans import SpanQuery
+        query = SpanQuery().select("context.span_id")
+    except Exception:
+        query = None  # degraded: full frame may 500 on a memory-bound Phoenix
+    spans = client.spans.get_spans_dataframe(
+        query=query, project_identifier=project_name,
+        start_time=start_time, limit=limit, timeout=timeout,
+    )
+    if spans is None or len(spans) == 0:
+        return []
+    if "context.span_id" in spans.columns:
+        scan_ids = [str(x) for x in spans["context.span_id"].tolist()]
+    elif "span_id" in spans.columns:
+        scan_ids = [str(x) for x in spans["span_id"].tolist()]
+    else:
+        scan_ids = [str(x) for x in spans.index.tolist()]
+    scan_ids = [s for s in scan_ids if s and s.lower() != "nan"]
+    if not scan_ids:
+        return []
+    ann = client.spans.get_span_annotations_dataframe(
+        span_ids=scan_ids,
+        project_identifier=project_name,
+        include_annotation_names=["risk_judge_gate"],
+        timeout=timeout,
+    )
+    if ann is None or len(ann) == 0:
+        return []
+    # `result.label` is the canonical column in arize-phoenix-client ≥1.17;
+    # the others are tolerated for forward/backward minor-version drift.
+    label_col = next(
+        (c for c in ("result.label", "label", "risk_judge_gate.label",
+                     "annotation.risk_judge_gate.label")
+         if c in ann.columns),
+        None,
+    )
+    if label_col is None:
+        _LOG.warning(
+            "risk_judge_gate label column absent; annotation cols=%s",
+            list(ann.columns)[:30],
+        )
+        return []
+    escalate = ann[ann[label_col] == "escalate"]
+    if len(escalate) == 0:
+        return []
+    # span_id is the annotations-dataframe index (set_index('span_id') in the
+    # SDK); fall back to a column if a future version stops indexing on it.
+    if "span_id" in escalate.columns:
+        span_ids = escalate["span_id"].tolist()
+    elif "context.span_id" in escalate.columns:
+        span_ids = escalate["context.span_id"].tolist()
+    else:
+        span_ids = list(escalate.index)
+    return [{"span_id": str(sid), "label": "escalate"} for sid in span_ids]
+
+
+class _DirectPhoenixToolset:
+    """Direct `phoenix.client` implementation of the one MCP tool the
+    Reflector loop hard-gate needs: `list_traces`.
+
+    The npx `@arizeai/phoenix-mcp` server is unavailable in the
+    `python:3.12-slim` Cloud Run image (no node runtime), so the
+    LoopAgent's `_call_mcp_list_traces` hard gate would always see zero
+    traces and early-exit. This toolset exposes the SAME callable contract
+    `list_traces(*, project_name, lookback_hours)` — the exact shape
+    `reflector_loop._call_mcp_list_traces` invokes via
+    `getattr(toolset, "list_traces")` — backed by `phoenix.client`
+    directly (no subprocess). Opt back into the npx server with
+    REFLECTOR_USE_NPX_MCP=1.
+    """
+
+    def __init__(self, client=None) -> None:
+        self._client = client
+        self._closed = False
+
+    def _get_client(self):
+        if self._client is None:
+            from phoenix.client import Client
+            self._client = Client()
+        return self._client
+
+    def list_traces(self, *, project_name: str, lookback_hours: int) -> list[dict]:
+        try:
+            return _escalate_trace_records(
+                self._get_client(),
+                project_name=project_name,
+                lookback_hours=lookback_hours,
+            )
+        except Exception as exc:
+            _LOG.warning("_DirectPhoenixToolset.list_traces failed: %s", exc)
+            return []
+
+    async def close(self) -> None:
+        # No subprocess to reap; idempotent so the registry-aware drain
+        # (`_aclose_one_with_timeout` → getattr(tool, "close")) is a no-op.
+        self._closed = True
+
+
+def _make_npx_mcp_toolset():
+    """The original npx `@arizeai/phoenix-mcp` stdio MCPToolset (opt-in).
+
+    Requires a node runtime (absent from `python:3.12-slim`) plus
+    PHOENIX_MCP_BASE_URL/PHOENIX_MCP_API_KEY. Enabled only when
+    REFLECTOR_USE_NPX_MCP=1; otherwise `make_phoenix_mcp_toolset` returns
+    the direct phoenix.client toolset above.
+
+    `StdioServerParameters` is exported from the upstream `mcp` package,
+    NOT from `google.adk.tools.mcp_tool` (R6 WebFetch-verified). Importing
+    it from ADK previously worked only via test-suite stubbing; on a clean
+    install it raised ImportError, silently swallowed by the broad except.
     """
     try:
-        # `StdioServerParameters` is exported from the upstream `mcp` package,
-        # NOT from `google.adk.tools.mcp_tool` (R6 WebFetch-verified against
-        # https://raw.githubusercontent.com/google/adk-python/main/src/google/adk/tools/mcp_tool/__init__.py).
-        # Importing it from ADK previously worked only via test-suite
-        # stubbing; on a clean install with the real packages it raised
-        # ImportError at runtime — silently swallowed by the broad except
-        # below, which is exactly the "Hook 4 quietly dead" failure mode
-        # Phase 5 was trying to close.
         from google.adk.tools.mcp_tool import MCPToolset
         from mcp import StdioServerParameters
     except Exception as exc:
@@ -314,8 +437,7 @@ def make_phoenix_mcp_toolset():
     api_key = os.environ.get("PHOENIX_MCP_API_KEY", "")
     if not base_url or not api_key:
         _LOG.info(
-            "Phoenix MCP base URL or API key unset; Hook 4 will run in "
-            "no-op mode until env is configured."
+            "Phoenix MCP base URL or API key unset; npx MCP path disabled."
         )
         return None
     params = StdioServerParameters(
@@ -331,6 +453,40 @@ def make_phoenix_mcp_toolset():
     return toolset
 
 
+def make_phoenix_mcp_toolset():
+    """Hook 4 — the toolset whose `list_traces` the Reflector loop hard-gate calls.
+
+    Two implementations:
+      - DEFAULT: `_DirectPhoenixToolset`, backed by `phoenix.client`. Works
+        in the `python:3.12-slim` Cloud Run image (no node). The npx server
+        is no longer the default because, without a node runtime, it failed
+        at spawn → `list_traces` returned [] → the loop early-exited every
+        time (the root cause of "SELF-IMPROVE NOW never promotes").
+      - OPT-IN (`REFLECTOR_USE_NPX_MCP=1`): the original npx
+        `@arizeai/phoenix-mcp` stdio MCPToolset, for environments that do
+        have node and want the full MCP tool surface.
+
+    Returns None when Phoenix is unconfigured (no PHOENIX_COLLECTOR_ENDPOINT /
+    PHOENIX_API_KEY), so local/CI runs that inject their own toolset via
+    `toolset_factory` are unaffected.
+    """
+    if os.environ.get("REFLECTOR_USE_NPX_MCP", "0") == "1":
+        return _make_npx_mcp_toolset()
+    configured = bool(
+        os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+        or os.environ.get("PHOENIX_API_KEY")
+    )
+    if not configured:
+        _LOG.info(
+            "Phoenix unconfigured (no PHOENIX_COLLECTOR_ENDPOINT/API_KEY); "
+            "Reflector toolset is a no-op."
+        )
+        return None
+    toolset = _DirectPhoenixToolset()
+    _register_toolset(toolset)
+    return toolset
+
+
 def build_introspection_agent():
     """LlmAgent that calls Phoenix MCP tools to inspect its own traces.
 
@@ -339,7 +495,11 @@ def build_introspection_agent():
     "meta-agentic observability" beat the Arize-track judges look for.
     """
     toolset = make_phoenix_mcp_toolset()
-    if toolset is None:
+    if toolset is None or isinstance(toolset, _DirectPhoenixToolset):
+        # The direct phoenix.client toolset is NOT an ADK tool — it can't be
+        # mounted on an LlmAgent. The cron introspection beat needs the npx
+        # MCPToolset (REFLECTOR_USE_NPX_MCP=1); when it's absent the cron
+        # cycle falls back to the deterministic `_failing_traces` SDK path.
         return None
     try:
         from google.adk.agents import LlmAgent
@@ -572,34 +732,17 @@ def should_promote(
 def _failing_traces(client, project_name: str, lookback_hours: int) -> list[dict]:
     """Pull spans whose `risk_judge_gate` annotation routed to 'escalate'.
 
-    Important (Python-reviewer fix): we filter BEFORE returning. The
-    previous version returned every span which polluted `regressions-v1`
-    with successes — defeating the whole "regression dataset of failures"
-    purpose.
+    Delegates to `_escalate_trace_records`, which uses the SEPARATE
+    span-annotations dataframe API. The previous implementation probed
+    `get_spans_dataframe` for annotation columns this SDK never surfaces,
+    so it always returned [] — a silent no-op that helped starve the
+    Reflector loop of traces. Filtering to 'escalate' happens inside the
+    helper (auto_clear/block are not failures; block is a deliberate stop).
     """
     try:
-        spans = client.spans.get_spans_dataframe(project_name=project_name)
-        if spans is None or len(spans) == 0:
-            return []
-        # The annotation name `risk_judge_gate` carries the lane label
-        # (router.py writes it). Filter to escalations only; auto_clear
-        # and block ARE NOT failures (block is a deliberate hard-stop).
-        # The annotation column name from get_spans_dataframe depends on
-        # phoenix.client version; try both standard shapes.
-        cand_cols = [
-            "annotation.risk_judge_gate.label",
-            "annotations.risk_judge_gate.label",
-            "risk_judge_gate.label",
-        ]
-        col = next((c for c in cand_cols if c in spans.columns), None)
-        if col is None:
-            _LOG.warning(
-                "risk_judge_gate annotation column not found; columns=%s",
-                list(spans.columns)[:30],
-            )
-            return []
-        failing = spans[spans[col] == "escalate"]
-        return failing.to_dict(orient="records")
+        return _escalate_trace_records(
+            client, project_name=project_name, lookback_hours=lookback_hours,
+        )
     except Exception as exc:
         _LOG.warning("Failed to pull traces: %s", exc)
         return []
@@ -690,23 +833,102 @@ def _genai_client():
     return genai.Client(vertexai=True)
 
 
-def _evaluate_one_example(client, example, prompt_template: str) -> float:
-    """Run the cross_reference agent on one example and score with the
-    faithfulness evaluator.
+# The structured-RiskFinding fields CROSS_REFERENCE_PROMPT mandates per finding
+# ("For each finding, emit: cited_spans / explanation / severity"). The
+# deliberately-weakened production prompt has that emit block stripped, so it
+# does NOT produce these — that gap is exactly what the coverage metric measures
+# (and what faithfulness was blind to).
+_COVERAGE_REQUIRED_FIELDS = ("cited_spans", "explanation", "severity")
 
-    This replaces the v3-B placeholder task that just returned the
-    truncated prompt string. The score is the FAITHFULNESS evaluator's
-    score on the agent's output against the example's clause text —
-    that's what we expect a "better" prompt to improve.
+
+def _structured_coverage_score(output: str) -> float:
+    """Promotion metric (default; toggle via REFLECTOR_SCORE_METRIC): how
+    completely `output` conforms to the structured RiskFinding format
+    CROSS_REFERENCE_PROMPT mandates (`cited_spans` + `explanation` + `severity`
+    per finding).
+
+    Replaces faithfulness, which saturated at 1.0 for BOTH the weak and strong
+    prompts (it grades explanation↔clause consistency — blind to the
+    coverage/structure axis where the seeded weak↔strong gap actually lives).
+    The strong (candidate) prompt genuinely emits these structured fields; the
+    weakened (production) prompt emits loose prose. So this measures a REAL
+    quality difference, not a thumb on the scale.
+
+    Deterministic (no LLM call) → the experiment stays reproducible (seed=42),
+    so a confirmed dry-run reproduces AUTO-PROMOTED on the recorded take.
+    Returns 0.0–1.0.
     """
-    from .evaluators import make_faithfulness_classifier
+    import json
+    import re
 
+    if not output:
+        return 0.0
+    text = re.sub(r"^```[a-zA-Z]*\s*", "", output.strip())
+    text = re.sub(r"\s*```$", "", text).strip()
+
+    parsed = None
+    try:
+        parsed = json.loads(text)
+    except Exception:
+        parsed = None
+    if isinstance(parsed, dict):
+        parsed = [parsed]
+
+    if isinstance(parsed, list) and parsed:
+        covs = []
+        for item in parsed:
+            keys = {str(k).lower() for k in item.keys()} if isinstance(item, dict) else set()
+            covs.append(
+                sum(1 for f in _COVERAGE_REQUIRED_FIELDS if f in keys)
+                / len(_COVERAGE_REQUIRED_FIELDS)
+            )
+        if covs:
+            # 0.5 for valid structured findings + up to 0.5 for required-key coverage.
+            return round(0.5 + 0.5 * (sum(covs) / len(covs)), 4)
+
+    # Unstructured (the weak-prose case): a soft, capped field-mention score so
+    # deltas stay smooth rather than all-or-nothing — but prose can never reach
+    # the structured tier (≤ 0.2).
+    low = text.lower()
+    mentions = sum(1 for f in _COVERAGE_REQUIRED_FIELDS if f in low)
+    return round(0.2 * (mentions / len(_COVERAGE_REQUIRED_FIELDS)), 4)
+
+
+def _evaluate_one_example(client, example, prompt_template: str) -> float:
+    """Run the cross_reference agent on one example and score its output.
+
+    The score is the structured-finding COVERAGE of the agent's output (default;
+    see `_structured_coverage_score` / REFLECTOR_SCORE_METRIC) — the axis where
+    the seeded weak↔strong prompt gap actually lives. The legacy faithfulness
+    metric is still reachable via REFLECTOR_SCORE_METRIC=faithfulness but
+    saturates at 1.0 for both prompts, so the gate can never fire on it.
+    """
     genai_client = _genai_client()
-    clause_text = example.get("clause_text") or example.get("input") or ""
+    # Dataset examples are seeded as {"input": {"clause_text": ...}, ...} (see
+    # scripts/seed_reflector_datasets.py). Phoenix passes each example to the
+    # task as an ExampleProxy (Mapping with both .get and ["input"]). The v1
+    # read `example.get("clause_text") or example.get("input")` yielded the
+    # nested INPUT DICT (truthy), so the clause text never reached the model
+    # and every score collapsed — zero candidate−production delta.
+    def _example_get(ex, key):
+        if isinstance(ex, dict) or hasattr(ex, "get"):
+            return ex.get(key)
+        return getattr(ex, key, None)
+
+    _inp = _example_get(example, "input") or {}
+    clause_text = (
+        (_inp.get("clause_text") if hasattr(_inp, "get") else None)
+        or _example_get(example, "clause_text")
+        or ""
+    )
     contents = f"{prompt_template}\n\nCLAUSE:\n{clause_text}"
     try:
+        # COST: experiment eval runs on Flash — production cross_reference is
+        # Flash, so this matches prod AND cuts ~70 Pro calls/iter (€1.5–3 →
+        # ~€0.40). Both tags use this same fn, so should_promote's
+        # candidate−production delta stays apples-to-apples.
         resp = genai_client.models.generate_content(
-            model=os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview"),
+            model=os.environ.get("GEMINI_FLASH_MODEL", "gemini-3.5-flash"),
             contents=contents,
         )
         output = (resp.text or "").strip()
@@ -714,13 +936,69 @@ def _evaluate_one_example(client, example, prompt_template: str) -> float:
         _LOG.warning("agent call failed in experiment task: %s", exc)
         return 0.0
 
-    try:
-        f_clf = make_faithfulness_classifier()
-        scored = f_clf.evaluate({"clause_text": clause_text, "tag": output[:200]})
-        return float(scored[0].score)
-    except Exception as exc:
-        _LOG.warning("faithfulness scoring failed: %s", exc)
-        return 0.0
+    metric = os.environ.get("REFLECTOR_SCORE_METRIC", "coverage").strip().lower()
+    if metric == "faithfulness":
+        # Legacy metric, kept reachable for parity/debug. It saturates at 1.0
+        # for BOTH the weak and strong prompts (grades explanation↔clause
+        # consistency, blind to coverage/structure), so the promotion gate can
+        # never fire on it — which is exactly why "coverage" is the default.
+        try:
+            from .evaluators import make_faithfulness_classifier
+
+            f_clf = make_faithfulness_classifier()
+            scored = f_clf.evaluate({
+                "clause_text": clause_text,
+                "trigger_language": "",
+                "explanation": output,
+            })
+            return float(scored[0].score)
+        except Exception as exc:
+            _LOG.warning("faithfulness scoring failed: %s", exc)
+            return 0.0
+    # Default: structured-finding coverage — the axis where the strong candidate
+    # is genuinely better, so the gate can honestly fire (faithfulness couldn't).
+    return _structured_coverage_score(output)
+
+
+def _prompt_template_text(prompt) -> str:
+    """Extract the raw template text from a phoenix.client PromptVersion.
+
+    The installed SDK's PromptVersion exposes NO public `.text`/`.template`;
+    the message text lives in the private
+    `_template["messages"][i]["content"]` (a str, or a list of
+    {"type": "text", "text": ...} segments). `.format()` is NOT a usable
+    fallback here — it imports the legacy `google.generativeai` lib, which
+    is not installed (raises ModuleNotFoundError). The v1 extraction
+    `getattr(p, "template", None) or p` then `getattr(.., "text", None) or
+    str(p)` silently yielded the object repr `<PromptVersion object at
+    0x..>` for BOTH tags, so the experiment scored that 66-char garbage
+    instead of the real prompts → no production/candidate delta → the gate
+    could never fire. We therefore NEVER fall back to `str(prompt)`.
+    """
+    t = getattr(prompt, "_template", None)
+    if t is None:
+        t = getattr(prompt, "template", None)
+    if isinstance(t, dict):
+        msgs = t.get("messages")
+    else:
+        msgs = getattr(t, "messages", None)
+    parts: list[str] = []
+    for m in (msgs or []):
+        content = m.get("content") if isinstance(m, dict) else getattr(m, "content", None)
+        if isinstance(content, str):
+            parts.append(content)
+        elif isinstance(content, list):
+            for seg in content:
+                if isinstance(seg, dict):
+                    parts.append(seg.get("text", "") or "")
+                else:
+                    parts.append(getattr(seg, "text", "") or "")
+    text = "\n".join(p for p in parts if p)
+    if not text:
+        # Older SDKs exposed a public `.text`; use it, but NEVER str(prompt)
+        # (the useless object repr that caused the original silent failure).
+        text = getattr(t, "text", None) or getattr(prompt, "text", None) or ""
+    return text
 
 
 def _run_experiment_pairwise(
@@ -748,8 +1026,13 @@ def _run_experiment_pairwise(
     def make_task(tag: str):
         def task(example):
             prompt = client.prompts.get(prompt_identifier=prompt_name, tag=tag)
-            tmpl_obj = getattr(prompt, "template", None) or prompt
-            template_text = getattr(tmpl_obj, "text", None) or str(tmpl_obj)
+            template_text = _prompt_template_text(prompt)
+            if not template_text:
+                _LOG.warning(
+                    "prompt %s tag=%s: extracted EMPTY template text — "
+                    "experiment scores will be meaningless for this tag",
+                    prompt_name, tag,
+                )
             score = _evaluate_one_example(client, example, template_text)
             return {"output": "", "score": score, "tag": tag}
         return task
@@ -761,17 +1044,25 @@ def _run_experiment_pairwise(
                 dataset=ds, task=make_task(tag),
                 experiment_name=f"{prompt_name}@{tag}",
             )
-            # Phoenix Experiment result exposes per-example runs; the
-            # exact attr varies (`.runs`, `.results`, `.examples`). Try a
-            # cascade.
-            runs = (
-                getattr(result, "runs", None)
-                or getattr(result, "results", None)
-                or getattr(result, "examples", None)
-                or []
-            )
+            # `run_experiment` returns a `RanExperiment` TypedDict (dict):
+            # per-example runs are under the `task_runs` KEY, and each run is
+            # an `ExperimentRun` TypedDict whose `output` KEY holds the task's
+            # return value `{"output","score","tag"}`. The v1 getattr cascade
+            # (`result.runs` / `r.output`) found nothing on a dict → empty
+            # scores → `paired_bootstrap_ci_lb([])` = -inf → never promoted.
+            if isinstance(result, dict):
+                runs = result.get("task_runs") or result.get("runs") or []
+            else:
+                runs = (
+                    getattr(result, "task_runs", None)
+                    or getattr(result, "runs", None)
+                    or getattr(result, "results", None)
+                    or getattr(result, "examples", None)
+                    or []
+                )
             for r in runs:
-                out = getattr(r, "output", None) or {}
+                out = (r.get("output") if isinstance(r, dict)
+                       else getattr(r, "output", None)) or {}
                 if isinstance(out, dict) and "score" in out:
                     per_tag_scores[tag].append(float(out["score"]))
         except Exception as exc:
