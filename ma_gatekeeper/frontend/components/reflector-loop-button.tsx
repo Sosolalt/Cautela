@@ -13,27 +13,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
 import { streamReflectorLoop } from "@/lib/api";
+import { buildPhoenixTraceUrl, resolvePhoenixProjectId } from "@/lib/phoenix";
 import type {
   ReflectorLoopEvent,
   ReflectorLoopSseFrame,
 } from "@/lib/types";
-
-// Build a Phoenix deep-link URL the same way trace-pane.tsx does, so the
-// trace / AUTO-PROMOTED links in the event log point to the real Phoenix
-// host instead of a non-existent `/phoenix-trace/...` Next route (404).
-// Returns null when the base env is unset — caller hides the link.
-function phoenixTraceUrl(traceId: string): string | null {
-  const base = process.env.NEXT_PUBLIC_PHOENIX_URL;
-  if (!base) return null;
-  const project = process.env.NEXT_PUBLIC_PHOENIX_PROJECT || "ma-gatekeeper";
-  const template =
-    process.env.NEXT_PUBLIC_PHOENIX_TRACE_URL ||
-    `${base}/projects/${project}/traces/${traceId}`;
-  return template
-    .replace("{base}", base)
-    .replace("{project}", project)
-    .replace("{traceId}", traceId);
-}
 
 interface Props {
   dealId: string | null;
@@ -102,6 +86,20 @@ export function ReflectorLoopButton({ dealId }: Props) {
   // unmounted warning. Mirrors the page.tsx pattern.
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Resolve Phoenix's opaque project node id once (cached promise, shared with
+  // the trace pane) so the per-event "trace" links use the id, not the human
+  // name — the name 404s with "Unknown node".
+  const [phoenixPid, setPhoenixPid] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    resolvePhoenixProjectId().then((p) => {
+      if (!cancelled) setPhoenixPid(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const onClick = useCallback(async () => {
     if (status === "running") return;
     setEvents([]);
@@ -160,18 +158,25 @@ export function ReflectorLoopButton({ dealId }: Props) {
       : null;
 
   return (
-    <div className="border-t border-ink-faint px-3 py-2 text-sm">
-      <div className="flex items-center justify-between gap-2">
+    <div className="border-t border-ink-faint bg-ink-dim/30 px-3 py-3 text-sm">
+      {/* Distinct self-improvement panel — deliberately boxed off + captioned so
+          it never reads as the review's run trigger (the review auto-starts on
+          deal select). This is the Phoenix self-optimization loop: it tunes the
+          judge from eval traces and auto-promotes a better prompt. */}
+      <div className="mb-2 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint">
+        Self-improvement · Phoenix
+      </div>
+      <div className="flex flex-col items-center gap-2">
         <button
           type="button"
           onClick={onClick}
           disabled={status === "running"}
           className={clsx(
-            "border border-accent-vermillion bg-transparent px-3 py-1 font-mono text-xs uppercase tracking-[0.14em] text-accent-vermillion transition-colors",
+            "border border-accent-vermillion bg-transparent px-4 py-1.5 font-mono text-xs uppercase tracking-[0.14em] text-accent-vermillion transition-colors",
             "hover:bg-accent-vermillion hover:text-surface disabled:cursor-not-allowed disabled:opacity-60",
           )}
         >
-          {status === "running" ? "Reflector running…" : "Run Reflector now"}
+          {status === "running" ? "Self-improving…" : "Self-improve now"}
         </button>
         {badge && (
           <span
@@ -192,7 +197,7 @@ export function ReflectorLoopButton({ dealId }: Props) {
           {events.map((evt, idx) => {
             const hint = formatPayloadHint(evt);
             const trace = evt.trace_id;
-            const traceHref = trace ? phoenixTraceUrl(trace) : null;
+            const traceHref = trace ? buildPhoenixTraceUrl(trace, phoenixPid) : null;
             return (
               <li key={idx} className="flex items-baseline gap-2 text-ink-muted">
                 <span className="w-6 text-right text-ink-faint">

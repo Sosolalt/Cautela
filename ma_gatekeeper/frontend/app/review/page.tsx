@@ -74,7 +74,14 @@ export default function ReviewPage() {
           if (event.event === "finding") {
             setRows((prev) => [...prev, { finding: event.finding, decision: event.decision }]);
           } else if (event.event === "error") {
-            setErrorMessage(`${event.stage}: ${event.message}`);
+            // The per-finding clause→provenance join miss is NON-FATAL — the
+            // finding still streams and renders in full; only the optional PDF
+            // highlight pin is dropped. Don't surface it as a red banner (it
+            // read as a failure on the demo). Genuine pipeline errors (other
+            // stages) still show.
+            if (event.stage !== "join_clause_to_finding") {
+              setErrorMessage(`${event.stage}: ${event.message}`);
+            }
           } else if (event.event === "done") {
             setStatus("done");
           }
@@ -94,8 +101,17 @@ export default function ReviewPage() {
     <main className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-ink-faint px-4 py-3">
         <div className="flex items-baseline gap-5">
+          {/* Wordmark → hero. Kept as an <h1> for the document outline /
+              screen readers; the inner <a> carries the nav. Vermillion on
+              hover mirrors the cross-route links beside it. Leaving the page
+              aborts any in-flight stream via the existing unmount cleanup. */}
           <h1 className="font-display text-xl tracking-tight text-ink">
-            Cautela
+            <a
+              href="/"
+              className="text-ink no-underline transition-colors hover:text-accent-vermillion"
+            >
+              Cautela
+            </a>
           </h1>
           {/* Cross-route nav in the hero's editorial register (mono, uppercase,
               vermillion on hover). Fix 7 — Portfolio Analyst route. */}
@@ -149,14 +165,18 @@ export default function ReviewPage() {
           />
         </section>
         <section className="col-span-3 overflow-hidden">
-          <TracePane
-            traceId={
-              selectedFindingId
-                ? rows.find((r) => r.finding.clause_id === selectedFindingId)?.finding
-                    .trace_id ?? null
-                : null
-            }
-          />
+          {(() => {
+            const selected = selectedFindingId
+              ? rows.find((r) => r.finding.clause_id === selectedFindingId) ?? null
+              : null;
+            return (
+              <TracePane
+                traceId={selected?.finding.trace_id ?? null}
+                finding={selected?.finding ?? null}
+                decision={selected?.decision ?? null}
+              />
+            );
+          })()}
         </section>
       </div>
     </main>
