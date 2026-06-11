@@ -271,6 +271,26 @@ the only authoritative source for layout coordinates is the Parser,
 not you. Emit only the fields explicitly listed in your output schema
 (`clause_id`, `clause_text`, `tag`, `severity`, `judge_score`,
 `cited_spans`, `cited_spans_text`, `explanation`).
+
+FIELD SHAPES — emit these EXACTLY, or the finding is rejected:
+  - `tag`: one of these EXACT lowercase enum values (NOT a display label):
+    "change_of_control", "anti_assignment", "mac", "accelerated_vesting",
+    "exclusivity", "ip_assignment", "non_compete", "none". Do NOT write
+    "Change of Control" or "MAC Carve-Out" — use the snake_case enum.
+  - `severity`: one of EXACTLY "info", "watch", or "block" (lowercase). NOT
+    "high"/"medium"/"low" and NOT capitalized.
+  - `clause_id`: a single non-null string (the primary clause this finding
+    is about, e.g. "sec_9.3"). Never null; if unsure, use the first entry of
+    `cited_spans`.
+  - `clause_text`: REQUIRED — the verbatim text of the clause. Always emit it
+    (do not omit it and rely on `cited_spans_text` alone).
+  - `judge_score`: a float between 0.0 and 1.0 (your confidence the finding
+    is real and well-supported). NOT a 1-10 or 1-100 score. 0.9 means high
+    confidence, 0.3 means weak.
+  - `cited_spans`: a JSON array of clause_id strings.
+  - `cited_spans_text`: a SINGLE plain-text string (the verbatim text of the
+    cited spans concatenated). NOT an array — join multiple spans into one
+    string separated by blank lines.
 """
 
 

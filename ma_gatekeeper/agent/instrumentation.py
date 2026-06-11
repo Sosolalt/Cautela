@@ -35,8 +35,19 @@ def init_tracing(project_name: str = "ma-gatekeeper") -> None:
 
     from phoenix.otel import register
     isolate = os.environ.get("PHOENIX_NO_ISOLATE") != "1"
-    register(
-        project_name=project_name,
-        auto_instrument=True,
-        set_global_tracer_provider=not isolate,
-    )
+
+    # Force the HTTP OTLP traces endpoint. `phoenix.otel.register` otherwise
+    # defaults to the gRPC OTLP exporter on :4317, which a Cloud-Run-hosted
+    # Phoenix CANNOT receive (Cloud Run serves only HTTPS/443) — spans are
+    # silently dropped and the Traces board stays empty. Appending `/v1/traces`
+    # to the collector base URL selects the HTTP exporter (proven via
+    # scripts/trace_review_local.py → a real 54-span tree). PROJECT_LOG Phase 14.
+    register_kwargs = {
+        "project_name": project_name,
+        "auto_instrument": True,
+        "set_global_tracer_provider": not isolate,
+    }
+    collector = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "").rstrip("/")
+    if collector:
+        register_kwargs["endpoint"] = f"{collector}/v1/traces"
+    register(**register_kwargs)
