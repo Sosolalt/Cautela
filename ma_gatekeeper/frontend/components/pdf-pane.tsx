@@ -45,6 +45,120 @@ const LANE_OVERLAY: Record<Lane, string> = {
   block:      "bg-lane-block/30",
 };
 
+// ---------------------------------------------------------------------------
+// HTML-exhibit highlighter (the common case — EDGAR Ex 2.1 is almost always
+// HTML, which has no pages/pdf_bbox, so the PDF overlay path can't engage).
+//
+// We OWN the document bytes before they become a blob: URL, so we splice a
+// tiny self-contained highlighter into the HTML and create the blob from the
+// modified source. The frame runs under `sandbox="allow-scripts"` — scripts
+// only, NEVER `allow-same-origin`, so the frame stays in an opaque origin and
+// can't reach back into the app. Coordination is one-way postMessage:
+//
+//   parent → frame : { source:"cautela", type:"highlight", texts:[...] }
+//   frame  → parent: { source:"cautela-frame", type:"ready" }
+//
+// The frame builds a flat text index of the document once, then for each
+// candidate string (verbatim cited span first, then clause_text) does a
+// whitespace-tolerant regex match, shortening word-by-word until it lands —
+// converting "exact clause or nothing" into "scrolls to the right passage".
+// It draws non-destructive overlay bands from the matched Range's client rects
+// (no DOM surgery — legacy EDGAR <font>/nested-table markup must not be
+// re-serialized) and smooth-scrolls the first rect to center.
+//
+// SECURITY INVARIANT: the iframe `sandbox` attr below is the literal string
+// "allow-scripts" with no "allow-same-origin". Do not add it.
+const HIGHLIGHTER_SNIPPET = `
+<style id="cautela-hl-style">
+  ::selection{background:rgba(230,61,47,0.28)}
+  .cautela-band{position:absolute;background:rgba(230,61,47,0.18);border-left:3px solid #E63D2F;box-shadow:0 0 0 1px rgba(230,61,47,0.28) inset;pointer-events:none;z-index:2147483646}
+</style>
+<script>
+(function(){
+  var bands=[]; var idx=null;
+  function clearBands(){ for(var i=0;i<bands.length;i++){ var b=bands[i]; if(b.parentNode) b.parentNode.removeChild(b); } bands=[]; }
+  function esc(s){ return s.replace(/[-[\\]{}()*+?.,\\\\^$|#\\s]/g, "\\\\$&"); }
+  function buildIndex(){
+    if(!document.body) return {nodes:[],starts:[],text:""};
+    var walker=document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+    var nodes=[], starts=[], text=""; var n;
+    while((n=walker.nextNode())){
+      var p=n.parentNode; if(!p) continue;
+      var nm=p.nodeName; if(nm==="SCRIPT"||nm==="STYLE") continue;
+      starts.push(text.length); nodes.push(n); text+=n.nodeValue;
+    }
+    return {nodes:nodes, starts:starts, text:text};
+  }
+  function locate(ix, pos){
+    var lo=0, hi=ix.nodes.length-1, ans=0;
+    while(lo<=hi){ var mid=(lo+hi)>>1; if(ix.starts[mid]<=pos){ans=mid;lo=mid+1;} else {hi=mid-1;} }
+    return {node:ix.nodes[ans], offset:pos-ix.starts[ans]};
+  }
+  function draw(s,e){
+    var a=locate(idx,s), b=locate(idx,e);
+    var range=document.createRange();
+    try{
+      range.setStart(a.node, Math.min(a.offset, a.node.nodeValue.length));
+      range.setEnd(b.node, Math.min(b.offset, b.node.nodeValue.length));
+    }catch(err){ return false; }
+    var rects=range.getClientRects();
+    if(!rects.length) return false;
+    var sx=window.scrollX||window.pageXOffset||0, sy=window.scrollY||window.pageYOffset||0;
+    for(var i=0;i<rects.length;i++){
+      var r=rects[i]; if(r.width<1||r.height<1) continue;
+      var band=document.createElement("div");
+      band.className="cautela-band";
+      band.style.left=(r.left+sx-2)+"px";
+      band.style.top=(r.top+sy-1)+"px";
+      band.style.width=(r.width+4)+"px";
+      band.style.height=(r.height+2)+"px";
+      document.body.appendChild(band); bands.push(band);
+    }
+    var first=rects[0];
+    if(first){ try{ window.scrollTo({top:first.top+sy-(window.innerHeight/2), left:0, behavior:"smooth"}); }catch(e2){ window.scrollTo(0, first.top+sy-120); } }
+    return bands.length>0;
+  }
+  function tryOne(raw){
+    var words=String(raw||"").trim().split(/\\s+/);
+    words=words.slice(0,14);
+    if(words.length<3) return false;
+    var escd=words.map(esc);
+    for(var len=escd.length; len>=3; len--){
+      var re;
+      try{ re=new RegExp(escd.slice(0,len).join("\\\\s+"), "i"); }catch(e){ continue; }
+      var m=re.exec(idx.text);
+      if(m){ if(draw(m.index, m.index+m[0].length)) return true; }
+    }
+    return false;
+  }
+  function onMsg(ev){
+    var d=ev.data;
+    if(!d || d.source!=="cautela" || d.type!=="highlight") return;
+    clearBands();
+    if(!idx) idx=buildIndex();
+    if(!idx.text) return;
+    var list=d.texts||[];
+    for(var t=0;t<list.length;t++){ if(tryOne(list[t])) break; }
+  }
+  function announce(){ try{ parent.postMessage({source:"cautela-frame", type:"ready"}, "*"); }catch(e){} }
+  window.addEventListener("message", onMsg);
+  if(document.readyState==="complete"||document.readyState==="interactive"){ announce(); }
+  else { document.addEventListener("DOMContentLoaded", announce); }
+  window.addEventListener("load", announce);
+})();
+</script>
+`;
+
+// Splice the highlighter in just before </body> (or append if the legacy
+// markup has no closing body tag). Done on the parent side so the only thing
+// that crosses into the opaque-origin frame is inert HTML + our own script.
+function injectHighlighter(rawHtml: string): string {
+  const lower = rawHtml.toLowerCase();
+  const at = lower.lastIndexOf("</body>");
+  if (at === -1) return rawHtml + HIGHLIGHTER_SNIPPET;
+  return rawHtml.slice(0, at) + HIGHLIGHTER_SNIPPET + rawHtml.slice(at);
+}
+
 /**
  * PDF viewer pane. react-pdf is loaded dynamically (it pulls pdfjs which
  * requires a browser environment) so SSR doesn't choke during `next build`.
@@ -69,6 +183,65 @@ export function PdfPane({ dealId, rows, selectedFindingId, onSelect }: Props) {
   const [viewport, setViewport] = useState<PageViewportLike | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const pageWrapRef = useRef<HTMLDivElement>(null);
+
+  // Document-kind detection. /filing/{dealId} returns the original EDGAR
+  // Ex 2.1 with its real Content-Type — almost always text/html, occasionally
+  // application/pdf. We fetch it once (the endpoint needs the passcode header,
+  // so we can't just point an <iframe src> at it), branch on the type, and hand
+  // a same-origin blob: URL to either react-pdf (pdf) or a sandboxed iframe
+  // (html). HTML filings have no pages/pdf_bbox, so the bbox-highlight path
+  // simply doesn't engage for them — the pane still shows the full document.
+  const [filing, setFiling] = useState<{
+    kind: "loading" | "html" | "pdf" | "error";
+    url: string | null;
+  }>({ kind: "loading", url: null });
+
+  // HTML-highlighter coordination. `frameReady` flips when the injected
+  // in-frame script posts its "ready" handshake; until then a selection that
+  // arrives early is held and replayed by the post-effect once ready.
+  const htmlFrameRef = useRef<HTMLIFrameElement>(null);
+  const [frameReady, setFrameReady] = useState(false);
+
+  useEffect(() => {
+    if (!dealId) {
+      setFiling({ kind: "loading", url: null });
+      return;
+    }
+    let cancelled = false;
+    let objUrl: string | null = null;
+    setFiling({ kind: "loading", url: null });
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
+    const passcode = process.env.NEXT_PUBLIC_DEMO_PASSCODE ?? "";
+    fetch(`${apiBase}/filing/${dealId}`, {
+      headers: { "X-Demo-Passcode": passcode },
+    })
+      .then(async (res) => {
+        const ct = (res.headers.get("content-type") ?? "").toLowerCase();
+        const isPdf = ct.includes("pdf");
+        if (isPdf) {
+          const blob = await res.blob();
+          if (cancelled) return;
+          objUrl = URL.createObjectURL(blob);
+          setFiling({ kind: "pdf", url: objUrl });
+        } else {
+          // HTML branch: read the source, splice in the highlighter, and build
+          // the blob from the modified bytes so finding-clicks can scroll +
+          // highlight the cited passage inside the otherwise-opaque iframe.
+          const raw = await res.text();
+          if (cancelled) return;
+          const blob = new Blob([injectHighlighter(raw)], { type: "text/html" });
+          objUrl = URL.createObjectURL(blob);
+          setFiling({ kind: "html", url: objUrl });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFiling({ kind: "error", url: null });
+      });
+    return () => {
+      cancelled = true;
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
+  }, [dealId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +272,41 @@ export function PdfPane({ dealId, rows, selectedFindingId, onSelect }: Props) {
     () => rows.find((r) => r.finding.clause_id === selectedFindingId),
     [rows, selectedFindingId],
   );
+
+  // Each new filing URL mounts a fresh iframe — drop the ready flag until the
+  // new frame re-announces, so we don't post into the previous document.
+  useEffect(() => {
+    setFrameReady(false);
+  }, [filing.url]);
+
+  // Listen for the frame's one-way "ready" handshake. The frame is opaque-
+  // origin (sandbox=allow-scripts only) so we can't read into it; we only
+  // accept the inert ready ping and gate posting on it.
+  useEffect(() => {
+    function onMessage(ev: MessageEvent) {
+      const data = ev.data as { source?: string; type?: string } | null;
+      if (data && data.source === "cautela-frame" && data.type === "ready") {
+        setFrameReady(true);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  // Forward direction for HTML filings: post the selected finding's cited text
+  // (verbatim span first, then clause_text as fallback) into the frame, which
+  // scrolls + highlights it. Empty payload (no selection) clears the highlight.
+  useEffect(() => {
+    if (filing.kind !== "html" || !frameReady) return;
+    const win = htmlFrameRef.current?.contentWindow;
+    if (!win) return;
+    const texts = selected
+      ? [selected.finding.cited_spans_text, selected.finding.clause_text].filter(
+          (t): t is string => typeof t === "string" && t.trim().length > 0,
+        )
+      : [];
+    win.postMessage({ source: "cautela", type: "highlight", texts }, "*");
+  }, [filing.kind, frameReady, selected]);
 
   // Forward direction — page scroll. The overlay re-renders automatically on
   // the next `onRenderSuccess` once pdfjs paints the new page; we don't try
@@ -215,62 +423,78 @@ export function PdfPane({ dealId, rows, selectedFindingId, onSelect }: Props) {
     );
   }
 
-  // /filing/{deal_id} returns the original EDGAR Ex 2.1 artifact with
-  // its real Content-Type — almost always `text/html` (3/3 sampled
-  // 2024 8-Ks), occasionally `application/pdf`. The frontend rewrite
-  // (separate UX work) will branch on the response's Content-Type
-  // and render react-pdf or a sandboxed iframe accordingly. Until
-  // then this pane still tries the PDF path; an HTML response will
-  // trigger onLoadError and the user sees the empty state.
-  // Match lib/api.ts's API_BASE default — earlier this defaulted to "" which
-  // silently hit the Next app origin (/filing/<id> → 404) instead of the
-  // FastAPI host. Same default keeps the PDF pane and the SSE client aligned
-  // when NEXT_PUBLIC_API_BASE is unset locally.
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
-  const passcode = process.env.NEXT_PUBLIC_DEMO_PASSCODE ?? "";
-  const pdfFile = {
-    url: `${apiBase}/filing/${dealId}`,
-    httpHeaders: { "X-Demo-Passcode": passcode },
-    withCredentials: false,
-  };
+  const headerLabel =
+    filing.kind === "pdf" ? `${dealId} · page ${pageNumber}` : `${dealId} · Exhibit 2.1`;
 
   return (
     <div ref={containerRef} className="h-full overflow-y-auto bg-surface">
       <div className="sticky top-0 z-10 border-b border-ink-faint bg-surface px-3 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-        {dealId} · page {pageNumber}
+        {headerLabel}
       </div>
-      {Doc ? (
-        <Doc.Document file={pdfFile} onLoadError={(e) => console.warn("pdf load", e)}>
-          {/* The rendered filing stays a real white document — it floats,
-              centered, on the near-black pane so it reads as evidence-on-a-desk. */}
-          <div className="flex justify-center p-4">
-          {/* `position: relative` anchors the absolute overlay AND scopes the
-              click handler to the rendered page region only — clicking the
-              chrome above doesn't fire a reverse-lookup. */}
-          <div
-            ref={pageWrapRef}
-            className="relative inline-block"
-            onClick={handlePageClick}
-          >
-            <Doc.Page
-              pageNumber={pageNumber}
-              renderTextLayer
-              renderAnnotationLayer={false}
-              scale={RENDER_SCALE}
-              onRenderSuccess={handleRenderSuccess}
-            />
-            {overlay && (
-              <div
-                aria-hidden
-                className={`pointer-events-none absolute ${overlay.className}`}
-                style={overlay.style}
+
+      {filing.kind === "loading" && (
+        <div className="p-6 font-mono text-xs uppercase tracking-[0.14em] text-ink-muted">
+          Loading filing…
+        </div>
+      )}
+
+      {filing.kind === "error" && (
+        <div className="p-6 font-mono text-xs uppercase tracking-[0.14em] text-ink-muted">
+          Could not load the filing.
+        </div>
+      )}
+
+      {/* HTML EDGAR exhibit (the common case): render the real document in a
+          scripts-only sandboxed blob iframe. HTML filings have no pages/pdf_bbox,
+          so instead of the PDF bbox overlay we splice a postMessage highlighter
+          into the source (injectHighlighter) — clicking a finding scrolls the
+          frame to the cited passage and draws a vermillion band. sandbox is
+          "allow-scripts" with NO allow-same-origin: the frame stays opaque-origin
+          and cannot reach back into the app. */}
+      {filing.kind === "html" && filing.url && (
+        <iframe
+          ref={htmlFrameRef}
+          title={`${dealId} Exhibit 2.1`}
+          src={filing.url}
+          sandbox="allow-scripts"
+          className="h-[calc(100%-2.5rem)] min-h-[70vh] w-full border-0 bg-white"
+        />
+      )}
+
+      {filing.kind === "pdf" && filing.url && (
+        Doc ? (
+          <Doc.Document file={filing.url} onLoadError={(e) => console.warn("pdf load", e)}>
+            {/* The rendered filing stays a real white document — it floats,
+                centered, on the near-black pane so it reads as evidence-on-a-desk. */}
+            <div className="flex justify-center p-4">
+            {/* `position: relative` anchors the absolute overlay AND scopes the
+                click handler to the rendered page region only — clicking the
+                chrome above doesn't fire a reverse-lookup. */}
+            <div
+              ref={pageWrapRef}
+              className="relative inline-block"
+              onClick={handlePageClick}
+            >
+              <Doc.Page
+                pageNumber={pageNumber}
+                renderTextLayer
+                renderAnnotationLayer={false}
+                scale={RENDER_SCALE}
+                onRenderSuccess={handleRenderSuccess}
               />
-            )}
-          </div>
-          </div>
-        </Doc.Document>
-      ) : (
-        <div className="p-6 font-mono text-xs uppercase tracking-[0.14em] text-ink-muted">Loading PDF viewer…</div>
+              {overlay && (
+                <div
+                  aria-hidden
+                  className={`pointer-events-none absolute ${overlay.className}`}
+                  style={overlay.style}
+                />
+              )}
+            </div>
+            </div>
+          </Doc.Document>
+        ) : (
+          <div className="p-6 font-mono text-xs uppercase tracking-[0.14em] text-ink-muted">Loading PDF viewer…</div>
+        )
       )}
     </div>
   );
