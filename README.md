@@ -4,11 +4,11 @@
 
 ### M&A contract review where every verdict links to its Phoenix trace — and every flag is sourced to the clause it came from.
 
-[![Tests](https://img.shields.io/badge/tests-196%20passing-success?style=flat-square)](ma_gatekeeper/tests/)
+[![Tests](https://img.shields.io/badge/tests-571%20passing-success?style=flat-square)](ma_gatekeeper/tests/)
 [![CI](https://img.shields.io/github/actions/workflow/status/Sosolalt/arize/tests.yml?branch=main&style=flat-square&label=CI)](.github/workflows/tests.yml)
 [![Hackathon](https://img.shields.io/badge/Google%20Cloud%20Rapid%20Agent%20Hackathon-Arize%20track-4285F4?style=flat-square&logo=googlecloud&logoColor=white)](https://googlecloudmultiagents.devpost.com/)
 [![Phoenix](https://img.shields.io/badge/observability-Arize%20Phoenix-FF6F00?style=flat-square)](https://arize.com/phoenix/)
-[![Gemini](https://img.shields.io/badge/model-Gemini%203%20Pro-4285F4?style=flat-square&logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![Gemini](https://img.shields.io/badge/model-Gemini%203.5%20Flash%20%2B%203.1%20Pro-4285F4?style=flat-square&logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
 
 </div>
 
@@ -42,29 +42,28 @@ We publish the worst-case number (cluster-bootstrap 95% lower bound, treating co
 
 ```mermaid
 flowchart TD
-    PDF[8-K Exhibit 2.1<br/>uploaded or fetched via EDGAR MCP]
-    Parser[<b>Parser</b><br/>Gemini 3 Pro · Files API<br/>extracts clauses + pdf_bbox]
-    Classifier[<b>Classifier</b><br/>Gemini 3 Flash · ParallelAgent<br/>tags MAC, CoC, anti-assignment, vesting…]
-    CrossRef[<b>Cross-Ref</b><br/>Gemini 3 Pro<br/>resolves definitions ↔ operative clauses]
-    Judge[<b>Risk Judge</b><br/>inline phoenix.evals<br/>hallucination + faithfulness gates]
+    PDF[8-K Exhibit 2.1<br/>uploaded or fetched live from SEC EDGAR]
+    Parser[<b>Parser</b><br/>Gemini 3.5 Flash · Files API<br/>extracts clauses + pdf_bbox]
+    Classifier[<b>Classifier</b><br/>Gemini 3.5 Flash · ParallelAgent<br/>7-way fan-out: MAC, CoC, anti-assignment, vesting, exclusivity, IP-assignment, non-compete]
+    CrossRef[<b>Cross-Ref</b><br/>Gemini 3.5 Flash<br/>resolves definitions ↔ operative clauses]
+    Judge[<b>Risk Judge</b><br/>Gemini 3.5 Flash<br/>emits Risk Findings + verbatim cited spans]
+    Evals[<b>phoenix.evals</b><br/>inline hallucination + faithfulness<br/>scored in the FastAPI server, NOT an ADK stage]
     Router[<b>Router</b><br/>deterministic Python<br/>independent gating, NOT an LLM]
-    Reporter[<b>Reporter</b><br/>Jinja2 template<br/>links every line to source + trace]
 
     Auto[Auto-Clear]
     Esc[Escalate to Lawyer]
     Block[Block — partner sign-off required]
 
-    PDF --> Parser --> Classifier --> CrossRef --> Judge --> Router
+    PDF --> Parser --> Classifier --> CrossRef --> Judge --> Evals --> Router
     Router --> Auto
     Router --> Esc
     Router --> Block
-    Router --> Reporter
 
     subgraph nightly[" Nightly Reflector loop "]
         direction LR
-        Traces[Phoenix MCP<br/>list-traces · get-trace] --> Regressions[Auto-grow<br/>regression dataset]
+        Traces[Phoenix traces<br/>list_traces · phoenix.client<br/>npx MCP opt-in] --> Regressions[Auto-grow<br/>regression dataset]
         Regressions --> Experiment[Run paired<br/>experiment]
-        Experiment --> Gate{Paired-bootstrap CI > 0<br/>AND non-regression<br/>on frozen fold 5?}
+        Experiment --> Gate{Paired-bootstrap CI LB clears 0<br/>AND non-regression<br/>on frozen fold 5?}
         Gate -->|yes| Promote[Promote prompt<br/>via Phoenix versioning]
         Gate -->|no| Reject[Reject — no merge]
     end
@@ -75,12 +74,12 @@ flowchart TD
     classDef agent fill:#0F4A38,stroke:#0B1311,color:#FBFAF5,stroke-width:2px
     classDef lane fill:#1a1a1a,stroke:#B86F3D,color:#FBFAF5
     classDef block fill:#B86F3D,stroke:#0B1311,color:#0B1311,stroke-width:2px
-    class Parser,Classifier,CrossRef,Judge,Router,Reporter agent
+    class Parser,Classifier,CrossRef,Judge,Evals,Router agent
     class Auto,Esc lane
     class Block block
 ```
 
-Seven Arize Phoenix hooks (OpenInference tracing, inline LLM-as-judge, programmatic span annotations, MCP introspection, auto-growing regression dataset, gated prompt promotion, scheduled batch eval). See [`ma_gatekeeper/README.md`](ma_gatekeeper/README.md#seven-arize-hooks-plan-61) for the full table.
+Ten Arize Phoenix hooks (OpenInference tracing, inline LLM-as-judge, programmatic span annotations, trace introspection, auto-growing regression dataset, gated prompt promotion, scheduled batch eval, citation-gold eval, per-call agreement annotation, deterministic-comparator rail). See [`ma_gatekeeper/README.md`](ma_gatekeeper/README.md#ten-arize-hooks-plan-61) for the full table.
 
 ---
 
@@ -145,9 +144,9 @@ We publish `R` and `R_lo` **unmodified regardless**. The math is pinned against 
 ```
 arize_project/
 ├── ma_gatekeeper/              The product
-│   ├── agent/                  9 Python modules (schemas, evaluators, router, ADK topology, Reflector, FastAPI server, …)
-│   ├── scripts/                6 scripts (download_datasets, perturb_contracts, calibrate, annotate, seed_reflector, verify_allow_list)
-│   ├── tests/                  15 test files · 196 pure-Python tests · no live API calls
+│   ├── agent/                  13 Python modules (schemas, evaluators, router, ADK topology, Portfolio Analyst, Reflector, citation linker, FastAPI server, …)
+│   ├── scripts/                21 scripts (download_datasets, perturb_contracts, calibrate, annotate, build/judge_internal30, eval_*, seed_reflector, verify_allow_list, …)
+│   ├── tests/                  32 test files · 571 pure-Python tests · no live API calls
 │   ├── frontend/               Next.js 14 review-pane skeleton (deal picker → SSE findings → react-pdf viewer → trace)
 │   ├── docs/devpost.md         Devpost submission draft (7 sections + scope + disclosures)
 │   ├── Dockerfile              slim · non-root · $PORT-aware
@@ -185,7 +184,7 @@ Built with a multi-expert, review-until-convergence pattern: plan iterated throu
 
 ## Demo scope
 
-The hosted demo presents **five pre-indexed deals** (Microsoft/Activision, Pfizer/Seagen, Cisco/Splunk, ExxonMobil/Pioneer, HPE/Juniper — *pending live EDGAR verification via `scripts/verify_allow_list.py` before D19*). Each is pre-vetted to surface at least one Block-tier finding. The EdgarTools MCP fetches the 8-K Exhibit 2.1 filing **live** at demo time — the artifact is real and could change between runs.
+The hosted demo presents **five pre-indexed deals** (Microsoft/Activision, Pfizer/Seagen, Cisco/Splunk, ExxonMobil/Pioneer, HPE/Juniper — *pending live EDGAR verification via `scripts/verify_allow_list.py` before D19*). Each is pre-vetted to surface at least one Block-tier finding. The `edgartools` library fetches the 8-K Exhibit 2.1 filing **live** from the SEC EDGAR public archive at demo time — the artifact is real and could change between runs.
 
 > **Reflector pre-seeding disclosure**: the production prompt is deliberately seeded weaker 48 hours before demo recording so a single nightly run has interesting edits to propose. The loop logic — paired-bootstrap CI, frozen-fold non-regression, auto-promotion — is unchanged.
 

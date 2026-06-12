@@ -5,8 +5,9 @@ Rapid Agent Hackathon — Arize partner track. Submission deadline:
 **June 11, 2026**.
 
 The agent reads merger agreements and the underlying data-room contracts,
-flags change-of-control / anti-assignment / MAC / accelerated-vesting
-clauses, and routes each finding into one of three lanes (**Auto-Clear**,
+flags clauses across seven families — change-of-control, anti-assignment,
+MAC, accelerated-vesting, exclusivity, IP-assignment and non-compete —
+and routes each finding into one of three lanes (**Auto-Clear**,
 **Escalate to Lawyer**, **Block**). Every decision is traced and judged
 in [Arize Phoenix](https://arize.com/phoenix/), with a nightly Reflector
 agent that grows a regression dataset and runs paired-bootstrap
@@ -23,7 +24,8 @@ review rounds with final scores 9/10 (market, architecture), 9.2/10
 
 ## Architecture (plan §4.2)
 
-The six-stage review pipeline runs end-to-end on **Gemini 3.5 Flash**
+The four-stage ADK review pipeline (Parser → Classifier → CrossReference
+→ RiskJudge) runs end-to-end on **Gemini 3.5 Flash**
 (GA), pinned via `GEMINI_FLASH_MODEL` — it carries the structured
 extract/classify/judge work at the accuracy the eval rail demands
 (held-out Block-recall 1.0) for roughly an order of magnitude less than
@@ -36,18 +38,24 @@ up to Pro without touching code.
 
 ```
 PDF / HTML upload  (Cloud Run FastAPI handler)
+   |
+   v   ADK SequentialAgent "ma_gatekeeper" — 4 LLM stages, all Gemini 3.5 Flash
+Parser           (populates pdf_bbox)
    v
-Parser           (Gemini 3.5 Flash, populates pdf_bbox)
+Classifier       (ParallelAgent: 7-way per-clause-family fan-out)
    v
-Classifier       (ParallelAgent, Gemini 3.5 Flash fan-out)
+CrossReference   (resolves definitions <-> operative)
    v
-CrossReference   (Gemini 3.5 Flash, resolves definitions <-> operative)
+RiskJudge        (emits Risk Findings with verbatim cited spans)
+   |
+   v   per finding, in the FastAPI server (these are NOT ADK stages):
+phoenix.evals    (inline hallucination + clause-faithfulness scoring)
    v
-RiskJudge        (Gemini 3.5 Flash + inline phoenix.evals + span annotation)
+Router           (deterministic Python independent-gating, NOT an LLM;
+                  writes 3 Phoenix span annotations, assigns the lane)
    v
-Router           (deterministic Python, NOT an LLM)
-   v
-Reporter         (Jinja2 template, NOT an LLM)
+SSE stream       (findings + lanes streamed to the Next.js client as JSON;
+                  there is no separate Reporter / template stage)
 
 Portfolio Analyst (separate agent, Gemini 3.1 Pro):
   one ~800k-token call across all 30 demo contracts -> cross-deal
@@ -63,7 +71,7 @@ Reflector (separate Cloud Scheduler cron, Gemini 3.1 Pro):
 1. OpenInference tracing of every ADK call (`openinference-instrumentation-google-adk`).
 2. Inline `phoenix.evals.create_classifier` for hallucination + faithfulness.
 3. Programmatic span annotations via `arize-phoenix-client`.
-4. Phoenix MCP introspection by the Reflector (`list-traces`, `get-trace`, ...).
+4. Phoenix trace introspection by the Reflector (`list_traces`) — in-process via `phoenix.client` by default (`_DirectPhoenixToolset`); the npx `@arizeai/phoenix-mcp` server is opt-in (`REFLECTOR_USE_NPX_MCP=1`).
 5. Auto-growing regression dataset via MCP `add-dataset-examples`.
 6. Prompt versioning + experiment-gated promotion (paired bootstrap CI + frozen fold non-regression).
 7. Hook 7: scheduled batch `run_evals` collapsed into the Reflector nightly cron — equivalent batch coverage to Arize AX Online Eval Tasks (which are SaaS-only).
@@ -258,13 +266,19 @@ in `tests/test_files_api.py`.
 
 ### MCP subprocess shutdown drain (`agent/reflector.py`)
 
-The Reflector's introspection agent spawns an `npx
-@arizeai/phoenix-mcp` child process per cycle. Per-call `try/finally`
-in `_run_introspection_agent_async` aclose()s the toolset on every
-exit — that's the fast path. The shutdown drain is the safety net for
-"process dies between MCPToolset construction and the finally":
-SIGTERM during a `/reflect` cycle, uncaught exception in the executor
-thread, FastAPI lifespan teardown mid-call.
+By default the Reflector's hard-gate reads traces through the in-process
+`_DirectPhoenixToolset` (backed by `phoenix.client`) — **no subprocess**,
+because the `python:3.12-slim` Cloud Run image has no node runtime to
+spawn `npx @arizeai/phoenix-mcp`. The npx stdio MCP server is opt-in via
+`REFLECTOR_USE_NPX_MCP=1`. When that opt-in IS set, the introspection
+agent spawns an `npx @arizeai/phoenix-mcp` child process per cycle, and
+the machinery below reaps it: per-call `try/finally` in
+`_run_introspection_agent_async` aclose()s the toolset on every exit —
+that's the fast path. The shutdown drain is the safety net for "process
+dies between MCPToolset construction and the finally": SIGTERM during a
+`/reflect` cycle, uncaught exception in the executor thread, FastAPI
+lifespan teardown mid-call. (`_DirectPhoenixToolset.close()` is a no-op,
+so the drain is harmless on the default path.)
 
 - Strong-set + `threading.Lock` registry — the same toolset may be
   built from multiple worker threads (Cloud Run worker pool + manual
