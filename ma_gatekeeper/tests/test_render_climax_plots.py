@@ -435,16 +435,16 @@ def test_cited_line_numbers_resolve_to_named_functions():
     """Spec §10 #11 — `inspect.getsourcelines` lines match footer cites.
 
     PROJECT_LOG.md "fabricated SDK signatures" failure pattern: the
-    footer cites `reflector.py:465 paired_bootstrap_ci_lb`,
-    `:507 epsilon_fold5`, `:512 should_promote`. If a future
+    footer cites `reflector.py:625 paired_bootstrap_ci_lb`,
+    `:667 epsilon_fold5`, `:672 should_promote`. If a future
     `agent/reflector.py` refactor moves any of those line numbers, the
     citation on screen becomes a lie. This test catches the silent
     drift.
     """
     expected = {
-        "paired_bootstrap_ci_lb": 465,
-        "epsilon_fold5": 507,
-        "should_promote": 512,
+        "paired_bootstrap_ci_lb": 625,
+        "epsilon_fold5": 667,
+        "should_promote": 672,
     }
     for name, expected_line in expected.items():
         func = getattr(reflector, name)

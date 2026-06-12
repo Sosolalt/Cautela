@@ -4,7 +4,7 @@ Renders the picture-in-picture PNG that docks next to the live Phoenix
 Experiments view during the climax beat of the demo (see
 [demo_script.md L157](../docs/demo_script.md#L157)). Visualizes the
 paired-bootstrap CI promotion gate emitted by `agent.reflector.should_promote`
-([reflector.py:510](../agent/reflector.py#L510)).
+([reflector.py:672](../agent/reflector.py#L672)).
 
 Two panels, one figure:
   - Panel A: paired-bootstrap CI on regression set (gate threshold = LB > 0).
@@ -84,7 +84,7 @@ _LOG = logging.getLogger(__name__)
 # Module constants — input contract + token palette borrows.
 # ---------------------------------------------------------------------------
 
-# Required keys on the input JSON diag (spec §4 / reflector.py:522-529).
+# Required keys on the input JSON diag (spec §4 / reflector.py:714-724).
 REQUIRED_DIAG_KEYS: tuple[str, ...] = (
     "regression_ci_lb",
     "epsilon_fold5",
@@ -410,8 +410,8 @@ def _git_sha_short() -> str:
 def _footer_template(source: str) -> str:
     """Compose the single mono-attribution footer line (spec §8.3).
 
-    The line cites `reflector.py:465 paired_bootstrap_ci_lb`,
-    `:507 epsilon_fold5`, `:512 should_promote`, then a commit SHA,
+    The line cites `reflector.py:625 paired_bootstrap_ci_lb`,
+    `:667 epsilon_fold5`, `:672 should_promote`, then a commit SHA,
     input source, and the live kwarg defaults of the imported reflector
     functions. Single mid-dot separator with single spaces (the spec
     §8.3 example uses a double-space-mid-dot-double-space; at 2560×1440
@@ -426,9 +426,9 @@ def _footer_template(source: str) -> str:
     floor = _kwarg_default(epsilon_fold5, "floor")
     sha = _git_sha_short()
     return (
-        "reflector.py:465 paired_bootstrap_ci_lb | "
-        ":507 epsilon_fold5 | "
-        ":512 should_promote · "
+        "reflector.py:625 paired_bootstrap_ci_lb | "
+        ":667 epsilon_fold5 | "
+        ":672 should_promote · "
         f"commit {sha} · "
         f"input {source} · "
         f"n_resamples={n_resamples}, alpha={alpha}, floor={floor}"

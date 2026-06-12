@@ -243,6 +243,10 @@ def test_make_phoenix_mcp_toolset_registers_in_registry(monkeypatch):
     from agent import reflector
 
     _reset_mcp_registry()
+    # `make_phoenix_mcp_toolset` now defaults to the node-free
+    # `_DirectPhoenixToolset`; opt into the npx MCPToolset path this test
+    # stubs so it still exercises the StdioServerParameters registration.
+    monkeypatch.setenv("REFLECTOR_USE_NPX_MCP", "1")
     monkeypatch.setenv("PHOENIX_MCP_BASE_URL", "http://phoenix.local")
     monkeypatch.setenv("PHOENIX_MCP_API_KEY", "test-key")
 
